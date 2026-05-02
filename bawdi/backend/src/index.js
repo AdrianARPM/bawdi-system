@@ -1,60 +1,64 @@
-// src/index.js
+// src/index.js  — v2
 require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const morgan = require('morgan');
-const rateLimit = require('express-rate-limit');
+const express    = require('express');
+const cors       = require('cors');
+const helmet     = require('helmet');
+const morgan     = require('morgan');
+const rateLimit  = require('express-rate-limit');
 
 const authRoutes        = require('./routes/auth');
 const submissionRoutes  = require('./routes/submissions');
 const messageRoutes     = require('./routes/messages');
 const notifRoutes       = require('./routes/notifications');
 const userRoutes        = require('./routes/users');
+const photoRoutes       = require('./routes/photos');
+const { startScheduler } = require('./utils/notifScheduler');
 
 const app = express();
 
-// ── Security ──────────────────────────────────────────────────────────────
+// ── Security ──────────────────────────────────────────────────────
 app.use(helmet());
 app.use(cors({
-  origin: [
-    process.env.FRONTEND_URL || 'http://localhost:3000',
-    'http://localhost:3000',
-    'http://localhost:5173',
-  ],
+  origin: function (origin, callback) {
+    const allowed = [
+      process.env.FRONTEND_URL,
+      'http://localhost:3000',
+      'http://localhost:5173',
+    ].filter(Boolean);
+    // Izinkan semua subdomain vercel.app (untuk preview deployments)
+    if (!origin || allowed.includes(origin) || /\.vercel\.app$/.test(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
 }));
 
-// ── Rate limiting ─────────────────────────────────────────────────────────
-const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200 });
-const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20,
-  message: { error: 'Terlalu banyak percobaan login. Coba lagi dalam 15 menit.' }
-});
-app.use(limiter);
+// ── Rate limiting ─────────────────────────────────────────────────
+app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 300 }));
+app.use('/api/auth', rateLimit({ windowMs: 15 * 60 * 1000, max: 20 }));
 
-// ── Parsers ───────────────────────────────────────────────────────────────
-app.use(express.json({ limit: '2mb' }));
-app.use(express.urlencoded({ extended: true }));
+// ── Body parser — perbesar limit untuk upload foto base64 ─────────
+app.use(express.json({ limit: '15mb' }));
+app.use(express.urlencoded({ extended: true, limit: '15mb' }));
 app.use(morgan('dev'));
 
-// ── Routes ────────────────────────────────────────────────────────────────
-app.use('/api/auth',          authLimiter, authRoutes);
+// ── Routes ────────────────────────────────────────────────────────
+app.use('/api/auth',          authRoutes);
 app.use('/api/submissions',   submissionRoutes);
 app.use('/api/messages',      messageRoutes);
 app.use('/api/notifications', notifRoutes);
 app.use('/api/users',         userRoutes);
+app.use('/api/photos',        photoRoutes);
 
-// ── Health check ──────────────────────────────────────────────────────────
+// ── Health check ──────────────────────────────────────────────────
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString(), version: '1.0.0' });
+  res.json({ status: 'ok', version: '2.0.0', timestamp: new Date().toISOString() });
 });
 
-// ── 404 handler ───────────────────────────────────────────────────────────
-app.use((req, res) => {
-  res.status(404).json({ error: 'Endpoint tidak ditemukan' });
-});
-
-// ── Error handler ─────────────────────────────────────────────────────────
+// ── Error handlers ────────────────────────────────────────────────
+app.use((req, res) => res.status(404).json({ error: 'Endpoint tidak ditemukan' }));
 app.use((err, req, res, next) => {
   console.error('[ERROR]', err.message);
   res.status(err.status || 500).json({
@@ -62,11 +66,11 @@ app.use((err, req, res, next) => {
   });
 });
 
-// ── Start ─────────────────────────────────────────────────────────────────
+// ── Start ─────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
-  console.log(`\n🚀  BAWDI API berjalan di http://localhost:${PORT}`);
-  console.log(`📋  Environment: ${process.env.NODE_ENV || 'development'}\n`);
+  console.log(`\n🚀  BAWDI API v2 berjalan di http://localhost:${PORT}`);
+  startScheduler(); // Mulai notifikasi scheduler
 });
 
 module.exports = app;
