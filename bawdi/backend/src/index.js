@@ -1,4 +1,4 @@
-// src/index.js  — v2
+// src/index.js  — v3
 require('dotenv').config();
 const express    = require('express');
 const cors       = require('cors');
@@ -12,20 +12,15 @@ const messageRoutes     = require('./routes/messages');
 const notifRoutes       = require('./routes/notifications');
 const userRoutes        = require('./routes/users');
 const photoRoutes       = require('./routes/photos');
+const revisionRoutes    = require('./routes/revisions');
 const { startScheduler } = require('./utils/notifScheduler');
 
 const app = express();
 
-// ── Security ──────────────────────────────────────────────────────
 app.use(helmet());
 app.use(cors({
   origin: function (origin, callback) {
-    const allowed = [
-      process.env.FRONTEND_URL,
-      'http://localhost:3000',
-      'http://localhost:5173',
-    ].filter(Boolean);
-    // Izinkan semua subdomain vercel.app (untuk preview deployments)
+    const allowed = [process.env.FRONTEND_URL, 'http://localhost:3000', 'http://localhost:5173'].filter(Boolean);
     if (!origin || allowed.includes(origin) || /\.vercel\.app$/.test(origin)) {
       callback(null, true);
     } else {
@@ -35,29 +30,23 @@ app.use(cors({
   credentials: true,
 }));
 
-// ── Rate limiting ─────────────────────────────────────────────────
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 300 }));
 app.use('/api/auth', rateLimit({ windowMs: 15 * 60 * 1000, max: 20 }));
-
-// ── Body parser — perbesar limit untuk upload foto base64 ─────────
 app.use(express.json({ limit: '15mb' }));
 app.use(express.urlencoded({ extended: true, limit: '15mb' }));
 app.use(morgan('dev'));
 
-// ── Routes ────────────────────────────────────────────────────────
 app.use('/api/auth',          authRoutes);
 app.use('/api/submissions',   submissionRoutes);
 app.use('/api/messages',      messageRoutes);
 app.use('/api/notifications', notifRoutes);
 app.use('/api/users',         userRoutes);
 app.use('/api/photos',        photoRoutes);
+app.use('/api/revisions',     revisionRoutes);
 
-// ── Health check ──────────────────────────────────────────────────
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', version: '2.0.0', timestamp: new Date().toISOString() });
-});
+app.get('/health', (req, res) =>
+  res.json({ status: 'ok', version: '3.0.0', timestamp: new Date().toISOString() }));
 
-// ── Error handlers ────────────────────────────────────────────────
 app.use((req, res) => res.status(404).json({ error: 'Endpoint tidak ditemukan' }));
 app.use((err, req, res, next) => {
   console.error('[ERROR]', err.message);
@@ -66,11 +55,10 @@ app.use((err, req, res, next) => {
   });
 });
 
-// ── Start ─────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
-  console.log(`\n🚀  BAWDI API v2 berjalan di http://localhost:${PORT}`);
-  startScheduler(); // Mulai notifikasi scheduler
+  console.log(`\n🚀  BAWDI API v3 berjalan di http://localhost:${PORT}`);
+  startScheduler();
 });
 
 module.exports = app;
