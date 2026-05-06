@@ -300,7 +300,7 @@ export async function exportSinglePDF(sub) {
   });
 
   // ── Tabel keterangan ──────────────────────────────────────
-  const lastY1 = (doc as any).lastAutoTable.finalY;
+  const lastY1 = doc.lastAutoTable.finalY;
   autoTable(doc, {
     startY: lastY1 + 4,
     head: [['KETERANGAN', '']],
@@ -318,7 +318,7 @@ export async function exportSinglePDF(sub) {
   // ── Tabel item rincian ────────────────────────────────────
   const items = sub.items || [];
   if (items.length > 0) {
-    const lastY2 = (doc as any).lastAutoTable.finalY;
+    const lastY2 = doc.lastAutoTable.finalY;
     autoTable(doc, {
       startY: lastY2 + 4,
       head: [['No', 'Penjelasan Item', 'Vendor', 'Satuan', 'Harga (Rp)']],
@@ -354,7 +354,7 @@ export async function exportSinglePDF(sub) {
 
   // ── Pembayaran ────────────────────────────────────────────
   if (sub.tanggal_bayar || sub.jumlah_bayar) {
-    const lastY3 = (doc as any).lastAutoTable.finalY;
+    const lastY3 = doc.lastAutoTable.finalY;
     autoTable(doc, {
       startY: lastY3 + 4,
       head: [['PEMBAYARAN', '']],
@@ -372,7 +372,7 @@ export async function exportSinglePDF(sub) {
   }
 
   // ── Tanda tangan ──────────────────────────────────────────
-  const lastY4 = (doc as any).lastAutoTable.finalY;
+  const lastY4 = doc.lastAutoTable.finalY;
   const sigY   = lastY4 + 10;
   const sigW   = (pageW - 28) / 3;
 
