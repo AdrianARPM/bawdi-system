@@ -446,7 +446,7 @@ export default function NewFormPage() {
                     }`}
                   />
                 </Field>
-                {inp('No. NPWP Vendor', form.npwp, v => set('npwp', v), { placeholder: 'XX.XXX.XXX... (opsional)' }, false)}
+                {inp('No. NPWP/KTP Vendor', form.npwp, v => set('npwp', v), { placeholder: 'XX.XXX.XXX... (opsional)' }, false)}
               </div>
               <ItemsForm listKey="items1" total={total1} vendorNum={1} />
             </div>
@@ -498,7 +498,7 @@ export default function NewFormPage() {
                       }`}
                     />
                   </Field>
-                  {inp('No. NPWP Vendor 2', form.npwp2, v => set('npwp2', v), { placeholder: 'Opsional' }, false)}
+                  {inp('No. NPWP/KTP Vendor 2', form.npwp2, v => set('npwp2', v), { placeholder: 'Opsional' }, false)}
                 </div>
                 <ItemsForm listKey="items2" total={total2} vendorNum={2} />
 
