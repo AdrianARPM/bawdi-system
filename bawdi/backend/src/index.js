@@ -1,4 +1,4 @@
-// src/index.js  — v3
+// src/index.js  — v5
 require('dotenv').config();
 const express    = require('express');
 const cors       = require('cors');
@@ -13,6 +13,7 @@ const notifRoutes       = require('./routes/notifications');
 const userRoutes        = require('./routes/users');
 const photoRoutes       = require('./routes/photos');
 const revisionRoutes    = require('./routes/revisions');
+const historyRoutes     = require('./routes/history');   // ← BARU
 const { startScheduler } = require('./utils/notifScheduler');
 
 const app = express();
@@ -20,7 +21,11 @@ const app = express();
 app.use(helmet());
 app.use(cors({
   origin: function (origin, callback) {
-    const allowed = [process.env.FRONTEND_URL, 'http://localhost:3000', 'http://localhost:5173'].filter(Boolean);
+    const allowed = [
+      process.env.FRONTEND_URL,
+      'http://localhost:3000',
+      'http://localhost:5173',
+    ].filter(Boolean);
     if (!origin || allowed.includes(origin) || /\.vercel\.app$/.test(origin)) {
       callback(null, true);
     } else {
@@ -43,21 +48,22 @@ app.use('/api/notifications', notifRoutes);
 app.use('/api/users',         userRoutes);
 app.use('/api/photos',        photoRoutes);
 app.use('/api/revisions',     revisionRoutes);
+app.use('/api/history',       historyRoutes);   // ← BARU
 
 app.get('/health', (req, res) =>
-  res.json({ status: 'ok', version: '3.0.0', timestamp: new Date().toISOString() }));
+  res.json({ status: 'ok', version: '5.0.0', timestamp: new Date().toISOString() }));
 
 app.use((req, res) => res.status(404).json({ error: 'Endpoint tidak ditemukan' }));
 app.use((err, req, res, next) => {
   console.error('[ERROR]', err.message);
   res.status(err.status || 500).json({
-    error: process.env.NODE_ENV === 'production' ? 'Terjadi kesalahan server' : err.message
+    error: process.env.NODE_ENV === 'production' ? 'Terjadi kesalahan server' : err.message,
   });
 });
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
-  console.log(`\n🚀  BAWDI API v3 berjalan di http://localhost:${PORT}`);
+  console.log(`\n🚀  BAWDI API v5 berjalan di http://localhost:${PORT}`);
   startScheduler();
 });
 
