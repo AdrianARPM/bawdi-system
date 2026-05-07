@@ -574,7 +574,7 @@ export default function DetailPage() {
 
           {/* Vendor comparison */}
           <Card padding={false}>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-4 pt-3 pb-2">Perbandingan Vendor</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-4 pt-3 pb-2">Vendor</p>
             <div className={`grid ${sub.vendor2_selected ? 'grid-cols-2' : 'grid-cols-1'} divide-x divide-slate-100`}>
               {[
                 { num: 1, vendor: sub.vendor, npwp: sub.npwp, items: items1, total: total1, color: 'bg-blue-500' },
