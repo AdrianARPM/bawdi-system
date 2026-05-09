@@ -393,7 +393,7 @@ export default function NewFormPage() {
                     placeholder="070" className={inputCls('nomorUrut')}/>
                 </Field>
                 <Field label="Cabang / Project" required error={errors.cabangManual}
-                  hint="Contoh: APLBDO, JAKSEL">
+                  hint="Contoh: APLBDO, APLPKU">
                   <input value={form.cabangManual} onChange={e => set('cabangManual', e.target.value)}
                     placeholder="APLBDO" className={inputCls('cabangManual')}/>
                 </Field>
