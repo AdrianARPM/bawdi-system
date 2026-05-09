@@ -533,11 +533,11 @@ export default function NewFormPage() {
                   <div className="grid grid-cols-2 gap-3">
                     {[['Vendor 1',total1,'blue'],['Vendor 2',total2,'orange']].map(([label,tot,color]) => (
                       <div key={label} className={`p-2.5 rounded-xl text-center border-2 ${
-                        tot<==[total1,total2].find(t=>t!==tot)?'border-emerald-400 bg-emerald-50':'border-slate-200'
+                        tot<=[total1,total2].find(t=>t!==tot)?'border-emerald-400 bg-emerald-50':'border-slate-200'
                       }`}>
                         <p className="text-[10px] text-slate-500 mb-1">{label}</p>
                         <p className={`text-sm font-black ${color==='blue'?'text-blue-600':'text-orange-500'}`}>{fmtCurrency(tot)}</p>
-                        {tot<==[total1,total2].find(t=>t!==tot) && <p className="text-[9px] text-emerald-500 font-bold">✓ Lebih hemat</p>}
+                        {tot<=[total1,total2].find(t=>t!==tot) && <p className="text-[9px] text-emerald-500 font-bold">✓ Lebih hemat</p>}
                       </div>
                     ))}
                   </div>
