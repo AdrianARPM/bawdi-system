@@ -123,9 +123,11 @@ async function create(req, res) {
     const {
       type, kendaraan,
       vendor, npwp, vendor2, npwp2,
+      rekening_tujuan,
       jenis_pembelian, alasan, riwayat,
       batas_waktu_dana, batas_akhir_pembayaran,
-      items  // [{ penjelasan, satuan, harga, vendor_num }]
+      items,           // [{ penjelasan, satuan, harga, vendor_num }]
+      nomor_pengajuan: nomorDariFrontend,  // nomor manual dari user
     } = req.body;
 
     if (!type || !kendaraan || !vendor || !items?.length)
@@ -138,7 +140,23 @@ async function create(req, res) {
     const total2 = items2.reduce((s, i) => s + (Number(i.harga) || 0), 0);
     const total_harga = total1; // default total vendor 1
 
-    const nomor        = await generateNomor(type, req.user.cabang);
+    // Gunakan nomor dari frontend jika ada, fallback ke auto-generate
+    const nomor = nomorDariFrontend?.trim()
+      ? nomorDariFrontend.trim()
+      : await generateNomor(type, req.user.cabang);
+
+    // Cek apakah nomor sudah dipakai (hindari duplicate key error)
+    const { data: existing } = await supabase
+      .from('submissions')
+      .select('id')
+      .eq('nomor_pengajuan', nomor)
+      .maybeSingle();
+    if (existing) {
+      return res.status(400).json({
+        error: `Nomor pengajuan "${nomor}" sudah digunakan. Silakan gunakan nomor urut yang berbeda.`
+      });
+    }
+
     const submissionId = uuidv4();
 
     const { error: subErr } = await supabase.from('submissions').insert({
@@ -149,6 +167,7 @@ async function create(req, res) {
       cabang: req.user.cabang,
       kendaraan,
       vendor, npwp: npwp || '',
+      rekening_tujuan: rekening_tujuan || '',
       vendor2: vendor2 || '', npwp2: npwp2 || '',
       vendor2_selected: !!(vendor2 && vendor2.trim()),
       jenis_pembelian, alasan, riwayat,
