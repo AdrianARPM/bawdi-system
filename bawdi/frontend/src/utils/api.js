@@ -1,15 +1,11 @@
-// src/utils/api.js  — v5
+// src/utils/api.js  — v6
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
-const api = axios.create({
-  baseURL: API_URL,
-  timeout: 30000,
-  headers: { 'Content-Type': 'application/json' },
-});
+const api = axios.create({ baseURL: API_URL, timeout: 30000, headers: { 'Content-Type': 'application/json' } });
 
-api.interceptors.request.use((config) => {
+api.interceptors.request.use(config => {
   const token = localStorage.getItem('bawdi_token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
@@ -17,12 +13,9 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(res => res, err => {
   if (err.response?.status === 401) {
-    localStorage.removeItem('bawdi_token');
-    localStorage.removeItem('bawdi_user');
+    localStorage.removeItem('bawdi_token'); localStorage.removeItem('bawdi_user');
     window.location.href = '/login';
-  } else if (err.response?.status === 403) {
-    toast.error('Anda tidak memiliki izin untuk aksi ini');
-  }
+  } else if (err.response?.status === 403) toast.error('Anda tidak memiliki izin untuk aksi ini');
   return Promise.reject(err);
 });
 
@@ -31,87 +24,71 @@ export const authAPI = {
   getMe: () => api.get('/auth/me'),
   changePassword: d => api.put('/auth/change-password', d),
 };
-
 export const submissionAPI = {
-  list: p => api.get('/submissions', { params: p }),
-  stats: () => api.get('/submissions/stats'),
-  getOne: id => api.get(`/submissions/${id}`),
-  create: d => api.post('/submissions', d),
-  verify: id => api.put(`/submissions/${id}/verify`),
-  approve: id => api.put(`/submissions/${id}/approve`),
-  reject: (id, alasan_tolak) => api.put(`/submissions/${id}/reject`, { alasan_tolak }),
+  list:         p  => api.get('/submissions', { params: p }),
+  stats:        () => api.get('/submissions/stats'),
+  getOne:       id => api.get(`/submissions/${id}`),
+  create:       d  => api.post('/submissions', d),
+  verify:       id => api.put(`/submissions/${id}/verify`),
+  approve:      id => api.put(`/submissions/${id}/approve`),
+  reject:       (id, alasan_tolak) => api.put(`/submissions/${id}/reject`, { alasan_tolak }),
   selectVendor: (id, vendor_pilihan, vendor_pilihan_alasan) =>
     api.put(`/submissions/${id}/select-vendor`, { vendor_pilihan, vendor_pilihan_alasan }),
 };
-
 export const messageAPI = {
-  list: id => api.get(`/messages/${id}`),
-  send: (id, message) => api.post(`/messages/${id}`, { message }),
+  list: id      => api.get(`/messages/${id}`),
+  send: (id, m) => api.post(`/messages/${id}`, { message: m }),
 };
-
 export const notifAPI = {
-  list: () => api.get('/notifications'),
+  list:    () => api.get('/notifications'),
   readAll: () => api.put('/notifications/read-all'),
   readOne: id => api.put(`/notifications/${id}/read`),
 };
-
 export const userAPI = {
-  list: () => api.get('/users'),
-  create: d => api.post('/users', d),
-  toggleActive: id => api.put(`/users/${id}/toggle-active`),
+  list:          () => api.get('/users'),
+  create:        d  => api.post('/users', d),
+  toggleActive:  id => api.put(`/users/${id}/toggle-active`),
   resetPassword: id => api.put(`/users/${id}/reset-password`),
 };
-
 export const photoAPI = {
-  upload: (submissionId, payload) => api.post(`/photos/${submissionId}`, payload),
-  list: id => api.get(`/photos/${id}`),
-  remove: id => api.delete(`/photos/${id}`),
+  upload: (sid, p) => api.post(`/photos/${sid}`, p),
+  list:   sid      => api.get(`/photos/${sid}`),
+  remove: id       => api.delete(`/photos/${id}`),
 };
 
+// ── Revision API v6 ──────────────────────────────────────────────
 export const revisionAPI = {
-  list: id => api.get(`/revisions/${id}`),
-  request: (id, d) => api.post(`/revisions/${id}/request`, d),
-  submit: (id, d) => api.put(`/revisions/${id}/submit`, d),
-  uploadNota: (id, d) => api.post(`/revisions/${id}/nota`, d),
-  listNota: id => api.get(`/revisions/${id}/nota`),
-  recordPayment: (id, d) => api.put(`/revisions/${id}/payment`, d),
-  close: (id, d) => api.put(`/revisions/${id}/close`, d),
-  getDraft: p => api.get('/revisions/draft', { params: p }),
+  // Per submission
+  list:          sid    => api.get(`/revisions/${sid}`),
+  request:       (sid,d)=> api.post(`/revisions/${sid}/request`, d),
+  uploadNota:    (sid,d)=> api.post(`/revisions/${sid}/nota`, d),
+  listNota:      sid    => api.get(`/revisions/${sid}/nota`),
+  recordPayment: (sid,d)=> api.put(`/revisions/${sid}/payment`, d),
+  close:         (sid,d)=> api.put(`/revisions/${sid}/close`, d),
+  getDraft:      p      => api.get('/revisions/draft', { params: p }),
+
+  // Per snapshot revisi
+  editSnapshot:    (snapId, d) => api.put(`/revisions/snapshot/${snapId}`, d),
+  submitSnapshot:  snapId      => api.put(`/revisions/snapshot/${snapId}/submit`),
+  verifySnapshot:  snapId      => api.put(`/revisions/snapshot/${snapId}/verify`),
+  approveSnapshot: snapId      => api.put(`/revisions/snapshot/${snapId}/approve`),
+  rejectSnapshot:  (snapId, d) => api.put(`/revisions/snapshot/${snapId}/reject`, d),
 };
 
-// ── History API ───────────────────────────────────────────────────
 export const historyAPI = {
-  /**
-   * Cari riwayat pengajuan dari kendaraan + keyword item
-   * @param {string} kendaraan - plat nomor
-   * @param {string} keyword   - kata kunci (ban, oli, rem, dll)
-   * @param {number} limit     - jumlah hasil
-   */
   getVehicleHistory: (kendaraan, keyword, limit = 5) =>
     api.get('/history/vehicle', { params: { kendaraan, keyword, limit } }),
 };
 
-// ── Offline queue ─────────────────────────────────────────────────
 const QUEUE_KEY = 'bawdi_offline_queue';
 export const offlineQueue = {
-  add(s) {
-    const q = this.getAll();
-    q.push({ ...s, _offlineId: Date.now() });
-    localStorage.setItem(QUEUE_KEY, JSON.stringify(q));
-  },
-  getAll() {
-    try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); } catch { return []; }
-  },
-  remove(id) {
-    localStorage.setItem(QUEUE_KEY, JSON.stringify(this.getAll().filter(i => i._offlineId !== id)));
-  },
+  add(s) { const q = this.getAll(); q.push({ ...s, _offlineId: Date.now() }); localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); },
+  getAll() { try { return JSON.parse(localStorage.getItem(QUEUE_KEY)||'[]'); } catch { return []; } },
+  remove(id) { localStorage.setItem(QUEUE_KEY, JSON.stringify(this.getAll().filter(i=>i._offlineId!==id))); },
   async sync() {
-    const q = this.getAll();
-    if (!q.length || !navigator.onLine) return;
+    const q = this.getAll(); if (!q.length || !navigator.onLine) return;
     let n = 0;
-    for (const item of q) {
-      try { await submissionAPI.create(item); this.remove(item._offlineId); n++; } catch {}
-    }
+    for (const item of q) { try { await submissionAPI.create(item); this.remove(item._offlineId); n++; } catch {} }
     if (n > 0) toast.success(`${n} pengajuan offline disinkronkan!`);
   },
 };
