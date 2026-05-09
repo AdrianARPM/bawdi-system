@@ -1,40 +1,32 @@
-// src/index.js  — v5
+// src/index.js  — v6
 require('dotenv').config();
-const express    = require('express');
-const cors       = require('cors');
-const helmet     = require('helmet');
-const morgan     = require('morgan');
-const rateLimit  = require('express-rate-limit');
+const express   = require('express');
+const cors      = require('cors');
+const helmet    = require('helmet');
+const morgan    = require('morgan');
+const rateLimit = require('express-rate-limit');
 
-const authRoutes        = require('./routes/auth');
-const submissionRoutes  = require('./routes/submissions');
-const messageRoutes     = require('./routes/messages');
-const notifRoutes       = require('./routes/notifications');
-const userRoutes        = require('./routes/users');
-const photoRoutes       = require('./routes/photos');
-const revisionRoutes    = require('./routes/revisions');
-const historyRoutes     = require('./routes/history');   // ← BARU
+const authRoutes      = require('./routes/auth');
+const submissionRoutes = require('./routes/submissions');
+const messageRoutes   = require('./routes/messages');
+const notifRoutes     = require('./routes/notifications');
+const userRoutes      = require('./routes/users');
+const photoRoutes     = require('./routes/photos');
+const revisionRoutes  = require('./routes/revisions');
+const historyRoutes   = require('./routes/history');
 const { startScheduler } = require('./utils/notifScheduler');
 
 const app = express();
 
 app.use(helmet());
 app.use(cors({
-  origin: function (origin, callback) {
-    const allowed = [
-      process.env.FRONTEND_URL,
-      'http://localhost:3000',
-      'http://localhost:5173',
-    ].filter(Boolean);
-    if (!origin || allowed.includes(origin) || /\.vercel\.app$/.test(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
+  origin(origin, cb) {
+    const ok = [process.env.FRONTEND_URL, 'http://localhost:3000', 'http://localhost:5173'].filter(Boolean);
+    if (!origin || ok.includes(origin) || /\.vercel\.app$/.test(origin)) cb(null, true);
+    else cb(new Error('Not allowed by CORS'));
   },
   credentials: true,
 }));
-
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 300 }));
 app.use('/api/auth', rateLimit({ windowMs: 15 * 60 * 1000, max: 20 }));
 app.use(express.json({ limit: '15mb' }));
@@ -48,10 +40,10 @@ app.use('/api/notifications', notifRoutes);
 app.use('/api/users',         userRoutes);
 app.use('/api/photos',        photoRoutes);
 app.use('/api/revisions',     revisionRoutes);
-app.use('/api/history',       historyRoutes);   // ← BARU
+app.use('/api/history',       historyRoutes);
 
-app.get('/health', (req, res) =>
-  res.json({ status: 'ok', version: '5.0.0', timestamp: new Date().toISOString() }));
+app.get('/health', (_, res) =>
+  res.json({ status: 'ok', version: '6.0.0', timestamp: new Date().toISOString() }));
 
 app.use((req, res) => res.status(404).json({ error: 'Endpoint tidak ditemukan' }));
 app.use((err, req, res, next) => {
@@ -63,8 +55,7 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
-  console.log(`\n🚀  BAWDI API v5 berjalan di http://localhost:${PORT}`);
+  console.log(`\n🚀  BAWDI API v6 — http://localhost:${PORT}`);
   startScheduler();
 });
-
 module.exports = app;
