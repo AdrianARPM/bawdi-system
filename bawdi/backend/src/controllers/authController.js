@@ -1,27 +1,29 @@
-// src/controllers/authController.js  — v7 (login pakai email)
+// src/controllers/authController.js  — FIXED
+// Login pakai NIK (bukan email) — email hanya untuk notifikasi
 const supabase = require('../../config/supabase');
 const bcrypt   = require('bcryptjs');
 const jwt      = require('jsonwebtoken');
 
-const JWT_SECRET  = process.env.JWT_SECRET || 'bawdi_secret_2024';
-const JWT_EXPIRES = process.env.JWT_EXPIRES || '7d';
+const JWT_SECRET  = process.env.JWT_SECRET  || 'bawdi_secret_2024';
+const JWT_EXPIRES = process.env.JWT_EXPIRES || process.env.JWT_EXPIRES_IN || '7d';
+//                                             ↑ fix: coba kedua variable name
 
 // ── POST /api/auth/login ──────────────────────────────────────────
 async function login(req, res) {
   try {
-    const { email, password } = req.body;
-    if (!email?.trim() || !password)
-      return res.status(400).json({ error: 'Email dan password wajib diisi' });
+    const { nik, password } = req.body;
+    if (!nik?.trim() || !password)
+      return res.status(400).json({ error: 'NIK dan password wajib diisi' });
 
-    // Cari user berdasarkan email
+    // Cari user berdasarkan NIK
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, nik, name, email, role, jabatan, cabang, avatar_initials, is_active, password_hash')
-      .eq('email', email.trim().toLowerCase())
+      .select('id, nik, name, email, role, jabatan, cabang, avatar_initials, is_active, password_hash, email_notif')
+      .eq('nik', nik.trim())
       .single();
 
     if (error || !user)
-      return res.status(401).json({ error: 'Email atau password salah' });
+      return res.status(401).json({ error: 'NIK atau password salah' });
 
     if (!user.is_active)
       return res.status(403).json({ error: 'Akun Anda tidak aktif. Hubungi Admin.' });
@@ -29,11 +31,11 @@ async function login(req, res) {
     // Verifikasi password
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid)
-      return res.status(401).json({ error: 'Email atau password salah' });
+      return res.status(401).json({ error: 'NIK atau password salah' });
 
-    // Buat JWT
+    // Buat JWT token
     const token = jwt.sign(
-      { id: user.id, role: user.role, email: user.email },
+      { id: user.id, role: user.role, nik: user.nik },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES }
     );
@@ -54,7 +56,6 @@ async function getMe(req, res) {
       .select('id, nik, name, email, role, jabatan, cabang, avatar_initials, is_active, email_notif')
       .eq('id', req.user.id)
       .single();
-
     if (error || !user) return res.status(404).json({ error: 'User tidak ditemukan' });
     res.json({ user });
   } catch (err) {
@@ -79,7 +80,6 @@ async function changePassword(req, res) {
 
     const newHash = await bcrypt.hash(new_password, 12);
     await supabase.from('users').update({ password_hash: newHash }).eq('id', req.user.id);
-
     res.json({ message: 'Password berhasil diubah' });
   } catch (err) {
     res.status(500).json({ error: 'Terjadi kesalahan server' });
@@ -87,7 +87,6 @@ async function changePassword(req, res) {
 }
 
 // ── PUT /api/auth/email-notif ─────────────────────────────────────
-// Toggle notifikasi email
 async function toggleEmailNotif(req, res) {
   try {
     const { email_notif } = req.body;
