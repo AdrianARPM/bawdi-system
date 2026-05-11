@@ -254,22 +254,15 @@ async function submitRevision(req, res) {
       .update({ status: 'submitted' })
       .eq('id', req.params.snapshotId);
 
-    // Sinkronisasi data utama submission dari snapshot
+    // Update STATUS saja — data asli (alasan, riwayat, vendor, items)
+    // TIDAK disinkronkan agar tab Pengajuan Asli tetap menampilkan data original
     await supabase.from('submissions').update({
-      status:           'Menunggu Verifikasi',
-      verifikator_id:   null,
-      verifikasi_at:    null,
-      approver_id:      null,
-      approval_at:      null,
+      status:            'Menunggu Verifikasi',
+      verifikator_id:    null,
+      verifikasi_at:     null,
+      approver_id:       null,
+      approval_at:       null,
       revisi_selesai_at: now,
-      alasan:            snap.alasan,
-      riwayat:           snap.riwayat,
-      vendor:            snap.vendor,
-      npwp:              snap.npwp,
-      vendor2:           snap.vendor2,
-      npwp2:             snap.npwp2,
-      rekening_tujuan:   snap.rekening_tujuan,
-      total_harga:       snap.total_harga,
     }).eq('id', snap.submission_id);
 
     // Ambil data submission untuk notifikasi
@@ -357,19 +350,14 @@ async function approveRevision(req, res) {
       status: 'disetujui', approver_id: req.user.id, approval_at: now,
     }).eq('id', req.params.snapshotId);
 
-    // Sync items submission dari snapshot yang disetujui
-    await supabase.from('submission_items').delete().eq('submission_id', snap.submission_id);
-    if (snap.items?.length) {
-      await supabase.from('submission_items').insert(snap.items.map(item => ({
-        id: uuidv4(), submission_id: snap.submission_id,
-        penjelasan: item.penjelasan, satuan: item.satuan,
-        harga: item.harga, total: item.total,
-        vendor_num: item.vendor_num, urutan: item.urutan,
-      })));
-    }
-
+    // Hanya update STATUS dan total_harga (untuk tracking pembayaran)
+    // Data asli (submission_items, alasan, vendor, dll) TIDAK diubah
+    // agar tab Pengajuan Asli selalu menampilkan data original pengajuan pertama
     await supabase.from('submissions').update({
-      status: 'Disetujui', approver_id: req.user.id, approval_at: now,
+      status:      'Disetujui',
+      approver_id: req.user.id,
+      approval_at: now,
+      total_harga: snap.total_harga,  // update total untuk tracking pembayaran
     }).eq('id', snap.submission_id);
 
     const { data: sub } = await supabase
