@@ -626,22 +626,23 @@ export default function DetailPage() {
     setExporting(true);
     try {
       toast.loading('Membuat PDF...', { id: 'pdf' });
-      // Gunakan revisi terakhir yang disetujui jika ada
+      // Gunakan revisi terakhir yang sudah dikirim (submitted/terverifikasi/disetujui)
+      // Items HARUS dari snapshot revisi karena submission_items baru disync saat approve
       const lastRevision = [...revisions].reverse().find(r =>
-      ['submitted', 'terverifikasi', 'disetujui'].includes(r.status)
+        ['submitted', 'terverifikasi', 'disetujui'].includes(r.status)
       );
-      const exportData = lastApproved ? {
+      const exportData = lastRevision ? {
         ...sub,
-        alasan:           lastApproved.alasan,
-        riwayat:          lastApproved.riwayat,
-        vendor:           lastApproved.vendor,
-        npwp:             lastApproved.npwp,
-        vendor2:          lastApproved.vendor2,
-        rekening_tujuan:  lastApproved.rekening_tujuan,
-        total_harga:      lastApproved.total_harga,
-        items:            lastApproved.items,
+        alasan:           lastRevision.alasan,
+        riwayat:          lastRevision.riwayat,
+        vendor:           lastRevision.vendor,
+        npwp:             lastRevision.npwp,
+        vendor2:          lastRevision.vendor2,
+        rekening_tujuan:  lastRevision.rekening_tujuan,
+        total_harga:      lastRevision.total_harga,
+        items:            lastRevision.items,   // ← items dari snapshot, bukan submission_items
         _isRevision:      true,
-        _revisionNumber:  lastApproved.revision_number,
+        _revisionNumber:  lastRevision.revision_number,
       } : sub;
       await exportSinglePDF(exportData);
       toast.success('PDF berhasil dibuat!', { id: 'pdf' });
