@@ -627,7 +627,9 @@ export default function DetailPage() {
     try {
       toast.loading('Membuat PDF...', { id: 'pdf' });
       // Gunakan revisi terakhir yang disetujui jika ada
-      const lastApproved = [...revisions].reverse().find(r => r.status === 'disetujui');
+      const lastRevision = [...revisions].reverse().find(r =>
+      ['submitted', 'terverifikasi', 'disetujui'].includes(r.status)
+      );
       const exportData = lastApproved ? {
         ...sub,
         alasan:           lastApproved.alasan,
