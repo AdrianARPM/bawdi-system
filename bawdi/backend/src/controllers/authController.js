@@ -1,84 +1,57 @@
-// src/controllers/authController.js
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
+// src/controllers/authController.js  — v7 (login pakai email)
 const supabase = require('../../config/supabase');
+const bcrypt   = require('bcryptjs');
+const jwt      = require('jsonwebtoken');
 
-/**
- * POST /api/auth/login
- * Body: { nik, password }
- * Password default = NIK itu sendiri (admin wajib ganti setelah pertama login)
- */
+const JWT_SECRET  = process.env.JWT_SECRET || 'bawdi_secret_2024';
+const JWT_EXPIRES = process.env.JWT_EXPIRES || '7d';
+
+// ── POST /api/auth/login ──────────────────────────────────────────
 async function login(req, res) {
   try {
-    const { nik, password } = req.body;
-    if (!nik || !password) {
-      return res.status(400).json({ error: 'NIK dan password wajib diisi' });
-    }
+    const { email, password } = req.body;
+    if (!email?.trim() || !password)
+      return res.status(400).json({ error: 'Email dan password wajib diisi' });
 
-    // Ambil user berdasarkan NIK
+    // Cari user berdasarkan email
     const { data: user, error } = await supabase
       .from('users')
-      .select('*')
-      .eq('nik', nik.trim())
+      .select('id, nik, name, email, role, jabatan, cabang, avatar_initials, is_active, password_hash')
+      .eq('email', email.trim().toLowerCase())
       .single();
 
-    if (error || !user) {
-      return res.status(401).json({ error: 'NIK tidak ditemukan dalam sistem' });
-    }
+    if (error || !user)
+      return res.status(401).json({ error: 'Email atau password salah' });
 
-    if (!user.is_active) {
-      return res.status(403).json({ error: 'Akun Anda telah dinonaktifkan. Hubungi Admin.' });
-    }
+    if (!user.is_active)
+      return res.status(403).json({ error: 'Akun Anda tidak aktif. Hubungi Admin.' });
 
     // Verifikasi password
     const valid = await bcrypt.compare(password, user.password_hash);
-    if (!valid) {
-      return res.status(401).json({ error: 'Password salah' });
-    }
+    if (!valid)
+      return res.status(401).json({ error: 'Email atau password salah' });
 
-    // Update last login
-    await supabase.from('users').update({ last_login: new Date().toISOString() }).eq('id', user.id);
+    // Buat JWT
+    const token = jwt.sign(
+      { id: user.id, role: user.role, email: user.email },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES }
+    );
 
-    // Generate JWT
-    const payload = {
-      id: user.id,
-      nik: user.nik,
-      name: user.name,
-      role: user.role,
-      jabatan: user.jabatan,
-      cabang: user.cabang,
-      avatar: user.avatar_initials,
-    };
-    const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '7d' });
-
-    res.json({
-      token,
-      user: {
-        id: user.id,
-        nik: user.nik,
-        name: user.name,
-        role: user.role,
-        jabatan: user.jabatan,
-        cabang: user.cabang,
-        avatar: user.avatar_initials,
-        mustChangePassword: user.must_change_password,
-      }
-    });
+    const { password_hash, ...userClean } = user;
+    res.json({ token, user: userClean });
   } catch (err) {
     console.error('[auth/login]', err);
     res.status(500).json({ error: 'Terjadi kesalahan server' });
   }
 }
 
-/**
- * GET /api/auth/me
- * Mengembalikan profil user yang sedang login
- */
+// ── GET /api/auth/me ──────────────────────────────────────────────
 async function getMe(req, res) {
   try {
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, nik, name, role, jabatan, cabang, avatar_initials, last_login, must_change_password')
+      .select('id, nik, name, email, role, jabatan, cabang, avatar_initials, is_active, email_notif')
       .eq('id', req.user.id)
       .single();
 
@@ -89,23 +62,23 @@ async function getMe(req, res) {
   }
 }
 
-/**
- * PUT /api/auth/change-password
- * Body: { oldPassword, newPassword }
- */
+// ── PUT /api/auth/change-password ─────────────────────────────────
 async function changePassword(req, res) {
   try {
-    const { oldPassword, newPassword } = req.body;
-    if (!oldPassword || !newPassword || newPassword.length < 6) {
+    const { old_password, new_password } = req.body;
+    if (!old_password || !new_password)
+      return res.status(400).json({ error: 'Password lama dan baru wajib diisi' });
+    if (new_password.length < 6)
       return res.status(400).json({ error: 'Password baru minimal 6 karakter' });
-    }
 
-    const { data: user } = await supabase.from('users').select('password_hash').eq('id', req.user.id).single();
-    const valid = await bcrypt.compare(oldPassword, user.password_hash);
+    const { data: user } = await supabase
+      .from('users').select('password_hash').eq('id', req.user.id).single();
+
+    const valid = await bcrypt.compare(old_password, user.password_hash);
     if (!valid) return res.status(401).json({ error: 'Password lama salah' });
 
-    const newHash = await bcrypt.hash(newPassword, 12);
-    await supabase.from('users').update({ password_hash: newHash, must_change_password: false }).eq('id', req.user.id);
+    const newHash = await bcrypt.hash(new_password, 12);
+    await supabase.from('users').update({ password_hash: newHash }).eq('id', req.user.id);
 
     res.json({ message: 'Password berhasil diubah' });
   } catch (err) {
@@ -113,4 +86,18 @@ async function changePassword(req, res) {
   }
 }
 
-module.exports = { login, getMe, changePassword };
+// ── PUT /api/auth/email-notif ─────────────────────────────────────
+// Toggle notifikasi email
+async function toggleEmailNotif(req, res) {
+  try {
+    const { email_notif } = req.body;
+    await supabase.from('users')
+      .update({ email_notif: !!email_notif })
+      .eq('id', req.user.id);
+    res.json({ message: `Notifikasi email ${email_notif ? 'diaktifkan' : 'dinonaktifkan'}` });
+  } catch (err) {
+    res.status(500).json({ error: 'Terjadi kesalahan server' });
+  }
+}
+
+module.exports = { login, getMe, changePassword, toggleEmailNotif };
