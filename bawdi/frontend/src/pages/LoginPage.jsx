@@ -1,7 +1,7 @@
-// src/pages/LoginPage.jsx  — v7 (login pakai email)
+// src/pages/LoginPage.jsx  — FIXED (login pakai NIK)
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, Truck, Eye, EyeOff } from 'lucide-react';
+import { Hash, Lock, Truck, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { authAPI } from '../utils/api';
 import useAuthStore from '../context/authStore';
@@ -9,17 +9,17 @@ import useAuthStore from '../context/authStore';
 export default function LoginPage() {
   const { setUser } = useAuthStore();
   const navigate    = useNavigate();
-  const [email,     setEmail]    = useState('');
-  const [password,  setPassword] = useState('');
-  const [showPass,  setShowPass] = useState(false);
-  const [loading,   setLoading]  = useState(false);
+  const [nik,      setNik]      = useState('');
+  const [password, setPassword] = useState('');
+  const [showPass, setShowPass] = useState(false);
+  const [loading,  setLoading]  = useState(false);
 
   const submit = async (e) => {
     e.preventDefault();
-    if (!email.trim() || !password) { toast.error('Email dan password wajib diisi'); return; }
+    if (!nik.trim() || !password) { toast.error('NIK dan password wajib diisi'); return; }
     setLoading(true);
     try {
-      const { data } = await authAPI.login({ email: email.trim().toLowerCase(), password });
+      const { data } = await authAPI.login({ nik: nik.trim(), password });
       localStorage.setItem('bawdi_token', data.token);
       localStorage.setItem('bawdi_user',  JSON.stringify(data.user));
       setUser(data.user);
@@ -46,17 +46,17 @@ export default function LoginPage() {
 
         {/* Form */}
         <form onSubmit={submit} className="space-y-4">
-          {/* Email */}
+          {/* NIK */}
           <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-1.5">Email</label>
+            <label className="block text-xs font-semibold text-slate-400 mb-1.5">NIK</label>
             <div className="relative">
-              <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500"/>
+              <Hash size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500"/>
               <input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="nama@bawdi.co.id"
-                autoComplete="email"
+                type="text"
+                value={nik}
+                onChange={e => setNik(e.target.value)}
+                placeholder="Masukkan NIK Anda"
+                autoComplete="username"
                 className="w-full pl-10 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 placeholder:text-slate-600 transition-all"
               />
             </div>
@@ -75,7 +75,9 @@ export default function LoginPage() {
                 autoComplete="current-password"
                 className="w-full pl-10 pr-11 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 placeholder:text-slate-600 transition-all"
               />
-              <button type="button" onClick={() => setShowPass(s => !s)}
+              <button
+                type="button"
+                onClick={() => setShowPass(s => !s)}
                 className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
                 {showPass ? <EyeOff size={15}/> : <Eye size={15}/>}
               </button>
@@ -83,7 +85,9 @@ export default function LoginPage() {
           </div>
 
           {/* Submit */}
-          <button type="submit" disabled={loading}
+          <button
+            type="submit"
+            disabled={loading}
             className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-white font-bold text-sm transition-all shadow-lg shadow-amber-500/20 mt-2">
             {loading ? (
               <span className="flex items-center justify-center gap-2">
