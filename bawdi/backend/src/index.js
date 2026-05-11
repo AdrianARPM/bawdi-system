@@ -1,4 +1,4 @@
-// src/index.js  — v6
+// src/index.js  — v7 FIXED
 require('dotenv').config();
 const express   = require('express');
 const cors      = require('cors');
@@ -6,18 +6,19 @@ const helmet    = require('helmet');
 const morgan    = require('morgan');
 const rateLimit = require('express-rate-limit');
 
-const authRoutes      = require('./routes/auth');
+const authRoutes       = require('./routes/auth');
 const submissionRoutes = require('./routes/submissions');
-const messageRoutes   = require('./routes/messages');
-const notifRoutes     = require('./routes/notifications');
-const userRoutes      = require('./routes/users');
-const photoRoutes     = require('./routes/photos');
-const revisionRoutes  = require('./routes/revisions');
-const historyRoutes   = require('./routes/history');
+const messageRoutes    = require('./routes/messages');
+const notifRoutes      = require('./routes/notifications');
+const userRoutes       = require('./routes/users');
+const photoRoutes      = require('./routes/photos');
+const revisionRoutes   = require('./routes/revisions');
+const historyRoutes    = require('./routes/history');
 const { startScheduler } = require('./utils/notifScheduler');
 
 const app = express();
-app.set('trust proxy', 1);
+
+app.set('trust proxy', 1);  // wajib untuk Railway (proxy)
 app.use(helmet());
 app.use(cors({
   origin(origin, cb) {
@@ -42,8 +43,9 @@ app.use('/api/photos',        photoRoutes);
 app.use('/api/revisions',     revisionRoutes);
 app.use('/api/history',       historyRoutes);
 
+// Health check — verifikasi versi yang sedang berjalan
 app.get('/health', (_, res) =>
-  res.json({ status: 'ok', version: '6.0.0', timestamp: new Date().toISOString() }));
+  res.json({ status: 'ok', version: '7.0.0', timestamp: new Date().toISOString() }));
 
 app.use((req, res) => res.status(404).json({ error: 'Endpoint tidak ditemukan' }));
 app.use((err, req, res, next) => {
@@ -55,7 +57,7 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
-  console.log(`\n🚀  BAWDI API v6 — http://localhost:${PORT}`);
+  console.log(`\n🚀  BAWDI API v7 — http://localhost:${PORT}`);
   startScheduler();
 });
 module.exports = app;
