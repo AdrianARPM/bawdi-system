@@ -1,4 +1,4 @@
-// src/utils/api.js  — v6
+// src/utils/api.js  — v7
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
@@ -15,14 +15,17 @@ api.interceptors.response.use(res => res, err => {
   if (err.response?.status === 401) {
     localStorage.removeItem('bawdi_token'); localStorage.removeItem('bawdi_user');
     window.location.href = '/login';
-  } else if (err.response?.status === 403) toast.error('Anda tidak memiliki izin untuk aksi ini');
+  } else if (err.response?.status === 403) {
+    toast.error('Anda tidak memiliki izin untuk aksi ini');
+  }
   return Promise.reject(err);
 });
 
 export const authAPI = {
-  login: d => api.post('/auth/login', d),
-  getMe: () => api.get('/auth/me'),
-  changePassword: d => api.put('/auth/change-password', d),
+  login:            d  => api.post('/auth/login', d),         // email + password
+  getMe:            () => api.get('/auth/me'),
+  changePassword:   d  => api.put('/auth/change-password', d),
+  toggleEmailNotif: d  => api.put('/auth/email-notif', d),    // toggle email notif
 };
 export const submissionAPI = {
   list:         p  => api.get('/submissions', { params: p }),
@@ -55,10 +58,7 @@ export const photoAPI = {
   list:   sid      => api.get(`/photos/${sid}`),
   remove: id       => api.delete(`/photos/${id}`),
 };
-
-// ── Revision API v6 ──────────────────────────────────────────────
 export const revisionAPI = {
-  // Per submission
   list:          sid    => api.get(`/revisions/${sid}`),
   request:       (sid,d)=> api.post(`/revisions/${sid}/request`, d),
   uploadNota:    (sid,d)=> api.post(`/revisions/${sid}/nota`, d),
@@ -66,15 +66,12 @@ export const revisionAPI = {
   recordPayment: (sid,d)=> api.put(`/revisions/${sid}/payment`, d),
   close:         (sid,d)=> api.put(`/revisions/${sid}/close`, d),
   getDraft:      p      => api.get('/revisions/draft', { params: p }),
-
-  // Per snapshot revisi
-  editSnapshot:    (snapId, d) => api.put(`/revisions/snapshot/${snapId}`, d),
-  submitSnapshot:  snapId      => api.put(`/revisions/snapshot/${snapId}/submit`),
-  verifySnapshot:  snapId      => api.put(`/revisions/snapshot/${snapId}/verify`),
-  approveSnapshot: snapId      => api.put(`/revisions/snapshot/${snapId}/approve`),
-  rejectSnapshot:  (snapId, d) => api.put(`/revisions/snapshot/${snapId}/reject`, d),
+  editSnapshot:    (snapId,d)=> api.put(`/revisions/snapshot/${snapId}`, d),
+  submitSnapshot:  snapId    => api.put(`/revisions/snapshot/${snapId}/submit`),
+  verifySnapshot:  snapId    => api.put(`/revisions/snapshot/${snapId}/verify`),
+  approveSnapshot: snapId    => api.put(`/revisions/snapshot/${snapId}/approve`),
+  rejectSnapshot:  (snapId,d)=> api.put(`/revisions/snapshot/${snapId}/reject`, d),
 };
-
 export const historyAPI = {
   getVehicleHistory: (kendaraan, keyword, limit = 5) =>
     api.get('/history/vehicle', { params: { kendaraan, keyword, limit } }),
@@ -82,15 +79,14 @@ export const historyAPI = {
 
 const QUEUE_KEY = 'bawdi_offline_queue';
 export const offlineQueue = {
-  add(s) { const q = this.getAll(); q.push({ ...s, _offlineId: Date.now() }); localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); },
-  getAll() { try { return JSON.parse(localStorage.getItem(QUEUE_KEY)||'[]'); } catch { return []; } },
-  remove(id) { localStorage.setItem(QUEUE_KEY, JSON.stringify(this.getAll().filter(i=>i._offlineId!==id))); },
+  add(s) { const q=this.getAll(); q.push({...s,_offlineId:Date.now()}); localStorage.setItem(QUEUE_KEY,JSON.stringify(q)); },
+  getAll() { try{return JSON.parse(localStorage.getItem(QUEUE_KEY)||'[]');}catch{return [];} },
+  remove(id) { localStorage.setItem(QUEUE_KEY,JSON.stringify(this.getAll().filter(i=>i._offlineId!==id))); },
   async sync() {
-    const q = this.getAll(); if (!q.length || !navigator.onLine) return;
-    let n = 0;
-    for (const item of q) { try { await submissionAPI.create(item); this.remove(item._offlineId); n++; } catch {} }
-    if (n > 0) toast.success(`${n} pengajuan offline disinkronkan!`);
+    const q=this.getAll(); if(!q.length||!navigator.onLine) return;
+    let n=0; for(const item of q){try{await submissionAPI.create(item);this.remove(item._offlineId);n++;}catch{}}
+    if(n>0) toast.success(`${n} pengajuan offline disinkronkan!`);
   },
 };
-window.addEventListener('online', () => offlineQueue.sync());
+window.addEventListener('online',()=>offlineQueue.sync());
 export default api;
