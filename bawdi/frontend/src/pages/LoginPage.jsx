@@ -1,14 +1,13 @@
-// src/pages/LoginPage.jsx  — FIXED (login pakai NIK)
+// src/pages/LoginPage.jsx  — FIXED: gunakan authStore.login() bukan setUser
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Hash, Lock, Truck, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { authAPI } from '../utils/api';
 import useAuthStore from '../context/authStore';
 
 export default function LoginPage() {
-  const { setUser } = useAuthStore();
-  const navigate    = useNavigate();
+  const { login }  = useAuthStore();   // ← pakai login dari authStore, bukan setUser
+  const navigate   = useNavigate();
   const [nik,      setNik]      = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
@@ -18,15 +17,14 @@ export default function LoginPage() {
     e.preventDefault();
     if (!nik.trim() || !password) { toast.error('NIK dan password wajib diisi'); return; }
     setLoading(true);
-    try {
-      const { data } = await authAPI.login({ nik: nik.trim(), password });
-      localStorage.setItem('bawdi_token', data.token);
-      localStorage.setItem('bawdi_user',  JSON.stringify(data.user));
-      setUser(data.user);
-      toast.success(`Selamat datang, ${data.user.name}!`);
+
+    const result = await login(nik.trim(), password);  // ← authStore.login sudah handle semuanya
+
+    if (result.ok) {
+      toast.success('Selamat datang!');
       navigate('/');
-    } catch (err) {
-      toast.error(err.response?.data?.error || 'Login gagal');
+    } else {
+      toast.error(result.error || 'Login gagal');
     }
     setLoading(false);
   };
