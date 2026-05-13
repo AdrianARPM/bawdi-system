@@ -118,7 +118,7 @@ export default function Layout() {
           </button>
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-md bg-amber-500 flex items-center justify-center">
-              <Truck size={12} className="text-white"/>
+              <img src="/Logo.jpg" alt="BAWDI" className="h-6 w-auto"/>
             </div>
             <span className="font-extrabold text-slate-800 text-sm">BAWDI</span>
           </div>
