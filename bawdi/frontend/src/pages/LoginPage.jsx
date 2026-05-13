@@ -33,14 +33,16 @@ export default function LoginPage() {
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-amber-500 mb-4 shadow-lg shadow-amber-500/30">
-            <Truck size={28} className="text-white"/>
+         {/* Logo BAWDI */}
+          <div className="text-center mb-8">
+            <img
+              src="/Logo.jpg"
+              alt="BAWDI Logo"
+              className="w-40 mx-auto mb-4 drop-shadow-lg"
+            />
+            <p className="text-slate-400 text-sm mt-1">PT. Bantu Kawal Distribusi</p>
+            <p className="text-slate-500 text-xs mt-0.5">Sistem Pengajuan Maintenance</p>
           </div>
-          <h1 className="text-3xl font-black text-white">BAWDI</h1>
-          <p className="text-slate-400 text-sm mt-1">PT. Bantu Kawal Distribusi</p>
-          <p className="text-slate-500 text-xs mt-0.5">Sistem Pengajuan Maintenance</p>
-        </div>
 
         {/* Form */}
         <form onSubmit={submit} className="space-y-4">
