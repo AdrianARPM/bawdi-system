@@ -49,9 +49,10 @@ export default function Layout() {
       {/* Logo */}
       <div className="px-4 py-4 border-b border-slate-800">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center">
-            <Truck size={15} className="text-white"/>
-          </div>
+          {/* Logo di sidebar */}
+            <div className="px-4 py-4 border-b border-slate-800">
+              <img src="/Logo.jpg" alt="BAWDI" className="h-8 w-auto"/>
+            </div>
           <div>
             <p className="text-white font-extrabold text-sm leading-none">BAWDI</p>
             <p className="text-slate-500 text-[10px] mt-0.5">Maintenance System</p>
