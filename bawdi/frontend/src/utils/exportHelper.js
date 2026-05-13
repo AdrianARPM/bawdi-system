@@ -1,8 +1,6 @@
 // src/utils/exportHelper.js
 // Desain PDF disesuaikan dengan template Purchase Requisition BAWDI
-
 const LOGO_PATH = "/Logo.jpg"; // Path file di folder public/
-
 const fmtCurrencyExport = (n) =>
   new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n || 0);
 const fmtDateExport = (iso) =>
@@ -120,26 +118,19 @@ export async function exportSinglePDF(sub) {
   const margin = 15;
 
   // ── Header Perusahaan ─────────────────────────────────────────
-  doc.setDrawColor(226, 232, 240); 
-  doc.setLineWidth(0.5);
-  doc.line(0, 26, pageW, 26);
-
-  try {
-    doc.addImage(LOGO_PATH, 'JPEG', pageW - margin - 40, 6, 40, 24);
-  } catch (e) {
+  doc.addImage(LOGO_PATH, 'JPEG', pageW - margin - 40, 6, 40, 24);
+  catch (e) {
     console.warn("Logo tidak ditemukan");
   }
 
-  doc.setTextColor(30, 41, 59); 
-  doc.setFontSize(11); 
-  doc.setFont('helvetica', 'bold');
-  doc.text('PT. Bantu Kawal Distribusi', margin, 12);
-  
-  doc.setFontSize(8); 
-  doc.setFont('helvetica', 'normal'); 
-  doc.setTextColor(100, 116, 139);
-  doc.text('Jl. Rajawali Sakti, Ruko Komplek Royal Regency', margin, 17);
-  doc.text('Kota Pekanbaru, Riau', margin, 21);
+  doc.setFontSize(12);
+  doc.setTextColor(0, 0, 0);
+  doc.text('PT. Bantu Kawal Distribusi', margin, 29);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(50, 50, 50);
+  doc.text('Jl. Rajawali Sakti, Ruko Komplek Royal Regency, Kota Pekanbaru', margin, 34);
 
   // Garis Bawah Header
   doc.setDrawColor(0, 0, 0);
@@ -244,6 +235,51 @@ export async function exportSinglePDF(sub) {
 
   currentY += 4;
 
+  // ── Box Keterangan ────────────────────────────────────────────
+  doc.setFontSize(9);
+  const riwayatText = sub.riwayat || '—';
+  const riwayatLines = doc.splitTextToSize(riwayatText, pageW - margin * 2 - 45);
+
+  const boxY = currentY;
+  const boxPadding = 5;
+  let innerY = boxY + boxPadding + 3;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 0, 0);
+  doc.text('KETERANGAN', margin + boxPadding, innerY);
+  doc.setLineWidth(0.3);
+  doc.line(margin + boxPadding, innerY + 1, margin + boxPadding + doc.getTextWidth('KETERANGAN'), innerY + 1);
+
+  innerY += 7;
+
+  // Alasan
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(100, 100, 100);
+  doc.text('Alasan Pengajuan', margin + boxPadding, innerY);
+  doc.text(':', margin + boxPadding + 32, innerY);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(0, 0, 0);
+  doc.text(sub.alasan || '—', margin + boxPadding + 35, innerY);
+
+  innerY += 6;
+
+  // Riwayat
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(100, 100, 100);
+  doc.text('Riwayat Sebelumnya', margin + boxPadding, innerY);
+  doc.text(':', margin + boxPadding + 32, innerY);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(0, 0, 0);
+  doc.text(riwayatLines, margin + boxPadding + 35, innerY);
+
+  // Gambar outline Box
+  const boxHeight = (innerY - boxY) + (riwayatLines.length * 4) + boxPadding;
+  doc.setDrawColor(150, 150, 150);
+  doc.setLineWidth(0.3);
+  doc.rect(margin, boxY, pageW - margin * 2, boxHeight, 'S');
+
+  currentY = boxY + boxHeight + 8;
+
   // ── Tabel Item ────────────────────────────────────────────────
   const items = sub.items || [];
   const tableBody = items.map((item, i) => [
@@ -288,51 +324,6 @@ export async function exportSinglePDF(sub) {
     margin: { left: margin, right: margin }
   });
 
-  currentY = boxY + boxHeight + 8;
-
- // ── Box Keterangan ────────────────────────────────────────────
-  doc.setFontSize(9);
-  const riwayatText = sub.riwayat || '—';
-  const riwayatLines = doc.splitTextToSize(riwayatText, pageW - margin * 2 - 45);
-
-  const boxY = currentY;
-  const boxPadding = 5;
-  let innerY = boxY + boxPadding + 3;
-
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 0, 0);
-  doc.text('KETERANGAN', margin + boxPadding, innerY);
-  doc.setLineWidth(0.3);
-  doc.line(margin + boxPadding, innerY + 1, margin + boxPadding + doc.getTextWidth('KETERANGAN'), innerY + 1);
-
-  innerY += 7;
-
-  // Alasan
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(100, 100, 100);
-  doc.text('Alasan Pengajuan', margin + boxPadding, innerY);
-  doc.text(':', margin + boxPadding + 32, innerY);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(0, 0, 0);
-  doc.text(sub.alasan || '—', margin + boxPadding + 35, innerY);
-
-  innerY += 6;
-
-  // Riwayat
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(100, 100, 100);
-  doc.text('Riwayat Sebelumnya', margin + boxPadding, innerY);
-  doc.text(':', margin + boxPadding + 32, innerY);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(0, 0, 0);
-  doc.text(riwayatLines, margin + boxPadding + 35, innerY);
-
-  // Gambar outline Box
-  const boxHeight = (innerY - boxY) + (riwayatLines.length * 4) + boxPadding;
-  doc.setDrawColor(150, 150, 150);
-  doc.setLineWidth(0.3);
-  doc.rect(margin, boxY, pageW - margin * 2, boxHeight, 'S');
-
   currentY = doc.lastAutoTable.finalY + 8;
 
   // Handle Page Break sebelum Footer Info
@@ -360,7 +351,7 @@ export async function exportSinglePDF(sub) {
   doc.setFont('helvetica', 'bold');
   doc.text(fmtDateExport(sub.batas_akhir_pembayaran), margin + 103, currentY);
 
-  currentY += 25;
+  currentY += 20;
 
   // ── Tanda Tangan ──────────────────────────────────────────────
   const sigColW = (pageW - margin * 2) / 3;
@@ -418,7 +409,7 @@ export async function exportSinglePDF(sub) {
     doc.setFontSize(7);
     doc.setTextColor(150, 150, 150);
     doc.setFont('helvetica', 'normal');
-    doc.text('Dokumen digenerate otomatis BAWDI Maintenance System', margin, pageH - 8);
+    doc.text('Dokumen digenerate otomatis BAWD Maintenance System', margin, pageH - 8);
     doc.text(`Hal. ${pg}/${totalPages}`, pageW - margin, pageH - 8, { align: 'right' });
   }
 
