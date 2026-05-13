@@ -1,5 +1,6 @@
 // src/utils/exportHelper.js
 // Desain PDF: Logo kanan atas, Tanpa teks "BAWDI", Tabel Keterangan di bawah Rincian Item.
+// Update: Tabel Informasi Utama dibuat menjadi 2 kolom (side-by-side).
 
 const LOGO_PATH = "/Logo.jpg"; // Path file di folder public/
 
@@ -127,28 +128,54 @@ export async function exportSinglePDF(sub) {
   doc.setFont('helvetica', 'bold');
   doc.text(statusLabel, pageW/2, 49.5, { align: 'center' });
 
-  // ── 3. Tabel Informasi Utama ──────────────────────────────────
+  // ── 3. Tabel Informasi Utama (REVISI: 2 Kolom Sejajar) ──────────
+  // Kita bagi data menjadi pasangan kiri dan kanan
   const infoRows = [
-    ['Pemohon',           sub.pemohon?.name    || sub.pemohon_name || '—'],
-    ['Jabatan',           sub.pemohon?.jabatan || '—'],
-    ['Cabang / Project',  sub.cabang           || sub.pemohon_cabang || '—'],
-    ['Kendaraan / Plat',  sub.kendaraan        || '—'],
-    ['Vendor / Bengkel',  sub.vendor_pilihan===2 ? (sub.vendor2||'—') : (sub.vendor||'—')],
-    ['Rekening Tujuan',   sub.rekening_tujuan  || '—'],
-    ['Jenis Pembelian',   sub.jenis_pembelian  || '—'],
-    ['Tanggal Pengajuan', fmtDateExport(sub.tanggal)],
-    ['Batas Akhir Bayar', fmtDateExport(sub.batas_akhir_pembayaran)],
+    [
+      { content: 'Pemohon', styles: { fontStyle: 'bold', fillColor: [248, 250, 252], textColor: [30, 58, 138] } },
+      sub.pemohon?.name || sub.pemohon_name || '—',
+      { content: 'Vendor / Bengkel', styles: { fontStyle: 'bold', fillColor: [248, 250, 252], textColor: [30, 58, 138] } },
+      sub.vendor_pilihan === 2 ? (sub.vendor2 || '—') : (sub.vendor || '—')
+    ],
+    [
+      { content: 'Jabatan', styles: { fontStyle: 'bold', fillColor: [248, 250, 252], textColor: [30, 58, 138] } },
+      sub.pemohon?.jabatan || '—',
+      { content: 'Rekening Tujuan', styles: { fontStyle: 'bold', fillColor: [248, 250, 252], textColor: [30, 58, 138] } },
+      sub.rekening_tujuan || '—'
+    ],
+    [
+      { content: 'Cabang / Project', styles: { fontStyle: 'bold', fillColor: [248, 250, 252], textColor: [30, 58, 138] } },
+      sub.cabang || sub.pemohon_cabang || '—',
+      { content: 'Jenis Pembelian', styles: { fontStyle: 'bold', fillColor: [248, 250, 252], textColor: [30, 58, 138] } },
+      sub.jenis_pembelian || '—'
+    ],
+    [
+      { content: 'Kendaraan / Plat', styles: { fontStyle: 'bold', fillColor: [248, 250, 252], textColor: [30, 58, 138] } },
+      sub.kendaraan || '—',
+      { content: 'Tanggal Pengajuan', styles: { fontStyle: 'bold', fillColor: [248, 250, 252], textColor: [30, 58, 138] } },
+      fmtDateExport(sub.tanggal)
+    ],
+    [
+      { content: 'Batas Akhir Bayar', styles: { fontStyle: 'bold', fillColor: [248, 250, 252], textColor: [30, 58, 138] } },
+      fmtDateExport(sub.batas_akhir_pembayaran),
+      '', '' // Kolom kosong untuk menyeimbangkan baris terakhir jika diperlukan
+    ]
   ];
 
   autoTable(doc, {
     startY: 56,
     body: infoRows,
-    styles: { fontSize: 8.5, cellPadding: 2.5, textColor: [51,65,85], lineColor: [226,232,240], lineWidth: 0.2 },
-    columnStyles: { 0: { cellWidth: 45, fontStyle: 'bold', textColor: [30, 58, 138], fillColor: [248, 250, 252] } },
+    styles: { fontSize: 8, cellPadding: 2, textColor: [51,65,85], lineColor: [226,232,240], lineWidth: 0.2 },
+    columnStyles: { 
+      0: { cellWidth: 35 }, 
+      1: { cellWidth: 58 }, 
+      2: { cellWidth: 35 }, 
+      3: { cellWidth: 54 } 
+    },
     theme: 'grid',
   });
 
-  // ── 4. Tabel Rincian Item (SEKARANG DIATAS KETERANGAN) ────────
+  // ── 4. Tabel Rincian Item ─────────────────────────────────────
   const items = sub.items || [];
   autoTable(doc, {
     startY: doc.lastAutoTable.finalY + 6,
@@ -170,7 +197,7 @@ export async function exportSinglePDF(sub) {
     theme: 'grid',
   });
 
-  // ── 5. Tabel Keterangan (SEKARANG DIBAWAH RINCIAN ITEM) ───────
+  // ── 5. Tabel Keterangan ───────────────────────────────────────
   autoTable(doc, {
     startY: doc.lastAutoTable.finalY + 6,
     head: [['INFORMASI TAMBAHAN / KETERANGAN', '']],
