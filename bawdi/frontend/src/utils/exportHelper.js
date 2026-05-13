@@ -1,8 +1,5 @@
 // src/utils/exportHelper.js
-// Desain PDF: Logo kanan atas, Tanpa teks "BAWDI", Tabel Keterangan di bawah Rincian Item.
-// Update: Tabel Informasi Utama dibuat menjadi 2 kolom (side-by-side).
-
-const LOGO_PATH = "/Logo.jpg"; // Path file di folder public/
+// Desain PDF disesuaikan dengan template Purchase Requisition BAWDI
 
 const fmtCurrencyExport = (n) =>
   new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n || 0);
@@ -24,30 +21,49 @@ export async function exportToPDF(drafts, filterInfo = {}, fileName = 'Draft_Pen
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
 
-  // Header Line
+  // Header — putih, border bawah tipis
   doc.setDrawColor(226, 232, 240);
   doc.setLineWidth(0.5);
-  doc.line(0, 22, pageW, 22);
+  doc.line(0, 20, pageW, 20);
 
-  // Logo di kanan atas
-  try {
-    doc.addImage(LOGO_PATH, 'JPEG', pageW - 50, 5, 40, 14);
-  } catch (e) {
-    console.warn("Logo tidak ditemukan");
-  }
+  doc.setTextColor(30, 41, 59); doc.setFontSize(16); doc.setFont('helvetica', 'bold');
+  doc.text('BAWDI', 14, 10);
+  doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(100, 116, 139);
+  doc.text('PT. Bantu Kawal Distribusi — Pekanbaru', 14, 16);
+  doc.setFontSize(8);
+  doc.text(`Dicetak: ${fmtDateTimeExport(new Date().toISOString())}`, pageW - 14, 13, { align: 'right' });
 
-  doc.setTextColor(30, 41, 59); 
-  doc.setFontSize(12); 
-  doc.setFont('helvetica', 'bold');
-  doc.text('PT. Bantu Kawal Distribusi', 14, 12);
-  
-  doc.setFontSize(9); 
-  doc.setFont('helvetica', 'normal'); 
-  doc.setTextColor(100, 116, 139);
-  doc.text('Laporan Rekapitulasi Pengajuan Maintenance', 14, 18);
+  // Judul
+  doc.setTextColor(30, 41, 59); doc.setFontSize(13); doc.setFont('helvetica', 'bold');
+  doc.text('LAPORAN DRAFT / ARSIP PENGAJUAN', 14, 30);
+  doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(100, 116, 139);
+  let ft = 'Filter: Semua pengajuan';
+  if (filterInfo.kendaraan)  ft = `Plat: ${filterInfo.kendaraan}`;
+  if (filterInfo.bulanLabel) ft += (filterInfo.kendaraan ? ' · ' : 'Filter: ') + `Bulan: ${filterInfo.bulanLabel}`;
+  doc.text(ft, 14, 36);
 
+  // Summary boxes
+  const totalBayar = drafts.reduce((s, d) => s + (Number(d.jumlah_bayar) || 0), 0);
+  const totalNilai = drafts.reduce((s, d) => s + (Number(d.total_harga) || 0), 0);
+  const boxW = (pageW - 28 - 8) / 3;
+  const boxColors = [[59, 130, 246], [245, 158, 11], [16, 185, 129]];
+  [
+    { label: 'Total Arsip',   value: `${drafts.length} pengajuan` },
+    { label: 'Total Nilai',   value: fmtCurrencyExport(totalNilai) },
+    { label: 'Total Dibayar', value: fmtCurrencyExport(totalBayar) },
+  ].forEach((box, i) => {
+    const x = 14 + i * (boxW + 4);
+    doc.setDrawColor(...boxColors[i]); doc.setLineWidth(0.5);
+    doc.roundedRect(x, 40, boxW, 14, 2, 2, 'S');
+    doc.setTextColor(...boxColors[i]); doc.setFontSize(7); doc.setFont('helvetica', 'normal');
+    doc.text(box.label.toUpperCase(), x + 3, 46);
+    doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+    doc.text(box.value, x + 3, 51);
+  });
+
+  // Tabel
   autoTable(doc, {
-    startY: 30,
+    startY: 60,
     head: [['No', 'Nomor Pengajuan', 'Plat', 'Pemohon', 'Vendor', 'Jenis', 'Total', 'Dibayar', 'Tgl Bayar', 'Rev', 'Nota', 'Tgl Tutup']],
     body: drafts.map((d, i) => [
       i + 1, d.nomor_pengajuan||'', d.kendaraan||'', d.pemohon_name||'',
@@ -59,15 +75,38 @@ export async function exportToPDF(drafts, filterInfo = {}, fileName = 'Draft_Pen
       d.ditutup_at?fmtDateExport(d.ditutup_at):'—',
     ]),
     styles: { fontSize: 7.5, cellPadding: 2.5, lineColor: [226, 232, 240], lineWidth: 0.3, textColor: [51, 65, 85] },
-    headStyles: { fillColor: [241, 245, 249], textColor: [51, 65, 85], fontStyle: 'bold', fontSize: 7, halign: 'center' },
-    margin: { left: 14, right: 14 },
+    headStyles: {
+      fillColor: [241, 245, 249], 
+      textColor: [51, 65, 85],     
+      fontStyle: 'bold', fontSize: 7, halign: 'center',
+    },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    columnStyles: {
+      0:{halign:'center',cellWidth:8},1:{cellWidth:38},2:{halign:'center',cellWidth:18},
+      3:{cellWidth:25},4:{cellWidth:30},5:{cellWidth:28},
+      6:{halign:'right',cellWidth:28},7:{halign:'right',cellWidth:28},
+      8:{halign:'center',cellWidth:22},9:{halign:'center',cellWidth:8},
+      10:{halign:'center',cellWidth:8},11:{halign:'center',cellWidth:22},
+    },
+    didParseCell(data) {
+      if (data.column.index===10) {
+        data.cell.styles.textColor = data.cell.raw==='✓'?[16,185,129]:[239,68,68];
+        data.cell.styles.fontStyle = 'bold';
+      }
+    },
+    didDrawPage(data) {
+      doc.setFontSize(7); doc.setTextColor(148,163,184);
+      doc.text(`BAWDI — Hal. ${data.pageNumber}/${doc.internal.getNumberOfPages()}`, pageW/2, pageH-5, {align:'center'});
+    },
   });
 
-  doc.save(`${fileName}.pdf`);
+  const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,'');
+  doc.save(`Draft_Pengajuan_BAWDI_${dateStr}.pdf`);
 }
 
 /* ═══════════════════════════════════════════════════════════════
    EXPORT PDF SINGLE — 1 pengajuan (portrait A4)
+   Sesuai desain mockup (A4 presisi)
 ═══════════════════════════════════════════════════════════════ */
 export async function exportSinglePDF(sub) {
   const { default: jsPDF }     = await import('jspdf');
@@ -76,15 +115,15 @@ export async function exportSinglePDF(sub) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
-  const margin = 14;
+  const margin = 15;
 
-  // ── 1. Header (Logo Kanan, Hapus Tulisan BAWDI) ─────────────
+  // ── Header Perusahaan ─────────────────────────────────────────
   doc.setDrawColor(226, 232, 240); 
   doc.setLineWidth(0.5);
   doc.line(0, 26, pageW, 26);
 
   try {
-    doc.addImage(LOGO_PATH, 'JPEG', pageW - margin - 40, 6, 40, 16);
+    doc.addImage(LOGO_PATH, 'JPEG', pageW - margin - 40, 6, 40, 24);
   } catch (e) {
     console.warn("Logo tidak ditemukan");
   }
@@ -100,178 +139,288 @@ export async function exportSinglePDF(sub) {
   doc.text('Jl. Rajawali Sakti, Ruko Komplek Royal Regency', margin, 17);
   doc.text('Kota Pekanbaru, Riau', margin, 21);
 
-  // ── 2. Judul Dokumen ─────────────────────────────────────────
+  // Garis Bawah Header
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(0.6);
+  doc.line(margin, 38, pageW - margin, 38);
+
+  // ── Judul Dokumen & Status ────────────────────────────────────
+  let currentY = 48;
   const typeLabel = sub.type === 'PAR' ? 'PURCHASE AUTHORIZATION REQUEST' : 'PURCHASE REQUISITION';
-  doc.setTextColor(30, 41, 59); 
-  doc.setFontSize(14); 
+
   doc.setFont('helvetica', 'bold');
-  doc.text(typeLabel, pageW / 2, 36, { align: 'center' });
-
-  doc.setFontSize(9); 
-  doc.setFont('helvetica', 'normal'); 
-  doc.setTextColor(100, 116, 139);
-  doc.text(`Nomor: ${sub.nomor_pengajuan || '—'}`, pageW / 2, 42, { align: 'center' });
-
-  // Status Badge
-  const statusLabel = sub.status || 'Menunggu Verifikasi';
-  const isOk = statusLabel.includes('Selesai') || statusLabel.includes('Setuju');
-  const isBad = statusLabel.includes('Tolak');
-  const badgeColor = isOk ? [16, 185, 129] : (isBad ? [239, 68, 68] : [245, 158, 11]);
+  doc.setFontSize(16);
+  doc.setTextColor(0, 0, 0);
+  doc.text(typeLabel, margin, currentY);
   
-  const labelWidth = doc.getTextWidth(statusLabel) + 10;
-  doc.setDrawColor(...badgeColor); 
+  // Underline Judul
+  const titleWidth = doc.getTextWidth(typeLabel);
   doc.setLineWidth(0.4);
-  doc.roundedRect(pageW/2 - labelWidth/2, 45, labelWidth, 6, 1, 1, 'S');
-  
-  doc.setTextColor(...badgeColor); 
-  doc.setFontSize(8); 
-  doc.setFont('helvetica', 'bold');
-  doc.text(statusLabel, pageW/2, 49.5, { align: 'center' });
+  doc.line(margin, currentY + 1, margin + titleWidth, currentY + 1);
 
-  // ── 3. Tabel Informasi Utama (REVISI: 2 Kolom Sejajar) ──────────
-  // Kita bagi data menjadi pasangan kiri dan kanan
-  const infoRows = [
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text(`Nomor: ${sub.nomor_pengajuan || '—'}`, margin, currentY + 7);
+
+  // Status Badge (Kanan Atas)
+  const statusText = sub.status || 'Menunggu Verifikasi';
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  const statusWidth = doc.getTextWidth(statusText) + 6;
+  const statusX = pageW - margin - statusWidth;
+  
+  // Warna dinamis badge status
+  let fillC = [254, 249, 195]; let borderC = [253, 224, 71]; let textC = [133, 77, 14]; // Kuning (Menunggu)
+  if (statusText.toLowerCase().includes('selesai') || statusText.toLowerCase().includes('disetujui')) {
+    fillC = [220, 252, 231]; borderC = [134, 239, 172]; textC = [22, 101, 52]; // Hijau
+  } else if (statusText.toLowerCase().includes('tolak')) {
+    fillC = [254, 226, 226]; borderC = [252, 165, 165]; textC = [153, 27, 27]; // Merah
+  }
+
+  doc.setFillColor(...fillC);
+  doc.setDrawColor(...borderC);
+  doc.roundedRect(statusX, currentY - 5, statusWidth, 6.5, 1, 1, 'FD');
+  doc.setTextColor(...textC);
+  doc.text(statusText, statusX + 3, currentY - 0.5);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(100, 100, 100);
+  doc.text(`Dicetak: ${fmtDateTimeExport(new Date().toISOString())}`, pageW - margin, currentY + 7, { align: 'right' });
+
+  currentY += 18;
+
+  // ── Grid Metadata (2 Kolom) ───────────────────────────────────
+  const col1X = margin;
+  const col1ValX = margin + 35;
+  const col2X = margin + 95;
+  const col2ValX = margin + 130;
+  const rowH = 6;
+
+  const metadata = [
     [
-      { content: 'Pemohon', styles: { fontStyle: 'bold', fillColor: [248, 250, 252], textColor: [30, 58, 138] } },
-      sub.pemohon?.name || sub.pemohon_name || '—',
-      { content: 'Vendor / Bengkel', styles: { fontStyle: 'bold', fillColor: [248, 250, 252], textColor: [30, 58, 138] } },
-      sub.vendor_pilihan === 2 ? (sub.vendor2 || '—') : (sub.vendor || '—')
+      { label: 'Pemohon', val: sub.pemohon?.name || sub.pemohon_name || '—', bold: true },
+      { label: 'Vendor / Bengkel', val: sub.vendor_pilihan === 2 ? (sub.vendor2 || '—') : (sub.vendor || '—'), bold: true }
     ],
     [
-      { content: 'Jabatan', styles: { fontStyle: 'bold', fillColor: [248, 250, 252], textColor: [30, 58, 138] } },
-      sub.pemohon?.jabatan || '—',
-      { content: 'Rekening Tujuan', styles: { fontStyle: 'bold', fillColor: [248, 250, 252], textColor: [30, 58, 138] } },
-      sub.rekening_tujuan || '—'
+      { label: 'Jabatan', val: sub.pemohon?.jabatan || '—' },
+      { label: 'Rekening Tujuan', val: sub.rekening_tujuan || '—' }
     ],
     [
-      { content: 'Cabang / Project', styles: { fontStyle: 'bold', fillColor: [248, 250, 252], textColor: [30, 58, 138] } },
-      sub.cabang || sub.pemohon_cabang || '—',
-      { content: 'Jenis Pembelian', styles: { fontStyle: 'bold', fillColor: [248, 250, 252], textColor: [30, 58, 138] } },
-      sub.jenis_pembelian || '—'
+      { label: 'Cabang/Project', val: sub.cabang || sub.pemohon_cabang || '—' },
+      { label: 'Jenis Pembelian', val: sub.jenis_pembelian || '—' }
     ],
     [
-      { content: 'Kendaraan / Plat', styles: { fontStyle: 'bold', fillColor: [248, 250, 252], textColor: [30, 58, 138] } },
-      sub.kendaraan || '—',
-      { content: 'Tanggal Pengajuan', styles: { fontStyle: 'bold', fillColor: [248, 250, 252], textColor: [30, 58, 138] } },
-      fmtDateExport(sub.tanggal)
-    ],
-    [
-      { content: 'Batas Akhir Bayar', styles: { fontStyle: 'bold', fillColor: [248, 250, 252], textColor: [30, 58, 138] } },
-      fmtDateExport(sub.batas_akhir_pembayaran),
-      '', '' // Kolom kosong untuk menyeimbangkan baris terakhir jika diperlukan
+      { label: 'Kendaraan / Plat', val: sub.kendaraan || '—', bold: true },
+      { label: 'Tanggal Pengajuan', val: fmtDateExport(sub.tanggal) }
     ]
   ];
 
-  autoTable(doc, {
-    startY: 56,
-    body: infoRows,
-    styles: { fontSize: 8, cellPadding: 2, textColor: [51,65,85], lineColor: [226,232,240], lineWidth: 0.2 },
-    columnStyles: { 
-      0: { cellWidth: 35 }, 
-      1: { cellWidth: 58 }, 
-      2: { cellWidth: 35 }, 
-      3: { cellWidth: 54 } 
-    },
-    theme: 'grid',
+  doc.setFontSize(9);
+  metadata.forEach(row => {
+    // Kolom 1
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(100, 100, 100);
+    doc.text(row[0].label, col1X, currentY);
+    doc.text(':', col1ValX - 2, currentY);
+    doc.setFont('helvetica', row[0].bold ? 'bold' : 'normal');
+    doc.setTextColor(0, 0, 0);
+    doc.text(row[0].val, col1ValX, currentY);
+
+    // Kolom 2
+    if (row[1]) {
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(100, 100, 100);
+      doc.text(row[1].label, col2X, currentY);
+      doc.text(':', col2ValX - 2, currentY);
+      doc.setFont('helvetica', row[1].bold ? 'bold' : 'normal');
+      doc.setTextColor(0, 0, 0);
+      doc.text(row[1].val, col2ValX, currentY);
+    }
+    currentY += rowH;
   });
 
-  // ── 4. Tabel Rincian Item ─────────────────────────────────────
+  currentY += 4;
+
+  // ── Tabel Item ────────────────────────────────────────────────
   const items = sub.items || [];
+  const tableBody = items.map((item, i) => [
+    i + 1,
+    item.penjelasan || '',
+    item.vendor_num === 2 ? 'Vendor 2' : 'Vendor 1',
+    item.satuan || '1',
+    fmtCurrencyExport(item.total || item.harga)
+  ]);
+
+  // Baris Total
+  tableBody.push([
+    { content: 'TOTAL', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold' } },
+    { content: fmtCurrencyExport(sub.total_harga), styles: { fontStyle: 'bold' } }
+  ]);
+
   autoTable(doc, {
-    startY: doc.lastAutoTable.finalY + 6,
+    startY: currentY,
     head: [['No', 'Penjelasan Item', 'Vendor', 'Satuan', 'Harga (Rp)']],
-    body: [
-      ...items.map((item, i) => [
-        i + 1, 
-        item.penjelasan || '',
-        item.vendor_num === 2 ? 'Vendor 2' : 'Vendor 1',
-        item.satuan || '1', 
-        fmtCurrencyExport(item.total || item.harga),
-      ]),
-      [{ content: 'TOTAL HARGA', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold', fillColor: [241, 245, 249] } }, 
-       { content: fmtCurrencyExport(sub.total_harga), styles: { fontStyle: 'bold', fillColor: [241, 245, 249] } }],
-    ],
-    styles: { fontSize: 8.5, cellPadding: 3, textColor: [51,65,85], lineColor: [200,200,200], lineWidth: 0.2 },
-    headStyles: { fillColor: [51, 65, 85], textColor: [255, 255, 255], fontStyle: 'bold' },
-    columnStyles: { 0: { halign: 'center', cellWidth: 10 }, 4: { halign: 'right', cellWidth: 40 } },
+    body: tableBody,
     theme: 'grid',
+    styles: {
+      fontSize: 9,
+      textColor: [0, 0, 0],
+      lineColor: [150, 150, 150],
+      lineWidth: 0.3,
+      cellPadding: 2.5
+    },
+    headStyles: {
+      fillColor: [243, 244, 246], // abu-abu terang
+      textColor: [50, 50, 50],
+      fontStyle: 'bold',
+      halign: 'center'
+    },
+    columnStyles: {
+      0: { cellWidth: 10, halign: 'center' },
+      1: { cellWidth: 'auto' },
+      2: { cellWidth: 35, halign: 'center' },
+      3: { cellWidth: 20, halign: 'center' },
+      4: { cellWidth: 35, halign: 'right' },
+    },
+    margin: { left: margin, right: margin }
   });
 
-  // ── 5. Tabel Keterangan ───────────────────────────────────────
-  autoTable(doc, {
-    startY: doc.lastAutoTable.finalY + 6,
-    head: [['INFORMASI TAMBAHAN / KETERANGAN', '']],
-    body: [
-      ['Alasan Pengajuan',   sub.alasan  || '—'],
-      ['Riwayat Sebelumnya', sub.riwayat || '—'],
-      ...(sub.alasan_tolak ? [['Alasan Penolakan', sub.alasan_tolak]] : []),
-    ],
-    styles: { fontSize: 8.5, cellPadding: 3, textColor: [51,65,85], lineColor: [226,232,240], lineWidth: 0.2 },
-    headStyles: { fillColor: [255, 247, 237], textColor: [154, 52, 18], fontStyle: 'bold' },
-    columnStyles: { 0: { cellWidth: 45, fontStyle: 'bold', fillColor: [255, 253, 250] } },
-    theme: 'grid',
-  });
+  currentY = boxY + boxHeight + 8;
 
-  // ── 6. Tanda Tangan Digital ───────────────────────────────────
-  let sigY = doc.lastAutoTable.finalY + 12;
-  if (sigY + 40 > pageH) { doc.addPage(); sigY = 20; }
-  
-  const sigW = (pageW - margin * 2) / 3;
-  const sigs = [
-    { label: 'Dibuat Oleh', name: sub.pemohon?.name || sub.pemohon_name, time: sub.tanggal, role: sub.pemohon?.jabatan },
-    { label: 'Diketahui (Verifikator)', name: sub.verifikator?.name || sub.verifikator_name, time: sub.verified_at, role: 'Finance/Admin' },
-    { label: 'Disetujui (Approval)', name: sub.approver?.name || sub.approver_name, time: sub.approved_at, role: 'Manager/Direktur' },
+ // ── Box Keterangan ────────────────────────────────────────────
+  doc.setFontSize(9);
+  const riwayatText = sub.riwayat || '—';
+  const riwayatLines = doc.splitTextToSize(riwayatText, pageW - margin * 2 - 45);
+
+  const boxY = currentY;
+  const boxPadding = 5;
+  let innerY = boxY + boxPadding + 3;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 0, 0);
+  doc.text('KETERANGAN', margin + boxPadding, innerY);
+  doc.setLineWidth(0.3);
+  doc.line(margin + boxPadding, innerY + 1, margin + boxPadding + doc.getTextWidth('KETERANGAN'), innerY + 1);
+
+  innerY += 7;
+
+  // Alasan
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(100, 100, 100);
+  doc.text('Alasan Pengajuan', margin + boxPadding, innerY);
+  doc.text(':', margin + boxPadding + 32, innerY);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(0, 0, 0);
+  doc.text(sub.alasan || '—', margin + boxPadding + 35, innerY);
+
+  innerY += 6;
+
+  // Riwayat
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(100, 100, 100);
+  doc.text('Riwayat Sebelumnya', margin + boxPadding, innerY);
+  doc.text(':', margin + boxPadding + 32, innerY);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(0, 0, 0);
+  doc.text(riwayatLines, margin + boxPadding + 35, innerY);
+
+  // Gambar outline Box
+  const boxHeight = (innerY - boxY) + (riwayatLines.length * 4) + boxPadding;
+  doc.setDrawColor(150, 150, 150);
+  doc.setLineWidth(0.3);
+  doc.rect(margin, boxY, pageW - margin * 2, boxHeight, 'S');
+
+  currentY = doc.lastAutoTable.finalY + 8;
+
+  // Handle Page Break sebelum Footer Info
+  if (currentY + 50 > pageH) {
+    doc.addPage();
+    currentY = margin;
+  }
+
+  // ── Info Pembayaran / Batas Waktu ─────────────────────────────
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 100, 100);
+
+  doc.text('Batas Waktu Dana', margin, currentY);
+  doc.text(':', margin + 30, currentY);
+  doc.setTextColor(0, 0, 0);
+  doc.setFont('helvetica', 'bold');
+  doc.text(sub.batas_waktu_dana ? `${sub.batas_waktu_dana} Hari` : '—', margin + 33, currentY);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 100, 100);
+  doc.text('Batas Akhir Bayar', margin + 70, currentY);
+  doc.text(':', margin + 100, currentY);
+  doc.setTextColor(0, 0, 0);
+  doc.setFont('helvetica', 'bold');
+  doc.text(fmtDateExport(sub.batas_akhir_pembayaran), margin + 103, currentY);
+
+  currentY += 25;
+
+  // ── Tanda Tangan ──────────────────────────────────────────────
+  const sigColW = (pageW - margin * 2) / 3;
+  const sigData = [
+    { title: 'Dibuat Oleh', name: sub.pemohon?.name || sub.pemohon_name, role: sub.pemohon?.jabatan || 'Staff Lapangan' },
+    { title: 'Diketahui (Verifikator)', name: sub.verifikator?.name || sub.verifikator_name, role: sub.verifikator?.jabatan },
+    { title: 'Disetujui (Approval)', name: sub.approver?.name || sub.approver_name, role: sub.approver?.jabatan },
   ];
 
-  sigs.forEach((sig, i) => {
-    const x = margin + i * sigW;
-    const xCenter = x + sigW/2;
-
-    doc.setFontSize(8); 
-    doc.setTextColor(100, 116, 139); 
-    doc.setFont('helvetica', 'bold');
-    doc.text(sig.label, xCenter, sigY, { align: 'center' });
+  sigData.forEach((sig, i) => {
+    const xCenter = margin + (sigColW * i) + (sigColW / 2);
     
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(80, 80, 80);
+    doc.text(sig.title, xCenter, currentY, { align: 'center' });
+
+    // Jarak tanda tangan
+    const signAreaY = currentY + 22; 
+
     if (sig.name) {
-      doc.setFontSize(9); 
-      doc.setTextColor(30, 41, 59);
-      doc.text(sig.name.toUpperCase(), xCenter, sigY + 22, { align: 'center' });
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0);
+      const upperName = sig.name.toUpperCase();
+      doc.text(upperName, xCenter, signAreaY, { align: 'center' });
       
-      doc.setDrawColor(30, 41, 59); 
+      const nameWidth = doc.getTextWidth(upperName);
       doc.setLineWidth(0.3);
-      const nameWidth = doc.getTextWidth(sig.name);
-      doc.line(xCenter - (nameWidth/2), sigY + 23, xCenter + (nameWidth/2), sigY + 23);
+      doc.line(xCenter - nameWidth/2, signAreaY + 1, xCenter + nameWidth/2, signAreaY + 1);
 
-      if (sig.role) {
-        doc.setFontSize(7); 
-        doc.setFont('helvetica', 'normal'); 
-        doc.setTextColor(100, 116, 139);
-        doc.text(sig.role, xCenter, sigY + 27, { align: 'center' });
-      }
-
-      if (sig.time) {
-        doc.setFontSize(6); 
-        doc.setFont('helvetica', 'italic'); 
-        doc.setTextColor(148, 163, 184);
-        doc.text(`Digital Sign: ${fmtDateTimeExport(sig.time)}`, xCenter, sigY + 31, { align: 'center' });
+      if(sig.role) {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(100, 100, 100);
+        doc.text(sig.role, xCenter, signAreaY + 5, { align: 'center' });
       }
     } else {
-      doc.setDrawColor(226, 232, 240);
-      doc.line(x + 10, sigY + 23, x + sigW - 10, sigY + 23);
-      doc.setFontSize(7); 
-      doc.setTextColor(200, 200, 200);
-      doc.text('(Belum Verifikasi)', xCenter, sigY + 22, { align: 'center' });
+      // Garis kosong jika belum ada nama
+      doc.setLineWidth(0.4);
+      doc.setDrawColor(0,0,0);
+      doc.line(xCenter - 20, signAreaY + 1, xCenter + 20, signAreaY + 1);
     }
   });
 
+  // ── Footer Halaman ────────────────────────────────────────────
   const totalPages = doc.internal.getNumberOfPages();
   for (let pg = 1; pg <= totalPages; pg++) {
     doc.setPage(pg);
-    doc.setFontSize(7); 
-    doc.setTextColor(148, 163, 184);
-    doc.text(`BAWD Maintenance System — Halaman ${pg} dari ${totalPages}`, pageW/2, pageH - 8, { align: 'center' });
-    doc.text(`Dicetak pada: ${fmtDateTimeExport(new Date().toISOString())}`, pageW - margin, pageH - 8, { align: 'right' });
+    
+    // Garis Footer
+    doc.setDrawColor(200, 200, 200);
+    doc.setLineWidth(0.5);
+    doc.line(margin, pageH - 12, pageW - margin, pageH - 12);
+    
+    doc.setFontSize(7);
+    doc.setTextColor(150, 150, 150);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Dokumen digenerate otomatis BAWD Maintenance System', margin, pageH - 8);
+    doc.text(`Hal. ${pg}/${totalPages}`, pageW - margin, pageH - 8, { align: 'right' });
   }
 
-  doc.save(`PR_${(sub.nomor_pengajuan||'pengajuan').replace(/\//g,'-')}.pdf`);
+  const safeNomor = (sub.nomor_pengajuan || 'pengajuan').replace(/\//g, '-');
+  const suffix = sub._isRevision ? `_Rev${sub._revisionNumber}` : '';
+  doc.save(`PR_${safeNomor}${suffix}.pdf`);
 }
