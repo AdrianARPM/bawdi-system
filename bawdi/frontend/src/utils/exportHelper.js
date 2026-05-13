@@ -1,6 +1,8 @@
 // src/utils/exportHelper.js
 // Desain PDF disesuaikan dengan template Purchase Requisition BAWDI
 
+const LOGO_PATH = "/Logo.jpg"; // Path file di folder public/
+
 const fmtCurrencyExport = (n) =>
   new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n || 0);
 const fmtDateExport = (iso) =>
@@ -416,7 +418,7 @@ export async function exportSinglePDF(sub) {
     doc.setFontSize(7);
     doc.setTextColor(150, 150, 150);
     doc.setFont('helvetica', 'normal');
-    doc.text('Dokumen digenerate otomatis BAWD Maintenance System', margin, pageH - 8);
+    doc.text('Dokumen digenerate otomatis BAWDI Maintenance System', margin, pageH - 8);
     doc.text(`Hal. ${pg}/${totalPages}`, pageW - margin, pageH - 8, { align: 'right' });
   }
 
