@@ -118,10 +118,11 @@ export async function exportSinglePDF(sub) {
   const margin = 15;
 
   // ── Header Perusahaan ─────────────────────────────────────────
+try {                                                               // ✅ try added
   doc.addImage(LOGO_PATH, 'JPEG', pageW - margin - 40, 6, 40, 24);
-  catch (e) {
-    console.warn("Logo tidak ditemukan");
-  }
+} catch (e) {                                                      // ✅ closing } added
+  console.warn("Logo tidak ditemukan");
+}
 
   doc.setFontSize(12);
   doc.setTextColor(0, 0, 0);
