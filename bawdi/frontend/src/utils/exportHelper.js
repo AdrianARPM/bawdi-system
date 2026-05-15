@@ -236,51 +236,6 @@ try {                                                               // ✅ try a
 
   currentY += 4;
 
-  // ── Box Keterangan ────────────────────────────────────────────
-  doc.setFontSize(9);
-  const riwayatText = sub.riwayat || '—';
-  const riwayatLines = doc.splitTextToSize(riwayatText, pageW - margin * 2 - 45);
-
-  const boxY = currentY;
-  const boxPadding = 5;
-  let innerY = boxY + boxPadding + 3;
-
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 0, 0);
-  doc.text('KETERANGAN', margin + boxPadding, innerY);
-  doc.setLineWidth(0.3);
-  doc.line(margin + boxPadding, innerY + 1, margin + boxPadding + doc.getTextWidth('KETERANGAN'), innerY + 1);
-
-  innerY += 7;
-
-  // Alasan
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(100, 100, 100);
-  doc.text('Alasan Pengajuan', margin + boxPadding, innerY);
-  doc.text(':', margin + boxPadding + 32, innerY);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(0, 0, 0);
-  doc.text(sub.alasan || '—', margin + boxPadding + 35, innerY);
-
-  innerY += 6;
-
-  // Riwayat
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(100, 100, 100);
-  doc.text('Riwayat Sebelumnya', margin + boxPadding, innerY);
-  doc.text(':', margin + boxPadding + 32, innerY);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(0, 0, 0);
-  doc.text(riwayatLines, margin + boxPadding + 35, innerY);
-
-  // Gambar outline Box
-  const boxHeight = (innerY - boxY) + (riwayatLines.length * 4) + boxPadding;
-  doc.setDrawColor(150, 150, 150);
-  doc.setLineWidth(0.3);
-  doc.rect(margin, boxY, pageW - margin * 2, boxHeight, 'S');
-
-  currentY = boxY + boxHeight + 8;
-
   // ── Tabel Item ────────────────────────────────────────────────
   const items = sub.items || [];
   const tableBody = items.map((item, i) => [
@@ -326,6 +281,52 @@ try {                                                               // ✅ try a
   });
 
   currentY = doc.lastAutoTable.finalY + 8;
+
+
+    // ── Box Keterangan ────────────────────────────────────────────
+  doc.setFontSize(9);
+  const riwayatText = sub.riwayat || '—';
+  const riwayatLines = doc.splitTextToSize(riwayatText, pageW - margin * 2 - 45);
+
+  const boxY = currentY;
+  const boxPadding = 5;
+  let innerY = boxY + boxPadding + 3;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 0, 0);
+  doc.text('KETERANGAN', margin + boxPadding, innerY);
+  doc.setLineWidth(0.3);
+  doc.line(margin + boxPadding, innerY + 1, margin + boxPadding + doc.getTextWidth('KETERANGAN'), innerY + 1);
+
+  innerY += 7;
+
+  // Alasan
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(100, 100, 100);
+  doc.text('Alasan Pengajuan', margin + boxPadding, innerY);
+  doc.text(':', margin + boxPadding + 32, innerY);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(0, 0, 0);
+  doc.text(sub.alasan || '—', margin + boxPadding + 35, innerY);
+
+  innerY += 6;
+
+  // Riwayat
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(100, 100, 100);
+  doc.text('Riwayat Sebelumnya', margin + boxPadding, innerY);
+  doc.text(':', margin + boxPadding + 32, innerY);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(0, 0, 0);
+  doc.text(riwayatLines, margin + boxPadding + 35, innerY);
+
+  // Gambar outline Box
+  const boxHeight = (innerY - boxY) + (riwayatLines.length * 4) + boxPadding;
+  doc.setDrawColor(150, 150, 150);
+  doc.setLineWidth(0.3);
+  doc.rect(margin, boxY, pageW - margin * 2, boxHeight, 'S');
+
+  currentY = boxY + boxHeight + 8;
 
   // Handle Page Break sebelum Footer Info
   if (currentY + 50 > pageH) {
