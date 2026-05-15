@@ -136,7 +136,7 @@ try {                                                               // ✅ try a
   // Garis Bawah Header
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.6);
-  doc.line(margin, 38, pageW - margin, 36);
+  doc.line(margin, 38, pageW - margin, 38);
 
   // ── Judul Dokumen & Status ────────────────────────────────────
   let currentY = 48;
@@ -280,16 +280,30 @@ try {                                                               // ✅ try a
     margin: { left: margin, right: margin }
   });
 
-  currentY = doc.lastAutoTable.finalY + 8;
+  // ── Note PPh Pasal 23 ─────────────────────────────────────────
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'italic');
+  doc.setTextColor(120, 120, 120);
+  doc.text('* PPh Pasal 23 = 2%', margin, doc.lastAutoTable.finalY + 5);
 
+  currentY = doc.lastAutoTable.finalY + 12;
 
-    // ── Box Keterangan ────────────────────────────────────────────
+  // ── Box Keterangan ────────────────────────────────────────────
+  // Page break BEFORE drawing the box
+  if (currentY + 40 > pageH - 15) {
+    doc.addPage();
+    currentY = margin;
+  }
+
   doc.setFontSize(9);
   const riwayatText = sub.riwayat || '—';
   const riwayatLines = doc.splitTextToSize(riwayatText, pageW - margin * 2 - 45);
+  const lineH = 4.5; // mm per riwayat line
 
-  const boxY = currentY;
   const boxPadding = 5;
+
+  // Draw box header (KETERANGAN title + Alasan) — always on current page
+  let boxY = currentY;
   let innerY = boxY + boxPadding + 3;
 
   doc.setFont('helvetica', 'bold');
@@ -311,30 +325,58 @@ try {                                                               // ✅ try a
 
   innerY += 6;
 
-  // Riwayat
+  // Riwayat label
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(100, 100, 100);
   doc.text('Riwayat Sebelumnya', margin + boxPadding, innerY);
   doc.text(':', margin + boxPadding + 32, innerY);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(0, 0, 0);
-  doc.text(riwayatLines, margin + boxPadding + 35, innerY);
 
-  // Gambar outline Box
-  const boxHeight = (innerY - boxY) + (riwayatLines.length * 4) + boxPadding;
-  doc.setDrawColor(150, 150, 150);
-  doc.setLineWidth(0.3);
-  doc.rect(margin, boxY, pageW - margin * 2, boxHeight, 'S');
+  // Split riwayat lines across pages if needed
+  const riwayatStartX = margin + boxPadding + 35;
+  const footerSafeY = pageH - 15; // leave room for footer
+  let remainingLines = [...riwayatLines];
 
-  currentY = boxY + boxHeight + 8;
+  while (remainingLines.length > 0) {
+    const availableH = footerSafeY - innerY;
+    const fitsOnPage = Math.max(1, Math.floor(availableH / lineH));
+    const chunk = remainingLines.slice(0, fitsOnPage);
+    remainingLines = remainingLines.slice(fitsOnPage);
 
-  // Handle Page Break sebelum Footer Info
-  if (currentY + 50 > pageH) {
+    doc.text(chunk, riwayatStartX, innerY);
+
+    // Close the box outline for this page
+    const boxHeight = (innerY - boxY) + (chunk.length * lineH) + boxPadding;
+    doc.setDrawColor(150, 150, 150);
+    doc.setLineWidth(0.3);
+    doc.rect(margin, boxY, pageW - margin * 2, boxHeight, 'S');
+
+    currentY = boxY + boxHeight + 8;
+
+    if (remainingLines.length > 0) {
+      // Continue on new page
+      doc.addPage();
+      currentY = margin;
+      boxY = currentY;
+      innerY = boxY + boxPadding + 3;
+      // Continuation label
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(100, 100, 100);
+      doc.text('Riwayat (lanjutan)', margin + boxPadding, innerY);
+      doc.text(':', margin + boxPadding + 32, innerY);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0);
+      innerY += 6;
+    }
+  }
+
+  // ── Info Pembayaran / Batas Waktu ─────────────────────────────
+  if (currentY + 20 > pageH - 15) {
     doc.addPage();
     currentY = margin;
   }
 
-  // ── Info Pembayaran / Batas Waktu ─────────────────────────────
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 100, 100);
@@ -356,6 +398,11 @@ try {                                                               // ✅ try a
   currentY += 20;
 
   // ── Tanda Tangan ──────────────────────────────────────────────
+  if (currentY + 45 > pageH - 15) {
+    doc.addPage();
+    currentY = margin;
+  }
+
   const sigColW = (pageW - margin * 2) / 3;
   const sigData = [
   { 
