@@ -241,7 +241,7 @@ try {                                                               // ✅ try a
   const tableBody = items.map((item, i) => [
     i + 1,
     item.penjelasan || '',
-    item.vendor_num === 2 ? 'Vendor 2' : 'Vendor 1',
+    item.vendor_num === 2 ? (sub.vendor2 || '—') : (sub.vendor || '—'),
     item.satuan || '1',
     fmtCurrencyExport(item.total || item.harga)
   ]);
@@ -358,39 +358,61 @@ try {                                                               // ✅ try a
   // ── Tanda Tangan ──────────────────────────────────────────────
   const sigColW = (pageW - margin * 2) / 3;
   const sigData = [
-    { title: 'Dibuat Oleh', name: sub.pemohon?.name || sub.pemohon_name, role: sub.pemohon?.jabatan || 'Staff Lapangan' },
-    { title: 'Diketahui (Verifikator)', name: sub.verifikator?.name || sub.verifikator_name, role: sub.verifikator?.jabatan },
-    { title: 'Disetujui (Approval)', name: sub.approver?.name || sub.approver_name, role: sub.approver?.jabatan },
-  ];
+  { 
+    title: 'Dibuat Oleh', 
+    date: fmtDateExport(sub.created_at),           // ← add this
+    name: sub.pemohon?.name || sub.pemohon_name, 
+    role: sub.pemohon?.jabatan || 'Staff Lapangan' 
+  },
+  { 
+    title: 'Diketahui (Verifikator)', 
+    date: sub.verifikasi_at ? fmtDateExport(sub.verifikasi_at) : null,   // ← add this
+    name: sub.verifikator?.name || sub.verifikator_name, 
+    role: sub.verifikator?.jabatan 
+  },
+  { 
+    title: 'Disetujui (Approval)', 
+    date: sub.approval_at ? fmtDateExport(sub.approval_at) : null,       // ← add this
+    name: sub.approver?.name || sub.approver_name, 
+    role: sub.approver?.jabatan 
+  },
+];
 
   sigData.forEach((sig, i) => {
-    const xCenter = margin + (sigColW * i) + (sigColW / 2);
-    
+  const xCenter = margin + (sigColW * i) + (sigColW / 2);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(80, 80, 80);
+  doc.text(sig.title, xCenter, currentY, { align: 'center' });
+
+  // ── Date above name ──────────────────────────────
+  if (sig.date) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(120, 120, 120);
+    doc.text(sig.date, xCenter, currentY + 15, { align: 'center' }); 
+  }
+
+  const signAreaY = currentY + 22;
+
+  if (sig.name) {
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(80, 80, 80);
-    doc.text(sig.title, xCenter, currentY, { align: 'center' });
+    doc.setTextColor(0, 0, 0);
+    const upperName = sig.name.toUpperCase();
+    doc.text(upperName, xCenter, signAreaY, { align: 'center' });
 
-    // Jarak tanda tangan
-    const signAreaY = currentY + 22; 
+    const nameWidth = doc.getTextWidth(upperName);
+    doc.setLineWidth(0.3);
+    doc.line(xCenter - nameWidth/2, signAreaY + 1, xCenter + nameWidth/2, signAreaY + 1);
 
-    if (sig.name) {
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(0, 0, 0);
-      const upperName = sig.name.toUpperCase();
-      doc.text(upperName, xCenter, signAreaY, { align: 'center' });
-      
-      const nameWidth = doc.getTextWidth(upperName);
-      doc.setLineWidth(0.3);
-      doc.line(xCenter - nameWidth/2, signAreaY + 1, xCenter + nameWidth/2, signAreaY + 1);
-
-      if(sig.role) {
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8);
-        doc.setTextColor(100, 100, 100);
-        doc.text(sig.role, xCenter, signAreaY + 5, { align: 'center' });
-      }
-    } else {
+    if (sig.role) {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(100, 100, 100);
+      doc.text(sig.role, xCenter, signAreaY + 5, { align: 'center' });
+    }
+  } else {
       // Garis kosong jika belum ada nama
       doc.setLineWidth(0.4);
       doc.setDrawColor(0,0,0);
