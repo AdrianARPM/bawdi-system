@@ -126,17 +126,17 @@ try {                                                               // ✅ try a
 
   doc.setFontSize(12);
   doc.setTextColor(0, 0, 0);
-  doc.text('PT. Bantu Kawal Distribusi', margin, 29);
+  doc.text('PT. Bantu Kawal Distribusi', margin, 25);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(50, 50, 50);
-  doc.text('Jl. Rajawali Sakti, Ruko Komplek Royal Regency, Kota Pekanbaru', margin, 34);
+  doc.text('Jl. Rajawali Sakti, Ruko Komplek Royal Regency, Kota Pekanbaru', margin, 30);
 
   // Garis Bawah Header
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.6);
-  doc.line(margin, 38, pageW - margin, 38);
+  doc.line(margin, 38, pageW - margin, 36);
 
   // ── Judul Dokumen & Status ────────────────────────────────────
   let currentY = 48;
@@ -236,35 +236,7 @@ try {                                                               // ✅ try a
 
   currentY += 4;
 
-  // ── Box Keterangan ────────────────────────────────────────────
-  doc.setFontSize(9);
-  const riwayatText = sub.riwayat || '—';
-  const riwayatLines = doc.splitTextToSize(riwayatText, pageW - margin * 2 - 45);
-
-  const boxY = currentY;
-  const boxPadding = 5;
-  let innerY = boxY + boxPadding + 3;
-
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 0, 0);
-  doc.text('KETERANGAN', margin + boxPadding, innerY);
-  doc.setLineWidth(0.3);
-  doc.line(margin + boxPadding, innerY + 1, margin + boxPadding + doc.getTextWidth('KETERANGAN'), innerY + 1);
-
-  innerY += 7;
-
-  // Alasan
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(100, 100, 100);
-  doc.text('Alasan Pengajuan', margin + boxPadding, innerY);
-  doc.text(':', margin + boxPadding + 32, innerY);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(0, 0, 0);
-  doc.text(sub.alasan || '—', margin + boxPadding + 35, innerY);
-
-  innerY += 6;
-
-  // Riwayat
+// Riwayat
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(100, 100, 100);
   doc.text('Riwayat Sebelumnya', margin + boxPadding, innerY);
@@ -324,6 +296,35 @@ try {                                                               // ✅ try a
     },
     margin: { left: margin, right: margin }
   });
+  
+  innerY += 6;
+
+   // ── Box Keterangan ────────────────────────────────────────────
+  doc.setFontSize(9);
+  const riwayatText = sub.riwayat || '—';
+  const riwayatLines = doc.splitTextToSize(riwayatText, pageW - margin * 2 - 45);
+
+  const boxY = currentY;
+  const boxPadding = 5;
+  let innerY = boxY + boxPadding + 3;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 0, 0);
+  doc.text('KETERANGAN', margin + boxPadding, innerY);
+  doc.setLineWidth(0.3);
+  doc.line(margin + boxPadding, innerY + 1, margin + boxPadding + doc.getTextWidth('KETERANGAN'), innerY + 1);
+
+  innerY += 7;
+
+  // Alasan
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(100, 100, 100);
+  doc.text('Alasan Pengajuan', margin + boxPadding, innerY);
+  doc.text(':', margin + boxPadding + 32, innerY);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(0, 0, 0);
+  doc.text(sub.alasan || '—', margin + boxPadding + 35, innerY);
+
 
   currentY = doc.lastAutoTable.finalY + 8;
 
@@ -410,7 +411,7 @@ try {                                                               // ✅ try a
     doc.setFontSize(7);
     doc.setTextColor(150, 150, 150);
     doc.setFont('helvetica', 'normal');
-    doc.text('Dokumen digenerate otomatis BAWD Maintenance System', margin, pageH - 8);
+    doc.text('Dokumen digenerate otomatis BAWDI Maintenance System', margin, pageH - 8);
     doc.text(`Hal. ${pg}/${totalPages}`, pageW - margin, pageH - 8, { align: 'right' });
   }
 
