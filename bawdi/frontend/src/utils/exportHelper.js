@@ -236,7 +236,35 @@ try {                                                               // ✅ try a
 
   currentY += 4;
 
-// Riwayat
+  // ── Box Keterangan ────────────────────────────────────────────
+  doc.setFontSize(9);
+  const riwayatText = sub.riwayat || '—';
+  const riwayatLines = doc.splitTextToSize(riwayatText, pageW - margin * 2 - 45);
+
+  const boxY = currentY;
+  const boxPadding = 5;
+  let innerY = boxY + boxPadding + 3;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 0, 0);
+  doc.text('KETERANGAN', margin + boxPadding, innerY);
+  doc.setLineWidth(0.3);
+  doc.line(margin + boxPadding, innerY + 1, margin + boxPadding + doc.getTextWidth('KETERANGAN'), innerY + 1);
+
+  innerY += 7;
+
+  // Alasan
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(100, 100, 100);
+  doc.text('Alasan Pengajuan', margin + boxPadding, innerY);
+  doc.text(':', margin + boxPadding + 32, innerY);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(0, 0, 0);
+  doc.text(sub.alasan || '—', margin + boxPadding + 35, innerY);
+
+  innerY += 6;
+
+  // Riwayat
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(100, 100, 100);
   doc.text('Riwayat Sebelumnya', margin + boxPadding, innerY);
@@ -282,7 +310,7 @@ try {                                                               // ✅ try a
       cellPadding: 2.5
     },
     headStyles: {
-      fillColor: [243, 244, 246], // abu-abu terang
+      fillColor: [243, 244, 246],
       textColor: [50, 50, 50],
       fontStyle: 'bold',
       halign: 'center'
@@ -296,35 +324,6 @@ try {                                                               // ✅ try a
     },
     margin: { left: margin, right: margin }
   });
-  
-  innerY += 6;
-
-   // ── Box Keterangan ────────────────────────────────────────────
-  doc.setFontSize(9);
-  const riwayatText = sub.riwayat || '—';
-  const riwayatLines = doc.splitTextToSize(riwayatText, pageW - margin * 2 - 45);
-
-  const boxY = currentY;
-  const boxPadding = 5;
-  let innerY = boxY + boxPadding + 3;
-
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 0, 0);
-  doc.text('KETERANGAN', margin + boxPadding, innerY);
-  doc.setLineWidth(0.3);
-  doc.line(margin + boxPadding, innerY + 1, margin + boxPadding + doc.getTextWidth('KETERANGAN'), innerY + 1);
-
-  innerY += 7;
-
-  // Alasan
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(100, 100, 100);
-  doc.text('Alasan Pengajuan', margin + boxPadding, innerY);
-  doc.text(':', margin + boxPadding + 32, innerY);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(0, 0, 0);
-  doc.text(sub.alasan || '—', margin + boxPadding + 35, innerY);
-
 
   currentY = doc.lastAutoTable.finalY + 8;
 
