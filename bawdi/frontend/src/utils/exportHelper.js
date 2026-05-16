@@ -136,7 +136,7 @@ try {                                                               // ✅ try a
   // Garis Bawah Header
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.6);
-  doc.line(margin, 38, pageW - margin, 38);
+  doc.line(margin, 36, pageW - margin, 36);
 
   // ── Judul Dokumen & Status ────────────────────────────────────
   let currentY = 48;
@@ -237,24 +237,30 @@ try {                                                               // ✅ try a
   currentY += 4;
 
   // ── Tabel Item ────────────────────────────────────────────────
+  // Kolom: No | Penjelasan Item | Satuan | Harga (Rp) | Total Harga
   const items = sub.items || [];
-  const tableBody = items.map((item, i) => [
-    i + 1,
-    item.penjelasan || '',
-    item.vendor_num === 2 ? (sub.vendor2 || '—') : (sub.vendor || '—'),
-    item.satuan || '1',
-    fmtCurrencyExport(item.total || item.harga)
-  ]);
+  const tableBody = items.map((item, i) => {
+    const qty    = parseFloat(item.satuan) || 1;   // satuan sebagai qty jika angka
+    const harga  = parseFloat(item.harga)  || 0;
+    const total  = parseFloat(item.total)  || (qty * harga);
+    return [
+      i + 1,
+      item.penjelasan || '',
+      item.satuan     || '1',           // Satuan (dulu: Vendor)
+      fmtCurrencyExport(harga),         // Harga (Rp) (dulu: Satuan)
+      fmtCurrencyExport(total),         // Total Harga = qty × harga (kolom baru)
+    ];
+  });
 
-  // Baris Total
+  // Baris Total — colSpan 4 kolom kiri
   tableBody.push([
     { content: 'TOTAL', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold' } },
-    { content: fmtCurrencyExport(sub.total_harga), styles: { fontStyle: 'bold' } }
+    { content: fmtCurrencyExport(sub.total_harga), styles: { fontStyle: 'bold', halign: 'right' } }
   ]);
 
   autoTable(doc, {
     startY: currentY,
-    head: [['No', 'Penjelasan Item', 'Vendor', 'Satuan', 'Harga (Rp)']],
+    head: [['No', 'Penjelasan Item', 'Satuan', 'Harga (Rp)', 'Total Harga']],
     body: tableBody,
     theme: 'grid',
     styles: {
@@ -271,11 +277,11 @@ try {                                                               // ✅ try a
       halign: 'center'
     },
     columnStyles: {
-      0: { cellWidth: 10, halign: 'center' },
-      1: { cellWidth: 'auto' },
-      2: { cellWidth: 35, halign: 'center' },
-      3: { cellWidth: 20, halign: 'center' },
-      4: { cellWidth: 35, halign: 'right' },
+      0: { cellWidth: 10,   halign: 'center' },   // No
+      1: { cellWidth: 'auto' },                    // Penjelasan Item
+      2: { cellWidth: 20,   halign: 'center' },    // Satuan
+      3: { cellWidth: 32,   halign: 'right'  },    // Harga (Rp)
+      4: { cellWidth: 32,   halign: 'right'  },    // Total Harga
     },
     margin: { left: margin, right: margin }
   });
