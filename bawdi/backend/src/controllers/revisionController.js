@@ -3,6 +3,9 @@
 const supabase = require('../../config/supabase');
 const { v4: uuidv4 } = require('uuid');
 
+// Helper: cek apakah user adalah Kepala Operasional
+const isKepalaOp = (user) => user?.jabatan === 'Kepala Operasional';
+
 const BUCKET_NOTA = 'bawdi-nota';
 
 async function notifyUser(userId, submissionId, type, message) {
@@ -60,13 +63,25 @@ async function requestRevision(req, res) {
     // ── FIX: query sederhana tanpa join yang bermasalah ──────────
     const { data: sub, error: subErr } = await supabase
       .from('submissions')
-      .select('id, nomor_pengajuan, status, pemohon_id, total_harga, alasan, riwayat, vendor, npwp, vendor2, npwp2, rekening_tujuan, revisi_diminta_oleh')
+      .select('id, type, nomor_pengajuan, status, pemohon_id, total_harga, alasan, riwayat, vendor, npwp, vendor2, npwp2, rekening_tujuan, revisi_diminta_oleh')
       .eq('id', submissionId)
       .single();
 
     if (subErr || !sub) {
       console.error('[requestRevision] submission not found:', subErr?.message);
       return res.status(404).json({ error: 'Pengajuan tidak ditemukan' });
+    }
+
+    // ── Authorization khusus per tipe pengajuan ─────────────────
+    // PAR: hanya Kepala Operasional + Admin yang bisa request revisi
+    // PR:  Verifikator + Approval + Admin yang bisa request revisi
+    const isPAR = sub.type === 'PAR';
+    if (isPAR) {
+      if (!isKepalaOp(req.user) && req.user.role !== 'Admin')
+        return res.status(403).json({ error: 'Hanya Kepala Operasional yang dapat meminta revisi pengajuan PAR' });
+    } else {
+      if (!['Verifikator', 'Approval', 'Admin'].includes(req.user.role))
+        return res.status(403).json({ error: 'Anda tidak memiliki izin meminta revisi pengajuan PR' });
     }
 
     // Ambil items terpisah
@@ -305,6 +320,20 @@ async function verifyRevision(req, res) {
     if (snap.status !== 'submitted')
       return res.status(400).json({ error: 'Revisi belum dikirim oleh pemohon' });
 
+    // Cek tipe submission
+    const { data: subType } = await supabase
+      .from('submissions').select('type').eq('id', snap.submission_id).single();
+    const isPAR = subType?.type === 'PAR';
+
+    // Authorization
+    if (isPAR) {
+      if (!isKepalaOp(req.user) && req.user.role !== 'Admin')
+        return res.status(403).json({ error: 'Hanya Kepala Operasional yang dapat memverifikasi revisi PAR' });
+    } else {
+      if (!['Verifikator', 'Admin'].includes(req.user.role))
+        return res.status(403).json({ error: 'Hanya Verifikator yang dapat memverifikasi revisi PR' });
+    }
+
     const now = new Date().toISOString();
     await supabase.from('revision_snapshots').update({
       status: 'terverifikasi', verifikator_id: req.user.id, verifikasi_at: now,
@@ -323,8 +352,21 @@ async function verifyRevision(req, res) {
       is_system: true,
     });
 
-    await notifyRole('Approval', snap.submission_id, 'need_approval',
-      `📋 Revisi ke-${snap.revision_number} pengajuan ${sub?.nomor_pengajuan} menunggu persetujuan.`);
+    // Notif ke approver yang sesuai
+    if (isPAR) {
+      const { data: kepalaOps } = await supabase
+        .from('users').select('id').eq('jabatan', 'Kepala Operasional').eq('is_active', true);
+      if (kepalaOps?.length) {
+        await supabase.from('notifications').insert(kepalaOps.map(u => ({
+          id: uuidv4(), user_id: u.id, submission_id: snap.submission_id,
+          type: 'need_approval', message: `📋 Revisi ke-${snap.revision_number} PAR ${sub?.nomor_pengajuan} menunggu persetujuan.`,
+          is_read: false,
+        })));
+      }
+    } else {
+      await notifyRole('Approval', snap.submission_id, 'need_approval',
+        `📋 Revisi ke-${snap.revision_number} pengajuan ${sub?.nomor_pengajuan} menunggu persetujuan.`);
+    }
 
     res.json({ message: 'Revisi berhasil diverifikasi' });
   } catch (err) {
@@ -343,6 +385,20 @@ async function approveRevision(req, res) {
     if (!snap) return res.status(404).json({ error: 'Snapshot tidak ditemukan' });
     if (snap.status !== 'terverifikasi')
       return res.status(400).json({ error: 'Revisi belum diverifikasi' });
+
+    // Cek tipe submission
+    const { data: subType } = await supabase
+      .from('submissions').select('type').eq('id', snap.submission_id).single();
+    const isPAR = subType?.type === 'PAR';
+
+    // Authorization
+    if (isPAR) {
+      if (!isKepalaOp(req.user) && req.user.role !== 'Admin')
+        return res.status(403).json({ error: 'Hanya Kepala Operasional yang dapat menyetujui revisi PAR' });
+    } else {
+      if (!['Approval', 'Admin'].includes(req.user.role))
+        return res.status(403).json({ error: 'Hanya Approval yang dapat menyetujui revisi PR' });
+    }
 
     const now = new Date().toISOString();
 
@@ -402,6 +458,18 @@ async function rejectRevision(req, res) {
       .eq('id', req.params.snapshotId).single();
 
     if (!snap) return res.status(404).json({ error: 'Snapshot tidak ditemukan' });
+
+    // Cek tipe & authorization
+    const { data: subType } = await supabase
+      .from('submissions').select('type').eq('id', snap.submission_id).single();
+    const isPAR = subType?.type === 'PAR';
+    if (isPAR) {
+      if (!isKepalaOp(req.user) && req.user.role !== 'Admin')
+        return res.status(403).json({ error: 'Hanya Kepala Operasional yang dapat menolak revisi PAR' });
+    } else {
+      if (!['Approval', 'Verifikator', 'Admin'].includes(req.user.role))
+        return res.status(403).json({ error: 'Anda tidak memiliki izin menolak revisi PR' });
+    }
 
     const now = new Date().toISOString();
     await supabase.from('revision_snapshots').update({
