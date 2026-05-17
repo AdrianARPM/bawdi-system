@@ -662,10 +662,16 @@ export default function DetailPage() {
   const statusCls    = STATUS_COLOR[sub.status] || 'bg-slate-100 text-slate-500';
   const draftRevision = revisions.find(r => r.status === 'draft');
 
-  const canRequestRevision =
-    ['Verifikator', 'Approval', 'Admin'].includes(user.role) &&
-    ['Disetujui', 'Terverifikasi', 'Menunggu Verifikasi'].includes(sub.status) &&
-    sub.status !== 'Selesai';
+  // Cek apakah user adalah Kepala Operasional (berdasarkan jabatan)
+  const isKepalaOp = user.jabatan === 'Kepala Operasional';
+  const isPAR      = sub.type === 'PAR';
+
+  // Permission request revisi — beda untuk PR vs PAR
+  const canRequestRevision = isPAR
+    ? (isKepalaOp || user.role === 'Admin') && ['Disetujui', 'Menunggu Verifikasi'].includes(sub.status)
+    : ['Verifikator', 'Approval', 'Admin'].includes(user.role) &&
+      ['Disetujui', 'Terverifikasi', 'Menunggu Verifikasi'].includes(sub.status) &&
+      sub.status !== 'Selesai';
 
   const tabs = [
     { key: 'asli', label: 'Pengajuan Asli' },
@@ -768,10 +774,10 @@ export default function DetailPage() {
         </button>
       </div>
 
-      {/* ── ACTION BANNERS ────────────────────────────────────── */}
+      {/* ── ACTION BANNERS — berbeda untuk PR vs PAR ─────────── */}
 
-      {/* Verifikator: verifikasi pengajuan asli */}
-      {user.role === 'Verifikator' && sub.status === 'Menunggu Verifikasi' && (
+      {/* PR — Verifikator: verifikasi */}
+      {!isPAR && user.role === 'Verifikator' && sub.status === 'Menunggu Verifikasi' && (
         <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-center justify-between gap-3">
           <div>
             <p className="text-sm font-bold text-blue-800">Perlu Verifikasi Anda</p>
@@ -785,8 +791,8 @@ export default function DetailPage() {
         </div>
       )}
 
-      {/* Approval: setujui/tolak */}
-      {user.role === 'Approval' && sub.status === 'Terverifikasi' && (
+      {/* PR — Approval: setujui/tolak */}
+      {!isPAR && user.role === 'Approval' && sub.status === 'Terverifikasi' && (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
           <p className="text-sm font-bold text-amber-800 mb-3">Menunggu Keputusan Anda</p>
           <div className="flex gap-2.5">
@@ -794,6 +800,31 @@ export default function DetailPage() {
             <Button variant="success" className="flex-1" onClick={() => doAction('approve')}
               loading={actLoading === 'approve'}>✓ Setujui</Button>
           </div>
+        </div>
+      )}
+
+      {/* PAR — Kepala Operasional: langsung setujui/tolak dari status Menunggu Verifikasi */}
+      {isPAR && isKepalaOp && sub.status === 'Menunggu Verifikasi' && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
+          <p className="text-sm font-bold text-emerald-800 mb-1">Menunggu Keputusan Anda (PAR)</p>
+          <p className="text-xs text-emerald-600 mb-3">Sebagai Kepala Operasional, Anda dapat langsung menyetujui atau menolak pengajuan PAR ini.</p>
+          <div className="flex gap-2.5">
+            <Button variant="danger"  className="flex-1" onClick={() => setShowReject(true)}>✗ Tolak</Button>
+            <Button variant="success" className="flex-1" onClick={() => doAction('approve')}
+              loading={actLoading === 'approve'}>✓ Setujui</Button>
+          </div>
+        </div>
+      )}
+
+      {/* PAR — info untuk Verifikator/Approval (mereka hanya bisa LIHAT) */}
+      {isPAR && !isKepalaOp && user.role !== 'Admin' && user.role !== 'Operasional' &&
+       ['Menunggu Verifikasi', 'Perlu Revisi'].includes(sub.status) && (
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 flex items-center gap-2">
+          <span className="text-base">👁</span>
+          <p className="text-xs text-slate-500">
+            Pengajuan PAR ini menunggu persetujuan <strong>Kepala Operasional</strong>.
+            Anda dapat melihat detailnya tetapi tidak perlu melakukan verifikasi/approval.
+          </p>
         </div>
       )}
 
