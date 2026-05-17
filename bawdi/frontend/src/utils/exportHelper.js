@@ -409,27 +409,51 @@ try {                                                               // ✅ try a
     currentY = margin;
   }
 
-  const sigColW = (pageW - margin * 2) / 3;
-  const sigData = [
-  { 
-    title: 'Dibuat Oleh', 
-    date: fmtDateExport(sub.created_at),           // ← add this
-    name: sub.pemohon?.name || sub.pemohon_name, 
-    role: sub.pemohon?.jabatan || 'Staff Lapangan' 
-  },
-  { 
-    title: 'Diketahui (Verifikator)', 
-    date: sub.verifikasi_at ? fmtDateExport(sub.verifikasi_at) : null,   // ← add this
-    name: sub.verifikator?.name || sub.verifikator_name, 
-    role: sub.verifikator?.jabatan 
-  },
-  { 
-    title: 'Disetujui (Approval)', 
-    date: sub.approval_at ? fmtDateExport(sub.approval_at) : null,       // ← add this
-    name: sub.approver?.name || sub.approver_name, 
-    role: sub.approver?.jabatan 
-  },
-];
+  // ── Tanda Tangan — beda format untuk PR (3 kolom) vs PAR (2 kolom) ──
+  const isPAR = sub.type === 'PAR';
+  const sigCount = isPAR ? 2 : 3;
+  const sigColW  = (pageW - margin * 2) / sigCount;
+
+  let sigData;
+  if (isPAR) {
+    // PAR: hanya 2 kolom — Pemohon & Kepala Operasional
+    sigData = [
+      {
+        title: 'Dibuat Oleh',
+        date:  fmtDateExport(sub.created_at || sub.tanggal),
+        name:  sub.pemohon?.name || sub.pemohon_name,
+        role:  sub.pemohon?.jabatan || 'Staff Lapangan'
+      },
+      {
+        title: 'Disetujui (Kepala Operasional)',
+        date:  sub.approval_at ? fmtDateExport(sub.approval_at) : null,
+        name:  sub.approver?.name || sub.approver_name,
+        role:  sub.approver?.jabatan || 'Kepala Operasional'
+      },
+    ];
+  } else {
+    // PR: 3 kolom — Pemohon, Verifikator, Approval
+    sigData = [
+      {
+        title: 'Dibuat Oleh',
+        date:  fmtDateExport(sub.created_at || sub.tanggal),
+        name:  sub.pemohon?.name || sub.pemohon_name,
+        role:  sub.pemohon?.jabatan || 'Staff Lapangan'
+      },
+      {
+        title: 'Diketahui (Verifikator)',
+        date:  sub.verifikasi_at ? fmtDateExport(sub.verifikasi_at) : null,
+        name:  sub.verifikator?.name || sub.verifikator_name,
+        role:  sub.verifikator?.jabatan
+      },
+      {
+        title: 'Disetujui (Approval)',
+        date:  sub.approval_at ? fmtDateExport(sub.approval_at) : null,
+        name:  sub.approver?.name || sub.approver_name,
+        role:  sub.approver?.jabatan
+      },
+    ];
+  }
 
   sigData.forEach((sig, i) => {
   const xCenter = margin + (sigColW * i) + (sigColW / 2);
