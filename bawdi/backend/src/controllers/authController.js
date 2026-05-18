@@ -30,17 +30,19 @@ async function login(req, res) {
       return res.status(401).json({ error: 'NIK atau password salah' });
 
     // JWT payload — sekarang termasuk jabatan & name untuk pengecekan PAR
-    const token = jwt.sign(
-      {
-        id:      user.id,
-        role:    user.role,
-        nik:     user.nik,
-        name:    user.name,
-        jabatan: user.jabatan,    // ← penting untuk cek Kepala Operasional
-      },
-      JWT_SECRET,
-      { expiresIn: JWT_EXPIRES }
-    );
+const token = jwt.sign(
+  {
+    id:      user.id,
+    role:    user.role,
+    nik:     user.nik,
+    name:    user.name,
+    jabatan: user.jabatan,
+    cabang:  user.cabang,    // ← tambah ini
+    email:   user.email,     // ← tambah ini juga (untuk berjaga-jaga)
+  },
+  JWT_SECRET,
+  { expiresIn: JWT_EXPIRES }
+);
 
     const { password_hash, ...userClean } = user;
     res.json({ token, user: userClean });
