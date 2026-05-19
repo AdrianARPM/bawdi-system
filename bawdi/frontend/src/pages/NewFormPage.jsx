@@ -1,7 +1,8 @@
-// src/pages/NewFormPage.jsx  — v7
-// Fix utama:
-// 1. Item form tidak perlu klik per huruf — gunakan controlled input stabil
-// 2. Validasi nomor duplikat dalam project/cabang yang sama
+// src/pages/NewFormPage.jsx  — v9
+// Perbaikan:
+// 1. ItemsSection dipindahkan KELUAR main component (fix focus loss)
+// 2. Total per item = qty (satuan) × harga, total vendor = sum dari semuanya
+// 3. Panel riwayat kendaraan tanpa keyword filter (cuma plat saja)
 import { useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2, Check, ChevronLeft, Upload, X, AlertCircle } from 'lucide-react';
@@ -19,6 +20,14 @@ function buildNomor(nomorUrut, type, cabangManual) {
   const tahun = String(now.getFullYear()).slice(-2);
   const cab   = (cabangManual || '').replace(/\s+/g, '').toUpperCase();
   return `${nomorUrut}-${type}/BKD-${cab}/${bulan}${tahun}`;
+}
+
+// Hitung total per item: qty (satuan) × harga
+// Satuan diparsing sebagai angka. Jika kosong/bukan angka, fallback ke 1.
+function calcItemTotal(item) {
+  const qty   = parseFloat(item.satuan) || 1;
+  const harga = parseFloat(item.harga)  || 0;
+  return qty * harga;
 }
 
 /* ── Foto uploader ──────────────────────────────────────────────── */
@@ -79,12 +88,9 @@ function Field({ label, required, error, hint, children }) {
   );
 }
 
-/* ── ItemRow — FIXED: stable key, tidak kehilangan fokus ──────────
-   Root cause fix:
-   - Setiap item punya id unik yang tidak berubah (uuid)
-   - Tidak ada onInput/auto-resize yang menyebabkan re-render
-   - useCallback pada onChange agar tidak recreate function
-────────────────────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════
+   ItemRow & ItemsSection — DI LUAR main component
+   ═══════════════════════════════════════════════════════════════ */
 function ItemRow({ item, idx, totalItems, vendorNum, onUpdate, onRemove, errors }) {
   const eb = `item${vendorNum}_${idx}`;
 
@@ -97,6 +103,9 @@ function ItemRow({ item, idx, totalItems, vendorNum, onUpdate, onRemove, errors 
   const hasHrgErr = !!errors[`${eb}_hrg`];
   const hasAnyErr = hasPenErr || hasSatErr || hasHrgErr;
 
+  // Total per item = qty × harga
+  const itemTotal = calcItemTotal(item);
+
   return (
     <div className={`border rounded-xl p-3 space-y-2 ${hasAnyErr ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-white'}`}>
       <div className="flex justify-between items-center">
@@ -104,7 +113,7 @@ function ItemRow({ item, idx, totalItems, vendorNum, onUpdate, onRemove, errors 
         {totalItems > 1 && (
           <button
             type="button"
-            onMouseDown={e => e.preventDefault()}  // ← cegah blur sebelum klik
+            onMouseDown={e => e.preventDefault()}
             onClick={() => onRemove(item.id)}
             className="text-red-400 hover:text-red-600 p-0.5">
             <Trash2 size={13}/>
@@ -112,7 +121,6 @@ function ItemRow({ item, idx, totalItems, vendorNum, onUpdate, onRemove, errors 
         )}
       </div>
 
-      {/* Penjelasan — tidak pakai onInput auto-resize */}
       <textarea
         value={item.penjelasan}
         onChange={handlePenjelasan}
@@ -124,7 +132,6 @@ function ItemRow({ item, idx, totalItems, vendorNum, onUpdate, onRemove, errors 
                     ${hasPenErr ? 'border-red-300 focus:border-red-400' : 'border-slate-200 focus:border-amber-400'}`}
       />
 
-      {/* Satuan + Harga — grid 5 kolom */}
       <div className="grid grid-cols-5 gap-2">
         <input
           value={item.satuan}
@@ -150,11 +157,46 @@ function ItemRow({ item, idx, totalItems, vendorNum, onUpdate, onRemove, errors 
         </div>
       </div>
 
-      {item.harga > 0 && (
-        <p className="text-xs text-amber-500 font-semibold text-right">
-          {fmtCurrency(parseFloat(item.harga) || 0)}
-        </p>
+      {/* Total per item = qty × harga */}
+      {itemTotal > 0 && (
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-slate-400">
+            {parseFloat(item.satuan) > 1 && `${parseFloat(item.satuan)} × ${fmtCurrency(parseFloat(item.harga) || 0)} =`}
+          </span>
+          <span className="text-amber-500 font-semibold">{fmtCurrency(itemTotal)}</span>
+        </div>
       )}
+    </div>
+  );
+}
+
+function ItemsSection({ items, total, vendorNum, errors, onUpdate, onAdd, onRemove }) {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <label className="text-xs font-bold text-slate-600">
+          Item / Rincian <span className="text-red-500">*</span>
+        </label>
+        <button type="button" onMouseDown={e=>e.preventDefault()} onClick={onAdd}
+          className="flex items-center gap-1 text-xs font-bold text-amber-500 hover:text-amber-600">
+          <Plus size={13}/> Tambah Item
+        </button>
+      </div>
+      {items.map((item, idx) => (
+        <ItemRow
+          key={item.id}
+          item={item} idx={idx}
+          totalItems={items.length}
+          vendorNum={vendorNum}
+          errors={errors}
+          onUpdate={onUpdate}
+          onRemove={onRemove}
+        />
+      ))}
+      <div className="flex justify-between items-center bg-amber-50 rounded-xl px-3 py-2.5">
+        <span className="text-sm font-extrabold text-amber-800">TOTAL</span>
+        <span className="text-base font-black text-amber-500">{fmtCurrency(total)}</span>
+      </div>
     </div>
   );
 }
@@ -191,27 +233,39 @@ export default function NewFormPage() {
     setErrors(e => ({ ...e, [k]: '' }));
   }, []);
 
-  // Update item by id (stable, tidak re-render list)
-  const updateItem = useCallback((listKey, id, field, value) => {
+  // Handler item — receive (listKey curry) so ItemsSection cuma terima onUpdate sederhana
+  const updateItem1 = useCallback((id, field, value) => {
     setForm(f => ({
       ...f,
-      [listKey]: f[listKey].map(it => it.id === id ? { ...it, [field]: value } : it),
+      items1: f.items1.map(it => it.id === id ? { ...it, [field]: value } : it),
+    }));
+  }, []);
+  const updateItem2 = useCallback((id, field, value) => {
+    setForm(f => ({
+      ...f,
+      items2: f.items2.map(it => it.id === id ? { ...it, [field]: value } : it),
     }));
   }, []);
 
-  const addItem = useCallback((listKey) => {
-    setForm(f => ({ ...f, [listKey]: [...f[listKey], newItem()] }));
+  const addItem1 = useCallback(() => {
+    setForm(f => ({ ...f, items1: [...f.items1, newItem()] }));
+  }, []);
+  const addItem2 = useCallback(() => {
+    setForm(f => ({ ...f, items2: [...f.items2, newItem()] }));
   }, []);
 
-  const removeItem = useCallback((listKey, id) => {
-    setForm(f => ({ ...f, [listKey]: f[listKey].filter(it => it.id !== id) }));
+  const removeItem1 = useCallback((id) => {
+    setForm(f => ({ ...f, items1: f.items1.filter(it => it.id !== id) }));
+  }, []);
+  const removeItem2 = useCallback((id) => {
+    setForm(f => ({ ...f, items2: f.items2.filter(it => it.id !== id) }));
   }, []);
 
-  const total1 = form.items1.reduce((s,i) => s+(parseFloat(i.harga)||0), 0);
-  const total2 = form.items2.reduce((s,i) => s+(parseFloat(i.harga)||0), 0);
+  // Total per vendor — pakai qty × harga
+  const total1 = form.items1.reduce((s, i) => s + calcItemTotal(i), 0);
+  const total2 = form.items2.reduce((s, i) => s + calcItemTotal(i), 0);
 
   const previewNomor = buildNomor(form.nomorUrut||'###', form.type, form.cabangManual||'CABANG');
-  const historyKw    = form.items1.map(i=>i.penjelasan).filter(Boolean).join(' ').substring(0,50);
 
   /* ── Validasi ─────────────────────────────────────────────────── */
   const validate = s => {
@@ -266,9 +320,22 @@ export default function NewFormPage() {
     setLoading(true);
     try {
       const nomor = buildNomor(form.nomorUrut, form.type, form.cabangManual);
+      // Items: simpan harga sebagai harga satuan, total = qty × harga
       const items = [
-        ...form.items1.map(i => ({ penjelasan:i.penjelasan, satuan:i.satuan, vendor_num:1, harga:parseFloat(i.harga)||0 })),
-        ...(form.useVendor2 ? form.items2.map(i => ({ penjelasan:i.penjelasan, satuan:i.satuan, vendor_num:2, harga:parseFloat(i.harga)||0 })) : []),
+        ...form.items1.map(i => ({
+          penjelasan: i.penjelasan,
+          satuan: i.satuan,
+          vendor_num: 1,
+          harga: parseFloat(i.harga) || 0,
+          total: calcItemTotal(i),         // qty × harga
+        })),
+        ...(form.useVendor2 ? form.items2.map(i => ({
+          penjelasan: i.penjelasan,
+          satuan: i.satuan,
+          vendor_num: 2,
+          harga: parseFloat(i.harga) || 0,
+          total: calcItemTotal(i),
+        })) : []),
       ];
       const payload = {
         nomor_pengajuan: nomor, nomor_urut: form.nomorUrut, cabang_manual: form.cabangManual,
@@ -306,35 +373,6 @@ export default function NewFormPage() {
     `w-full px-3 py-2.5 rounded-xl border text-sm text-slate-800 outline-none transition-colors
      placeholder:text-slate-300 disabled:bg-slate-50 focus:ring-2
      ${errors[ek] ? 'border-red-300 focus:border-red-400 focus:ring-red-50' : 'border-slate-200 focus:border-amber-400 focus:ring-amber-100'}`;
-
-  const ItemsSection = ({ listKey, total, vendorNum }) => (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <label className="text-xs font-bold text-slate-600">
-          Item / Rincian <span className="text-red-500">*</span>
-        </label>
-        <button type="button" onMouseDown={e=>e.preventDefault()} onClick={() => addItem(listKey)}
-          className="flex items-center gap-1 text-xs font-bold text-amber-500 hover:text-amber-600">
-          <Plus size={13}/> Tambah Item
-        </button>
-      </div>
-      {form[listKey].map((item, idx) => (
-        <ItemRow
-          key={item.id}
-          item={item} idx={idx}
-          totalItems={form[listKey].length}
-          vendorNum={vendorNum}
-          errors={errors}
-          onUpdate={(id, field, val) => updateItem(listKey, id, field, val)}
-          onRemove={id => removeItem(listKey, id)}
-        />
-      ))}
-      <div className="flex justify-between items-center bg-amber-50 rounded-xl px-3 py-2.5">
-        <span className="text-sm font-extrabold text-amber-800">TOTAL</span>
-        <span className="text-base font-black text-amber-500">{fmtCurrency(total)}</span>
-      </div>
-    </div>
-  );
 
   return (
     <div className="max-w-2xl mx-auto space-y-5">
@@ -380,7 +418,6 @@ export default function NewFormPage() {
               ))}
             </div>
 
-            {/* Nomor pengajuan */}
             <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200">
               <p className="text-xs font-bold text-slate-700 mb-3">Format Nomor Pengajuan</p>
               <div className="bg-white border-2 border-amber-300 rounded-xl px-4 py-2.5 mb-3 text-center">
@@ -399,7 +436,6 @@ export default function NewFormPage() {
               </div>
               <p className="text-[10px] text-slate-400 mt-2 text-center">
                 Bulan/Tahun (<strong>{bulan}{tahun}</strong>) dan tipe (<strong>{form.type}</strong>) otomatis.
-                Nomor urut yang sama di cabang berbeda diperbolehkan.
               </p>
             </div>
           </Card>
@@ -465,10 +501,22 @@ export default function NewFormPage() {
                   placeholder="BCA — 1234567890 a/n Nama Pemilik"
                   className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none resize-none placeholder:text-slate-300 focus:border-amber-400 focus:ring-2 focus:ring-amber-100"/>
               </Field>
-              <ItemsSection listKey="items1" total={total1} vendorNum={1}/>
+
+              {/* Items vendor 1 — pakai komponen luar */}
+              <ItemsSection
+                items={form.items1}
+                total={total1}
+                vendorNum={1}
+                errors={errors}
+                onUpdate={updateItem1}
+                onAdd={addItem1}
+                onRemove={removeItem1}
+              />
             </div>
           </Card>
-          {form.kendaraan?.trim()&&<VehicleHistoryPanel kendaraan={form.kendaraan} keyword={historyKw}/>}
+
+          {/* Panel riwayat kendaraan — TANPA keyword filter */}
+          {form.kendaraan?.trim() && <VehicleHistoryPanel kendaraan={form.kendaraan} />}
         </div>
       )}
 
@@ -496,7 +544,15 @@ export default function NewFormPage() {
                   <input value={form.npwp2} onChange={e=>set('npwp2',e.target.value)} placeholder="Opsional" className={ic('')}/>
                 </Field>
               </div>
-              <ItemsSection listKey="items2" total={total2} vendorNum={2}/>
+              <ItemsSection
+                items={form.items2}
+                total={total2}
+                vendorNum={2}
+                errors={errors}
+                onUpdate={updateItem2}
+                onAdd={addItem2}
+                onRemove={removeItem2}
+              />
               {total1>0&&total2>0&&(
                 <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
                   <p className="text-[10px] font-bold text-slate-500 mb-2 uppercase">Perbandingan Harga</p>
