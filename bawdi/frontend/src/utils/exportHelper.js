@@ -140,7 +140,7 @@ try {                                                               // ✅ try a
 
   // ── Judul Dokumen & Status ────────────────────────────────────
   let currentY = 48;
-  const typeLabel = sub.type === 'PAR' ? 'PURCHASE AUTHORIZATION REQUEST' : 'PURCHASE REQUISITION';
+  const typeLabel = sub.type === 'PAR' ? 'PAYMENT REQUISITION' : 'PURCHASE REQUISITION';
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
