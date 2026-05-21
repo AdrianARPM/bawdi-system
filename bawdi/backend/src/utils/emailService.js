@@ -1,29 +1,10 @@
-// src/utils/emailService.js  — FIXED
-// Email logs insert dibuat aman (tidak crash jika tabel belum ada)
-const nodemailer = require('nodemailer');
-const supabase   = require('../../config/supabase');
+// src/utils/emailService.js  — versi Resend (HTTP API, anti SMTP-timeout)
+const supabase = require('../../config/supabase');
 const { v4: uuidv4 } = require('uuid');
 
-let transporter = null;
-
-function getTransporter() {
-  if (transporter) return transporter;
-  const host = process.env.SMTP_HOST;
-  const port = process.env.SMTP_PORT;
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
-  if (!host || !user || !pass) {
-    console.warn('[emailService] SMTP tidak dikonfigurasi — email tidak akan dikirim');
-    return null;
-  }
-  transporter = nodemailer.createTransport({
-    host, port: Number(port) || 587,
-    secure: Number(port) === 465,
-    auth: { user, pass },
-    tls: { rejectUnauthorized: false },
-  });
-  return transporter;
-}
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const EMAIL_FROM      = process.env.EMAIL_FROM || 'BAWDI <onboarding@resend.dev>';
+const FRONTEND_URL    = process.env.FRONTEND_URL || 'https://bawdi-system.vercel.app';
 
 function buildEmailHTML(subject, message, nomor, actionUrl) {
   return `<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"></head>
@@ -50,34 +31,55 @@ function buildEmailHTML(subject, message, nomor, actionUrl) {
 </body></html>`;
 }
 
+// Log aman ke email_logs (silent fail jika tabel tidak ada)
+function logEmail({ to, subject, type, submissionId, sent, errorMsg }) {
+  supabase.from('email_logs').insert({
+    id: uuidv4(), to_email: to, subject,
+    type: type || 'notification', submission_id: submissionId || null,
+    sent, sent_at: sent ? new Date().toISOString() : null,
+    error_msg: errorMsg || null,
+  }).then().catch(() => {});
+}
+
+// ── Kirim 1 email via Resend HTTP API ──────────────────────────────
 async function sendEmail({ to, subject, message, nomor, submissionId, type }) {
-  const t = getTransporter();
-  if (!t || !to) return;
-  const from       = process.env.EMAIL_FROM || process.env.SMTP_USER;
-  const frontendUrl = process.env.FRONTEND_URL || 'https://bawdi-system.vercel.app';
-  const actionUrl  = submissionId ? `${frontendUrl}/submissions/${submissionId}` : null;
+  if (!RESEND_API_KEY) {
+    console.warn('[emailService] RESEND_API_KEY belum diset — email dilewati');
+    return;
+  }
+  if (!to) return;
+
+  const actionUrl   = submissionId ? `${FRONTEND_URL}/submissions/${submissionId}` : null;
+  const fullSubject = `[BAWDI] ${subject}`;
+
   try {
-    await t.sendMail({
-      from: `BAWDI Maintenance <${from}>`,
-      to, subject: `[BAWDI] ${subject}`,
-      html: buildEmailHTML(subject, message, nomor, actionUrl),
+    const resp = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: EMAIL_FROM,
+        to: [to],
+        subject: fullSubject,
+        html: buildEmailHTML(subject, message, nomor, actionUrl),
+      }),
     });
-    // Log aman — tidak crash jika tabel belum ada
-    supabase.from('email_logs').insert({
-      id: uuidv4(), to_email: to, subject: `[BAWDI] ${subject}`,
-      type: type || 'notification', submission_id: submissionId || null,
-      sent: true, sent_at: new Date().toISOString(),
-    }).then().catch(() => {}); // silent fail
+
+    if (!resp.ok) {
+      const errText = await resp.text();
+      throw new Error(`Resend ${resp.status}: ${errText}`);
+    }
+
+    logEmail({ to, subject: fullSubject, type, submissionId, sent: true });
   } catch (err) {
     console.error('[emailService] Gagal kirim ke', to, ':', err.message);
-    supabase.from('email_logs').insert({
-      id: uuidv4(), to_email: to, subject: `[BAWDI] ${subject}`,
-      type: type || 'notification', submission_id: submissionId || null,
-      sent: false, error_msg: err.message,
-    }).then().catch(() => {}); // silent fail
+    logEmail({ to, subject: fullSubject, type, submissionId, sent: false, errorMsg: err.message });
   }
 }
 
+// ── Kirim ke semua user dengan role tertentu ───────────────────────
 async function sendEmailToRole(role, { subject, message, nomor, submissionId, type }) {
   try {
     const { data: users } = await supabase
@@ -92,6 +94,7 @@ async function sendEmailToRole(role, { subject, message, nomor, submissionId, ty
   } catch (err) { console.error('[emailService/sendToRole]', err.message); }
 }
 
+// ── Kirim ke 1 user spesifik ───────────────────────────────────────
 async function sendEmailToUser(userId, { subject, message, nomor, submissionId, type }) {
   if (!userId) return;
   try {
