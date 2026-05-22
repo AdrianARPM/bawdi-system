@@ -1113,8 +1113,12 @@ export default function DetailPage() {
             })}
           </div>
           <div className="px-4 py-3 border-t border-slate-50 flex gap-2">
-            <input value={msg} onChange={e => setMsg(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); } }}
+            <textarea value={msg} onChange={e => setMsg(e.target.value)}
+              onKeyDown={e => { 
+                if (e.key === 'Enter' && !e.shiftKey) { 
+                  e.preventDefault(); 
+                  sendMsg(); 
+              } }}
               placeholder="Ketik pesan... (Enter untuk kirim)"
               className="flex-1 px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-amber-400"/>
             <button onClick={sendMsg} disabled={!msg.trim()}
