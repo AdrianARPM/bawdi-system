@@ -492,7 +492,7 @@ export default function NewFormPage() {
                 <Field label="Nama Vendor *" error={errors.vendor}>
                   <input value={form.vendor} onChange={e=>set('vendor',e.target.value)} placeholder="Nama bengkel" className={ic('vendor')}/>
                 </Field>
-                <Field label="NPWP (opsional)">
+                <Field label="NPWP/KTP (opsional)">
                   <input value={form.npwp} onChange={e=>set('npwp',e.target.value)} placeholder="XX.XXX..." className={ic('')}/>
                 </Field>
               </div>
@@ -540,7 +540,7 @@ export default function NewFormPage() {
                 <Field label="Nama Vendor 2 *" error={errors.vendor2}>
                   <input value={form.vendor2} onChange={e=>set('vendor2',e.target.value)} placeholder="Nama bengkel 2" className={ic('vendor2')}/>
                 </Field>
-                <Field label="NPWP (opsional)">
+                <Field label="NPWP/KTP (opsional)">
                   <input value={form.npwp2} onChange={e=>set('npwp2',e.target.value)} placeholder="Opsional" className={ic('')}/>
                 </Field>
               </div>
