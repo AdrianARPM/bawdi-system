@@ -197,7 +197,7 @@ try {                                                               // ✅ try a
       { label: 'Vendor / Bengkel', val: sub.vendor_pilihan === 2 ? (sub.vendor2 || '—') : (sub.vendor || '—'), bold: true }
     ],
     [
-      { label: 'Jabatan', val: sub.pemohon?.jabatan || '—' },
+      { label: 'Tanggal Pengajuan', val: fmtDateExport(sub.tanggal) },
       { label: 'Rekening Tujuan', val: sub.rekening_tujuan || '—' }
     ],
     [
@@ -206,7 +206,7 @@ try {                                                               // ✅ try a
     ],
     [
       { label: 'Kendaraan / Plat', val: sub.kendaraan || '—', bold: true },
-      { label: 'Tanggal Pengajuan', val: fmtDateExport(sub.tanggal) }
+      { label: 'NPWP/KTP', val: sub.npwp || '—' }
     ]
   ];
 
