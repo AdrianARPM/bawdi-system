@@ -189,7 +189,7 @@ try {                                                               // ✅ try a
   const col1ValX = margin + 35;
   const col2X = margin + 95;
   const col2ValX = margin + 130;
-  const rowH = 6;
+  const rowH = 4;
 
   const metadata = [
     [
@@ -210,7 +210,7 @@ try {                                                               // ✅ try a
     ]
   ];
 
-  doc.setFontSize(9);
+  doc.setFontSize(8);
   metadata.forEach(row => {
     // Kolom 1
     doc.setFont('helvetica', 'bold');
@@ -234,7 +234,7 @@ try {                                                               // ✅ try a
     currentY += rowH;
   });
 
-  currentY += 4;
+  currentY += 2;
 
   // ── Tabel Item ────────────────────────────────────────────────
   // Kolom: No | Penjelasan Item | Satuan | Harga (Rp) | Total Harga
@@ -264,11 +264,11 @@ try {                                                               // ✅ try a
     body: tableBody,
     theme: 'grid',
     styles: {
-      fontSize: 9,
+      fontSize: 8,
       textColor: [0, 0, 0],
       lineColor: [150, 150, 150],
       lineWidth: 0.3,
-      cellPadding: 2.5
+      cellPadding: 1.5
     },
     headStyles: {
       fillColor: [243, 244, 246],
@@ -301,12 +301,12 @@ try {                                                               // ✅ try a
     currentY = margin;
   }
 
-  doc.setFontSize(9);
+  doc.setFontSize(8);
   // Lebar teks untuk wrap (dikurangi lebar label "Alasan Pengajuan :")
   const labelColW  = 38;   // lebar kolom label
   const textColW   = pageW - margin * 2 - labelColW - 10; // lebar kolom value
-  const lineH      = 4.2;  // mm per baris — kompak tanpa spasi antar paragraf
-  const boxPadding = 4;
+  const lineH      = 3.2;  // mm per baris — kompak tanpa spasi antar paragraf
+  const boxPadding = 3;
 
   // Wrap alasan & riwayat ke multi-line
   const alasanLines  = doc.splitTextToSize(sub.alasan  || '—', textColW);
