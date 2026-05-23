@@ -136,11 +136,11 @@ try {                                                               // ✅ try a
   // Garis Bawah Header
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.6);
-  doc.line(margin, 36, pageW - margin, 36);
+  doc.line(margin, 38, pageW - margin, 38);
 
   // ── Judul Dokumen & Status ────────────────────────────────────
   let currentY = 48;
-  const typeLabel = sub.type === 'PAR' ? 'PAYMENT REQUISITION' : 'PURCHASE REQUISITION';
+  const typeLabel = sub.type === 'PAR' ? 'PURCHASE AUTHORIZATION REQUEST' : 'PURCHASE REQUISITION';
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
@@ -302,78 +302,98 @@ try {                                                               // ✅ try a
   }
 
   doc.setFontSize(9);
-  const riwayatText = sub.riwayat || '—';
-  const riwayatLines = doc.splitTextToSize(riwayatText, pageW - margin * 2 - 45);
-  const lineH = 4.5; // mm per riwayat line
+  // Lebar teks untuk wrap (dikurangi lebar label "Alasan Pengajuan :")
+  const labelColW  = 38;   // lebar kolom label
+  const textColW   = pageW - margin * 2 - labelColW - 10; // lebar kolom value
+  const lineH      = 4.2;  // mm per baris — kompak tanpa spasi antar paragraf
+  const boxPadding = 4;
 
-  const boxPadding = 5;
+  // Wrap alasan & riwayat ke multi-line
+  const alasanLines  = doc.splitTextToSize(sub.alasan  || '—', textColW);
+  const riwayatLines = doc.splitTextToSize(
+    (sub.riwayat || '—').replace(/\n\s*\n/g, '\n'), // hapus baris kosong ganda
+    textColW
+  );
 
-  // Draw box header (KETERANGAN title + Alasan) — always on current page
-  let boxY = currentY;
+  // Hitung total tinggi box terlebih dahulu (agar tidak overflow)
+  const titleH    = 8;   // KETERANGAN title
+  const alasanH   = alasanLines.length  * lineH + 1;
+  const riwayatH  = riwayatLines.length * lineH + 1;
+  const labelRowH = 5.5; // tinggi baris label
+  const totalBoxH = titleH + labelRowH + alasanH + labelRowH + riwayatH + boxPadding * 2;
+
+  // Page break jika box tidak muat di halaman ini
+  if (currentY + totalBoxH > pageH - 15) {
+    doc.addPage();
+    currentY = margin;
+  }
+
+  let boxY   = currentY;
   let innerY = boxY + boxPadding + 3;
 
+  // ── Header KETERANGAN ──
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 0, 0);
   doc.text('KETERANGAN', margin + boxPadding, innerY);
   doc.setLineWidth(0.3);
-  doc.line(margin + boxPadding, innerY + 1, margin + boxPadding + doc.getTextWidth('KETERANGAN'), innerY + 1);
+  doc.line(margin + boxPadding, innerY + 1,
+           margin + boxPadding + doc.getTextWidth('KETERANGAN'), innerY + 1);
+  innerY += titleH - boxPadding;
 
-  innerY += 7;
+  const labelX  = margin + boxPadding;
+  const colonX  = labelX + labelColW - 6;
+  const valueX  = labelX + labelColW;
 
-  // Alasan
+  // ── Alasan Pengajuan (multi-line) ──
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(100, 100, 100);
-  doc.text('Alasan Pengajuan', margin + boxPadding, innerY);
-  doc.text(':', margin + boxPadding + 32, innerY);
+  doc.setTextColor(80, 80, 80);
+  doc.text('Alasan Pengajuan', labelX, innerY);
+  doc.text(':', colonX, innerY);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(0, 0, 0);
-  doc.text(sub.alasan || '—', margin + boxPadding + 35, innerY);
+  doc.text(alasanLines, valueX, innerY);          // ← wrap otomatis
+  innerY += alasanLines.length * lineH + 1;       // tinggi sesuai konten
 
-  innerY += 6;
-
-  // Riwayat label
+  // ── Riwayat Sebelumnya (multi-line) ──
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(100, 100, 100);
-  doc.text('Riwayat Sebelumnya', margin + boxPadding, innerY);
-  doc.text(':', margin + boxPadding + 32, innerY);
+  doc.setTextColor(80, 80, 80);
+  doc.text('Riwayat Sebelumnya', labelX, innerY);
+  doc.text(':', colonX, innerY);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(0, 0, 0);
 
-  // Split riwayat lines across pages if needed
-  const riwayatStartX = margin + boxPadding + 35;
-  const footerSafeY = pageH - 15; // leave room for footer
+  // Render riwayat dengan page-break jika kepanjangan
+  const footerSafeY  = pageH - 15;
   let remainingLines = [...riwayatLines];
 
   while (remainingLines.length > 0) {
-    const availableH = footerSafeY - innerY;
-    const fitsOnPage = Math.max(1, Math.floor(availableH / lineH));
-    const chunk = remainingLines.slice(0, fitsOnPage);
-    remainingLines = remainingLines.slice(fitsOnPage);
+    const availableH   = footerSafeY - innerY;
+    const fitsOnPage   = Math.max(1, Math.floor(availableH / lineH));
+    const chunk        = remainingLines.slice(0, fitsOnPage);
+    remainingLines     = remainingLines.slice(fitsOnPage);
 
-    doc.text(chunk, riwayatStartX, innerY);
+    doc.text(chunk, valueX, innerY);
 
-    // Close the box outline for this page
+    // Tutup box outline halaman ini
     const boxHeight = (innerY - boxY) + (chunk.length * lineH) + boxPadding;
-    doc.setDrawColor(150, 150, 150);
+    doc.setDrawColor(180, 180, 180);
     doc.setLineWidth(0.3);
     doc.rect(margin, boxY, pageW - margin * 2, boxHeight, 'S');
 
-    currentY = boxY + boxHeight + 8;
+    currentY = boxY + boxHeight + 6;
 
     if (remainingLines.length > 0) {
-      // Continue on new page
       doc.addPage();
       currentY = margin;
-      boxY = currentY;
-      innerY = boxY + boxPadding + 3;
-      // Continuation label
+      boxY     = currentY;
+      innerY   = boxY + boxPadding + 3;
       doc.setFont('helvetica', 'bold');
-      doc.setTextColor(100, 100, 100);
-      doc.text('Riwayat (lanjutan)', margin + boxPadding, innerY);
-      doc.text(':', margin + boxPadding + 32, innerY);
+      doc.setTextColor(80, 80, 80);
+      doc.text('Riwayat (lanjutan)', labelX, innerY);
+      doc.text(':', colonX, innerY);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(0, 0, 0);
-      innerY += 6;
+      innerY += labelRowH;
     }
   }
 
@@ -409,51 +429,27 @@ try {                                                               // ✅ try a
     currentY = margin;
   }
 
-  // ── Tanda Tangan — beda format untuk PR (3 kolom) vs PAR (2 kolom) ──
-  const isPAR = sub.type === 'PAR';
-  const sigCount = isPAR ? 2 : 3;
-  const sigColW  = (pageW - margin * 2) / sigCount;
-
-  let sigData;
-  if (isPAR) {
-    // PAR: hanya 2 kolom — Pemohon & Kepala Operasional
-    sigData = [
-      {
-        title: 'Dibuat Oleh',
-        date:  fmtDateExport(sub.created_at || sub.tanggal),
-        name:  sub.pemohon?.name || sub.pemohon_name,
-        role:  sub.pemohon?.jabatan || 'Staff Lapangan'
-      },
-      {
-        title: 'Disetujui (Kepala Operasional)',
-        date:  sub.approval_at ? fmtDateExport(sub.approval_at) : null,
-        name:  sub.approver?.name || sub.approver_name,
-        role:  sub.approver?.jabatan || 'Kepala Operasional'
-      },
-    ];
-  } else {
-    // PR: 3 kolom — Pemohon, Verifikator, Approval
-    sigData = [
-      {
-        title: 'Dibuat Oleh',
-        date:  fmtDateExport(sub.created_at || sub.tanggal),
-        name:  sub.pemohon?.name || sub.pemohon_name,
-        role:  sub.pemohon?.jabatan || 'Staff Lapangan'
-      },
-      {
-        title: 'Diketahui (Verifikator)',
-        date:  sub.verifikasi_at ? fmtDateExport(sub.verifikasi_at) : null,
-        name:  sub.verifikator?.name || sub.verifikator_name,
-        role:  sub.verifikator?.jabatan
-      },
-      {
-        title: 'Disetujui (Approval)',
-        date:  sub.approval_at ? fmtDateExport(sub.approval_at) : null,
-        name:  sub.approver?.name || sub.approver_name,
-        role:  sub.approver?.jabatan
-      },
-    ];
-  }
+  const sigColW = (pageW - margin * 2) / 3;
+  const sigData = [
+  { 
+    title: 'Dibuat Oleh', 
+    date: fmtDateExport(sub.created_at),           // ← add this
+    name: sub.pemohon?.name || sub.pemohon_name, 
+    role: sub.pemohon?.jabatan || 'Staff Lapangan' 
+  },
+  { 
+    title: 'Diketahui (Verifikator)', 
+    date: sub.verifikasi_at ? fmtDateExport(sub.verifikasi_at) : null,   // ← add this
+    name: sub.verifikator?.name || sub.verifikator_name, 
+    role: sub.verifikator?.jabatan 
+  },
+  { 
+    title: 'Disetujui (Approval)', 
+    date: sub.approval_at ? fmtDateExport(sub.approval_at) : null,       // ← add this
+    name: sub.approver?.name || sub.approver_name, 
+    role: sub.approver?.jabatan 
+  },
+];
 
   sigData.forEach((sig, i) => {
   const xCenter = margin + (sigColW * i) + (sigColW / 2);
