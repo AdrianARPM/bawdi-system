@@ -424,7 +424,7 @@ try {                                                               // ✅ try a
   currentY += 20;
 
   // ── Tanda Tangan ──────────────────────────────────────────────
-  if (currentY + 45 > pageH - 15) {
+  if (currentY + 28 > pageH - 15) {
     doc.addPage();
     currentY = margin;
   }
