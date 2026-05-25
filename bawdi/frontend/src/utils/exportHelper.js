@@ -189,7 +189,7 @@ try {                                                               // ✅ try a
   const col1ValX = margin + 35;
   const col2X = margin + 95;
   const col2ValX = margin + 130;
-  const rowH = 4;
+  const rowH = 6;
 
   const metadata = [
     [
@@ -197,7 +197,7 @@ try {                                                               // ✅ try a
       { label: 'Vendor / Bengkel', val: sub.vendor_pilihan === 2 ? (sub.vendor2 || '—') : (sub.vendor || '—'), bold: true }
     ],
     [
-      { label: 'Tanggal Pengajuan', val: fmtDateExport(sub.tanggal) },
+      { label: 'Jabatan', val: sub.pemohon?.jabatan || '—' },
       { label: 'Rekening Tujuan', val: sub.rekening_tujuan || '—' }
     ],
     [
@@ -206,11 +206,11 @@ try {                                                               // ✅ try a
     ],
     [
       { label: 'Kendaraan / Plat', val: sub.kendaraan || '—', bold: true },
-      { label: 'NPWP/KTP', val: sub.npwp || '—' }
+      { label: 'Tanggal Pengajuan', val: fmtDateExport(sub.tanggal) }
     ]
   ];
 
-  doc.setFontSize(8);
+  doc.setFontSize(9);
   metadata.forEach(row => {
     // Kolom 1
     doc.setFont('helvetica', 'bold');
@@ -234,7 +234,7 @@ try {                                                               // ✅ try a
     currentY += rowH;
   });
 
-  currentY += 2;
+  currentY += 4;
 
   // ── Tabel Item ────────────────────────────────────────────────
   // Kolom: No | Penjelasan Item | Satuan | Harga (Rp) | Total Harga
@@ -264,11 +264,11 @@ try {                                                               // ✅ try a
     body: tableBody,
     theme: 'grid',
     styles: {
-      fontSize: 8,
+      fontSize: 9,
       textColor: [0, 0, 0],
       lineColor: [150, 150, 150],
       lineWidth: 0.3,
-      cellPadding: 1.5
+      cellPadding: 2.5
     },
     headStyles: {
       fillColor: [243, 244, 246],
@@ -301,12 +301,12 @@ try {                                                               // ✅ try a
     currentY = margin;
   }
 
-  doc.setFontSize(8);
+  doc.setFontSize(9);
   // Lebar teks untuk wrap (dikurangi lebar label "Alasan Pengajuan :")
   const labelColW  = 38;   // lebar kolom label
   const textColW   = pageW - margin * 2 - labelColW - 10; // lebar kolom value
-  const lineH      = 3.2;  // mm per baris — kompak tanpa spasi antar paragraf
-  const boxPadding = 3;
+  const lineH      = 4.2;  // mm per baris — kompak tanpa spasi antar paragraf
+  const boxPadding = 4;
 
   // Wrap alasan & riwayat ke multi-line
   const alasanLines  = doc.splitTextToSize(sub.alasan  || '—', textColW);
@@ -423,75 +423,83 @@ try {                                                               // ✅ try a
 
   currentY += 20;
 
-  // ── Tanda Tangan ──────────────────────────────────────────────
-  if (currentY + 45 > pageH - 15) {
+  // ── Tanda Tangan — Format KOMPAK 1 baris (hemat kertas) ────────
+  if (currentY + 22 > pageH - 15) {
     doc.addPage();
     currentY = margin;
   }
 
-  const sigColW = (pageW - margin * 2) / 3;
-  const sigData = [
-  { 
-    title: 'Dibuat Oleh', 
-    date: fmtDateExport(sub.created_at),           // ← add this
-    name: sub.pemohon?.name || sub.pemohon_name, 
-    role: sub.pemohon?.jabatan || 'Staff Lapangan' 
-  },
-  { 
-    title: 'Diketahui (Verifikator)', 
-    date: sub.verifikasi_at ? fmtDateExport(sub.verifikasi_at) : null,   // ← add this
-    name: sub.verifikator?.name || sub.verifikator_name, 
-    role: sub.verifikator?.jabatan 
-  },
-  { 
-    title: 'Disetujui (Approval)', 
-    date: sub.approval_at ? fmtDateExport(sub.approval_at) : null,       // ← add this
-    name: sub.approver?.name || sub.approver_name, 
-    role: sub.approver?.jabatan 
-  },
-];
+  // Untuk PAR: 2 kolom. Untuk PR: 3 kolom
+  const isPAR    = sub.type === 'PAR';
+  const sigCount = isPAR ? 2 : 3;
+  const sigColW  = (pageW - margin * 2) / sigCount;
 
-  sigData.forEach((sig, i) => {
-  const xCenter = margin + (sigColW * i) + (sigColW / 2);
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.setTextColor(80, 80, 80);
-  doc.text(sig.title, xCenter, currentY, { align: 'center' });
-
-  // ── Date above name ──────────────────────────────
-  if (sig.date) {
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(120, 120, 120);
-    doc.text(sig.date, xCenter, currentY + 15, { align: 'center' }); 
+  let sigData;
+  if (isPAR) {
+    sigData = [
+      { title: 'Dibuat Oleh',                   date: fmtDateExport(sub.created_at || sub.tanggal), name: sub.pemohon?.name    || sub.pemohon_name,    role: sub.pemohon?.jabatan    || 'Staff Lapangan' },
+      { title: 'Disetujui (Kepala Operasional)', date: sub.approval_at ? fmtDateExport(sub.approval_at) : null, name: sub.approver?.name || sub.approver_name, role: sub.approver?.jabatan || 'Kepala Operasional' },
+    ];
+  } else {
+    sigData = [
+      { title: 'Dibuat Oleh',             date: fmtDateExport(sub.created_at || sub.tanggal), name: sub.pemohon?.name    || sub.pemohon_name,    role: sub.pemohon?.jabatan    || 'Staff Lapangan' },
+      { title: 'Diketahui (Verifikator)', date: sub.verifikasi_at ? fmtDateExport(sub.verifikasi_at) : null, name: sub.verifikator?.name || sub.verifikator_name, role: sub.verifikator?.jabatan },
+      { title: 'Disetujui (Approval)',    date: sub.approval_at   ? fmtDateExport(sub.approval_at)   : null, name: sub.approver?.name    || sub.approver_name,    role: sub.approver?.jabatan },
+    ];
   }
 
-  const signAreaY = currentY + 22;
+  // ── Gambar tabel kompak (label + nama + jabatan + tanggal dalam 1 baris tipis) ──
+  const rowH     = 5.5;  // tinggi tiap baris dalam tabel
+  const tblTop   = currentY;
+  const tblH     = rowH * 3 + 4; // 3 baris: judul, nama, jabatan+tgl
+  const tblW     = pageW - margin * 2;
 
-  if (sig.name) {
+  // Garis tabel luar
+  doc.setDrawColor(180, 180, 180);
+  doc.setLineWidth(0.3);
+  doc.rect(margin, tblTop, tblW, tblH, 'S');
+
+  sigData.forEach((sig, i) => {
+    const colX = margin + sigColW * i;
+    const midX = colX + sigColW / 2;
+
+    // Garis pembatas kolom (kecuali kolom pertama)
+    if (i > 0) {
+      doc.line(colX, tblTop, colX, tblTop + tblH);
+    }
+
+    // Baris 1 — Judul (header kolom) dengan background abu
+    doc.setFillColor(243, 244, 246);
+    doc.rect(colX + 0.15, tblTop + 0.15, sigColW - 0.3, rowH - 0.15, 'F');
     doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(60, 60, 60);
+    doc.text(sig.title, midX, tblTop + rowH - 1.5, { align: 'center' });
+
+    // Garis pemisah setelah judul
+    doc.setDrawColor(180, 180, 180);
+    doc.line(colX, tblTop + rowH, colX + sigColW, tblTop + rowH);
+
+    // Baris 2 — Nama (bold, uppercase)
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
     doc.setTextColor(0, 0, 0);
-    const upperName = sig.name.toUpperCase();
-    doc.text(upperName, xCenter, signAreaY, { align: 'center' });
+    const displayName = sig.name ? sig.name.toUpperCase() : '—';
+    doc.text(displayName, midX, tblTop + rowH * 2 - 1, { align: 'center' });
 
-    const nameWidth = doc.getTextWidth(upperName);
-    doc.setLineWidth(0.3);
-    doc.line(xCenter - nameWidth/2, signAreaY + 1, xCenter + nameWidth/2, signAreaY + 1);
+    // Garis pemisah
+    doc.setDrawColor(220, 220, 220);
+    doc.line(colX, tblTop + rowH * 2, colX + sigColW, tblTop + rowH * 2);
 
-    if (sig.role) {
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
-      doc.setTextColor(100, 100, 100);
-      doc.text(sig.role, xCenter, signAreaY + 5, { align: 'center' });
-    }
-  } else {
-      // Garis kosong jika belum ada nama
-      doc.setLineWidth(0.4);
-      doc.setDrawColor(0,0,0);
-      doc.line(xCenter - 20, signAreaY + 1, xCenter + 20, signAreaY + 1);
-    }
+    // Baris 3 — Jabatan + Tanggal (abu kecil)
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(100, 100, 100);
+    const roleText = [sig.role, sig.date].filter(Boolean).join(' | ');
+    doc.text(roleText || '—', midX, tblTop + rowH * 3 - 1 + 1, { align: 'center' });
   });
+
+  currentY = tblTop + tblH + 6;
 
   // ── Footer Halaman ────────────────────────────────────────────
   const totalPages = doc.internal.getNumberOfPages();

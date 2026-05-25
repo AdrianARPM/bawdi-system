@@ -73,8 +73,10 @@ export const revisionAPI = {
   rejectSnapshot:  (snapId,d)=> api.put(`/revisions/snapshot/${snapId}/reject`, d),
 };
 export const historyAPI = {
-  getVehicleHistory: (kendaraan, keyword, limit = 5) =>
-    api.get('/history/vehicle', { params: { kendaraan, keyword, limit } }),
+  getVehicleHistory: (kendaraan, limit = 5) =>
+    api.get('/history/vehicle', { params: { kendaraan, limit } }),
+  getLastKM: (kendaraan) =>
+    api.get('/history/last-km', { params: { kendaraan } }),
 };
 
 const QUEUE_KEY = 'bawdi_offline_queue';
