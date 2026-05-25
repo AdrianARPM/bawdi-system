@@ -449,7 +449,7 @@ try {                                                               // ✅ try a
   }
 
   // ── Gambar tabel kompak (label + nama + jabatan + tanggal dalam 1 baris tipis) ──
-  const rowH     = 5.5;  // tinggi tiap baris dalam tabel
+  //const rowH     = 5.5;  // tinggi tiap baris dalam tabel
   const tblTop   = currentY;
   const tblH     = rowH * 3 + 4; // 3 baris: judul, nama, jabatan+tgl
   const tblW     = pageW - margin * 2;
