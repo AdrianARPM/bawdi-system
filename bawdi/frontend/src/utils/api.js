@@ -75,8 +75,9 @@ export const revisionAPI = {
 export const historyAPI = {
   getVehicleHistory: (kendaraan, limit = 5) =>
     api.get('/history/vehicle', { params: { kendaraan, limit } }),
-  getLastKM: (kendaraan) =>
-    api.get('/history/last-km', { params: { kendaraan } }),
+  // keyword = gabungan penjelasan item yang diisi pemohon (untuk cari KM item yang relevan)
+  getLastKM: (kendaraan, keyword = '') =>
+    api.get('/history/last-km', { params: { kendaraan, keyword } }),
 };
 
 const QUEUE_KEY = 'bawdi_offline_queue';
