@@ -43,37 +43,54 @@ async function getVehicleHistory(req, res) {
 }
 
 /**
- * GET /api/history/last-km?kendaraan=BM1234XX
+ * GET /api/history/last-km?kendaraan=BM1234XX&keyword=ban
  * Mengembalikan km_pengajuan terakhir + tanggal dari pengajuan sebelumnya
- * untuk auto-fill bagian riwayat KM di form pengajuan baru.
+ * berdasarkan plat kendaraan + item yang paling relevan dengan keyword.
+ *
+ * Prioritas: submission yang itemnya mengandung keyword → jika tidak ada, ambil terbaru saja.
  */
 async function getLastKM(req, res) {
   try {
-    const { kendaraan } = req.query;
+    const { kendaraan, keyword } = req.query;
     if (!kendaraan?.trim())
       return res.status(400).json({ error: 'Parameter kendaraan wajib diisi' });
 
-    // Ambil pengajuan terakhir yang punya km_pengajuan (status apapun selain Draft)
-    const { data, error } = await supabase
+    // Ambil semua submission untuk plat ini yang punya km_pengajuan
+    const { data: submissions, error } = await supabase
       .from('submissions')
-      .select('id, nomor_pengajuan, tanggal, km_pengajuan, jenis_pembelian')
+      .select('id, nomor_pengajuan, tanggal, km_pengajuan, jenis_pembelian, items:submission_items(penjelasan)')
       .ilike('kendaraan', kendaraan.trim())
       .not('km_pengajuan', 'is', null)
       .order('tanggal', { ascending: false })
-      .limit(1)
-      .single();
+      .limit(20);
 
-    if (error || !data) {
-      // Tidak ada riwayat KM — kembalikan null (bukan error)
+    if (error || !submissions?.length) {
       return res.json({ data: null, message: 'Belum ada riwayat KM untuk kendaraan ini' });
+    }
+
+    let best = submissions[0]; // default: paling baru
+
+    // Jika ada keyword, cari submission yang itemnya paling relevan
+    if (keyword?.trim()) {
+      const kw = keyword.trim().toLowerCase();
+      const words = kw.split(/\s+/).filter(w => w.length > 1);
+
+      // Cari submission yang itemnya mengandung kata dari keyword
+      const matched = submissions.find(sub =>
+        sub.items?.some(item =>
+          words.some(w => item.penjelasan?.toLowerCase().includes(w))
+        )
+      );
+
+      if (matched) best = matched;
     }
 
     res.json({
       data: {
-        tanggal:          data.tanggal,
-        km_pengajuan:     data.km_pengajuan,
-        nomor_pengajuan:  data.nomor_pengajuan,
-        jenis_pembelian:  data.jenis_pembelian,
+        tanggal:         best.tanggal,
+        km_pengajuan:    best.km_pengajuan,
+        nomor_pengajuan: best.nomor_pengajuan,
+        jenis_pembelian: best.jenis_pembelian,
       }
     });
   } catch (err) {
