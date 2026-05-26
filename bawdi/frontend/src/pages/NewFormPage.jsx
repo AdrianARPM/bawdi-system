@@ -263,11 +263,11 @@ export default function NewFormPage() {
 
   const set = useCallback((k, v) => { setForm(f=>({...f,[k]:v})); setErrors(e=>({...e,[k]:''})); }, []);
 
-  const fetchLastKM = useCallback(async (plat) => {
+  const fetchLastKM = useCallback(async (plat, keyword = '') => {
     if (!plat?.trim()) return;
     setLoadingKM(true);
     try {
-      const { data: res } = await historyAPI.getLastKM(plat.trim());
+      const { data: res } = await historyAPI.getLastKM(plat.trim(), keyword);
       if (res?.data) {
         setKmTerakhir(res.data.km_pengajuan);
         setTanggalTerakhir(res.data.tanggal);
@@ -283,7 +283,13 @@ export default function NewFormPage() {
     setLoadingKM(false);
   }, []);
 
-  useEffect(() => { if (step===1 && form.kendaraan?.trim()) fetchLastKM(form.kendaraan); }, [step]); // eslint-disable-line
+  useEffect(() => {
+    if (step === 2 && form.kendaraan?.trim()) {
+      // Fetch KM terakhir berdasarkan plat + keyword dari item yang diisi
+      const keyword = form.items1.map(i => i.penjelasan).filter(Boolean).join(' ');
+      fetchLastKM(form.kendaraan, keyword);
+    }
+  }, [step]); // eslint-disable-line
 
   const updateItem1 = useCallback((id,f,v)=>setForm(s=>({...s,items1:s.items1.map(it=>it.id===id?{...it,[f]:v}:it)})),[]);
   const updateItem2 = useCallback((id,f,v)=>setForm(s=>({...s,items2:s.items2.map(it=>it.id===id?{...it,[f]:v}:it)})),[]);
@@ -318,17 +324,18 @@ export default function NewFormPage() {
       if (!form.kendaraan.trim())       e.kendaraan='Wajib';
       if (!form.jenis_pembelian.trim()) e.jenis_pembelian='Wajib';
       if (!form.alasan.trim())          e.alasan='Wajib';
-      if (!kmSaatIni||parseInt(kmSaatIni)<=0) e.km_pengajuan='KM saat pengajuan wajib diisi';
-      // Jika arsip kosong, KM & tanggal terakhir wajib diisi manual
-      if (!hasArsip && !loadingKM) {
-        if (!kmManual || parseInt(kmManual) <= 0) e.km_terakhir = 'KM terakhir wajib diisi (arsip kosong)';
-        if (!tglManual) e.km_terakhir = 'Tanggal & KM terakhir wajib diisi (arsip kosong)';
-      }
+
       if (!form.batas_waktu_dana.trim())  e.batas_waktu_dana='Wajib';
       if (!form.batas_akhir_pembayaran)   e.batas_akhir_pembayaran='Wajib';
     }
     if (s===2) {
       if (!form.vendor.trim()) e.vendor='Wajib';
+      // Validasi KM (dipindah ke step 2 karena KM diisi setelah item)
+      if (!kmSaatIni || parseInt(kmSaatIni) <= 0) e.km_pengajuan = 'KM saat pengajuan wajib diisi';
+      if (!hasArsip && !loadingKM) {
+        if (!kmManual || parseInt(kmManual) <= 0) e.km_terakhir = 'KM terakhir wajib diisi (arsip kosong)';
+        if (!tglManual) e.km_terakhir = 'Tanggal & KM terakhir wajib diisi (arsip kosong)';
+      }
       form.items1.forEach((it,i) => {
         if (!it.penjelasan.trim()) e[`item1_${i}_pen`]='Wajib';
         if (!it.satuan.trim())     e[`item1_${i}_sat`]='Wajib';
@@ -443,7 +450,7 @@ export default function NewFormPage() {
               <Field label="Jabatan"><input value={user?.jabatan||'—'} disabled className={ic('')}/></Field>
             </div>
             <Field label="Kendaraan / Plat Nomor" required error={errors.kendaraan}>
-              <input value={form.kendaraan} onChange={e=>set('kendaraan',e.target.value)} onBlur={e=>fetchLastKM(e.target.value)} placeholder="BM 1234 ZZ" className={ic('kendaraan')}/>
+              <input value={form.kendaraan} onChange={e=>set('kendaraan',e.target.value)} placeholder="BM 1234 ZZ" className={ic('kendaraan')}/>
             </Field>
             <Field label="Jenis Pembelian" required error={errors.jenis_pembelian}>
               <input value={form.jenis_pembelian} onChange={e=>set('jenis_pembelian',e.target.value)} placeholder="Penggantian Ban" className={ic('jenis_pembelian')}/>
@@ -452,16 +459,7 @@ export default function NewFormPage() {
               <textarea value={form.alasan} onChange={e=>set('alasan',e.target.value)} rows={3} placeholder="Jelaskan alasan pengajuan..."
                 className={`w-full px-3 py-2.5 rounded-xl border text-sm text-slate-800 outline-none resize-none placeholder:text-slate-300 transition-colors leading-relaxed focus:ring-2 ${errors.alasan?'border-red-300 focus:border-red-400 focus:ring-red-50':'border-slate-200 focus:border-amber-400 focus:ring-amber-100'}`}/>
             </Field>
-            <RiwayatKMSection
-              hasArsip={hasArsip} loadingKM={loadingKM}
-              kmTerakhir={kmTerakhir} tanggalTerakhir={tanggalTerakhir} nomorTerakhir={nomorTerakhir}
-              kmManual={kmManual} tglManual={tglManual}
-              onKmManualChange={v=>{setKmManual(v);setErrors(e=>({...e,km_terakhir:''}));}}
-              onTglManualChange={v=>{setTglManual(v);setErrors(e=>({...e,km_terakhir:''}));}}
-              kmSaatIni={kmSaatIni}
-              onKMChange={v=>{setKmSaatIni(v);setErrors(e=>({...e,km_pengajuan:''}));}}
-              error={errors.km_pengajuan} errorKmTerakhir={errors.km_terakhir}
-            />
+
             <div className="grid grid-cols-2 gap-3">
               <Field label="Batas Waktu Dana" required error={errors.batas_waktu_dana}><input value={form.batas_waktu_dana} onChange={e=>set('batas_waktu_dana',e.target.value)} placeholder="30 Hari" className={ic('batas_waktu_dana')}/></Field>
               <Field label="Batas Akhir Pembayaran" required error={errors.batas_akhir_pembayaran}><input type="date" value={form.batas_akhir_pembayaran} onChange={e=>set('batas_akhir_pembayaran',e.target.value)} className={ic('batas_akhir_pembayaran')}/></Field>
@@ -486,6 +484,30 @@ export default function NewFormPage() {
                 <textarea value={form.rekening_tujuan} onChange={e=>set('rekening_tujuan',e.target.value)} rows={2} placeholder="BCA — 1234567890 a/n Nama" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none resize-none placeholder:text-slate-300 focus:border-amber-400 focus:ring-2 focus:ring-amber-100"/>
               </Field>
               <ItemsSection items={form.items1} total={total1} vendorNum={1} errors={errors} onUpdate={updateItem1} onAdd={addItem1} onRemove={removeItem1}/>
+
+              {/* Riwayat KM — muncul setelah item diisi, berdasarkan plat + item */}
+              <div className="pt-1">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] text-slate-400 italic">
+                    KM diambil dari arsip plat <strong>{form.kendaraan}</strong> + item yang diisi
+                  </span>
+                  <button type="button"
+                    onClick={() => { const kw = form.items1.map(i=>i.penjelasan).filter(Boolean).join(' '); fetchLastKM(form.kendaraan, kw); }}
+                    className="text-[10px] text-amber-500 hover:text-amber-600 font-semibold flex items-center gap-1">
+                    ↻ Refresh KM
+                  </button>
+                </div>
+                <RiwayatKMSection
+                  hasArsip={hasArsip} loadingKM={loadingKM}
+                  kmTerakhir={kmTerakhir} tanggalTerakhir={tanggalTerakhir} nomorTerakhir={nomorTerakhir}
+                  kmManual={kmManual} tglManual={tglManual}
+                  onKmManualChange={v=>{setKmManual(v);setErrors(e=>({...e,km_terakhir:''}));}}
+                  onTglManualChange={v=>{setTglManual(v);setErrors(e=>({...e,km_terakhir:''}));}}
+                  kmSaatIni={kmSaatIni}
+                  onKMChange={v=>{setKmSaatIni(v);setErrors(e=>({...e,km_pengajuan:''}));}}
+                  error={errors.km_pengajuan} errorKmTerakhir={errors.km_terakhir}
+                />
+              </div>
             </div>
           </Card>
           {form.kendaraan?.trim()&&<VehicleHistoryPanel kendaraan={form.kendaraan}/>}
