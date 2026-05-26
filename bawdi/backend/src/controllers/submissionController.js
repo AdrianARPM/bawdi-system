@@ -139,7 +139,7 @@ async function create(req, res) {
       nomor_pengajuan, nomor_urut, cabang_manual,
       type, kendaraan, vendor, npwp, rekening_tujuan,
       vendor2, npwp2, jenis_pembelian, alasan, riwayat,
-      batas_waktu_dana, batas_akhir_pembayaran, items,
+      batas_waktu_dana, batas_akhir_pembayaran, items,km_pengajuan
     } = req.body;
 
     if (!nomor_pengajuan || !type || !kendaraan || !vendor || !items?.length)
