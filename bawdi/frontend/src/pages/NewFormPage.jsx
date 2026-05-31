@@ -1,8 +1,9 @@
-// src/pages/NewFormPage.jsx  — v10
-// Perubahan:
-// 1. Riwayat KM 4 field: tanggal terakhir (auto), km terakhir (auto), km sekarang (user), selisih (auto)
-// 2. ItemsSection tetap di luar main component (anti focus-loss)
-// 3. Total item = qty (satuan) × harga
+// src/pages/NewFormPage.jsx  — v11
+// Perubahan dari v10:
+// 1. Riwayat KM SEKARANG PER-ITEM (tidak lagi global per submission)
+// 2. Setiap ItemRow punya section KM-nya sendiri (opsional, tetap muncul)
+// 3. Auto-fetch KM berdasarkan plat + penjelasan item saat user blur penjelasan
+// 4. Jika arsip kosong, KM & tanggal terakhir bisa diisi manual per item
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2, Check, ChevronLeft, Upload, X, AlertCircle, Loader } from 'lucide-react';
@@ -29,7 +30,7 @@ function calcItemTotal(item) {
 }
 
 function fmtKM(km) {
-  if (!km && km !== 0) return '—';
+  if (km == null || km === '') return '—';
   return Number(km).toLocaleString('id-ID') + ' KM';
 }
 
@@ -38,6 +39,7 @@ function fmtTanggal(iso) {
   return new Date(iso).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
+/* ── Foto uploader ────────────────────────────────────────────── */
 function PhotoUploader({ photos, onAdd, onRemove }) {
   const ref = useRef();
   const handleFile = e => {
@@ -87,20 +89,113 @@ function Field({ label, required, error, hint, children }) {
   );
 }
 
-// ── ItemRow & ItemsSection DI LUAR main component ──
-function ItemRow({ item, idx, totalItems, vendorNum, onUpdate, onRemove, errors }) {
+/* ═══════════════════════════════════════════════════════════════
+   ItemKMSection — Riwayat KM PER ITEM (opsional)
+   ═══════════════════════════════════════════════════════════════ */
+function ItemKMSection({ item, kmCache, onItemUpdate }) {
+  const hasArsip = kmCache?.hasArsip;
+  const loading  = kmCache?.loading;
+
+  // Nilai efektif untuk KM terakhir: dari arsip jika ada, atau manual
+  const kmTerakhirEf = hasArsip ? kmCache.kmTerakhir : (parseInt(item.km_manual) || null);
+  const tglTerakhirEf = hasArsip ? kmCache.tanggalTerakhir : (item.tgl_manual || null);
+  const kmSekarang   = parseInt(item.km_pengajuan) || null;
+  const selisih      = kmSekarang && kmTerakhirEf != null ? kmSekarang - kmTerakhirEf : null;
+
+  return (
+    <div className="border-t border-slate-200 pt-2.5 mt-2">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Riwayat KM (opsional)</span>
+        {loading && <Loader size={11} className="text-amber-400 animate-spin"/>}
+      </div>
+      <div className="space-y-1 text-xs bg-slate-50 rounded-lg px-2.5 py-2 border border-slate-100">
+        {/* a. Tanggal terakhir */}
+        <div className="flex items-center gap-2">
+          <span className="w-28 text-slate-500 flex-shrink-0 text-[11px]">a. Tgl Terakhir</span>
+          {hasArsip ? (
+            <>
+              <span className="flex-1 font-semibold text-slate-700 truncate text-[11px]">
+                {fmtTanggal(tglTerakhirEf)}{kmCache?.nomorTerakhir ? ` (${kmCache.nomorTerakhir})` : ''}
+              </span>
+              <span className="bg-blue-100 text-blue-600 rounded px-1.5 py-0.5 font-bold text-[9px] flex-shrink-0">AUTO</span>
+            </>
+          ) : (
+            <>
+              <input type="date" value={item.tgl_manual || ''} onChange={e => onItemUpdate(item.id, 'tgl_manual', e.target.value)}
+                className="flex-1 px-2 py-1 rounded border border-slate-200 text-[11px] text-slate-800 outline-none focus:border-amber-400"/>
+              <span className="bg-amber-100 text-amber-700 rounded px-1.5 py-0.5 font-bold text-[9px] flex-shrink-0">ISI</span>
+            </>
+          )}
+        </div>
+
+        {/* b. KM terakhir */}
+        <div className="flex items-center gap-2">
+          <span className="w-28 text-slate-500 flex-shrink-0 text-[11px]">b. KM Terakhir</span>
+          {hasArsip ? (
+            <>
+              <span className="flex-1 font-semibold text-slate-700 text-[11px]">{fmtKM(kmCache.kmTerakhir)}</span>
+              <span className="bg-blue-100 text-blue-600 rounded px-1.5 py-0.5 font-bold text-[9px] flex-shrink-0">AUTO</span>
+            </>
+          ) : (
+            <>
+              <input type="number" value={item.km_manual || ''} onChange={e => onItemUpdate(item.id, 'km_manual', e.target.value)} placeholder="Contoh: 15000"
+                className="flex-1 px-2 py-1 rounded border border-slate-200 text-[11px] text-slate-800 outline-none focus:border-amber-400 placeholder:text-slate-300"/>
+              <span className="bg-amber-100 text-amber-700 rounded px-1.5 py-0.5 font-bold text-[9px] flex-shrink-0">ISI</span>
+            </>
+          )}
+        </div>
+
+        {/* c. KM saat pengajuan (selalu input) */}
+        <div className="flex items-center gap-2">
+          <span className="w-28 text-slate-500 flex-shrink-0 text-[11px]">c. KM Sekarang</span>
+          <input type="number" value={item.km_pengajuan || ''} onChange={e => onItemUpdate(item.id, 'km_pengajuan', e.target.value)} placeholder="opsional"
+            className="flex-1 px-2 py-1 rounded border border-slate-200 text-[11px] text-slate-800 outline-none focus:border-amber-400 placeholder:text-slate-300"/>
+          <span className="bg-amber-100 text-amber-700 rounded px-1.5 py-0.5 font-bold text-[9px] flex-shrink-0">ISI</span>
+        </div>
+
+        {/* d. Selisih */}
+        <div className="flex items-center gap-2">
+          <span className="w-28 text-slate-500 flex-shrink-0 text-[11px]">d. Selisih KM</span>
+          <span className={`flex-1 font-bold text-[11px] ${selisih != null ? selisih >= 0 ? 'text-emerald-600' : 'text-red-500' : 'text-slate-400 italic'}`}>
+            {selisih != null ? `${selisih >= 0 ? '+' : ''}${selisih.toLocaleString('id-ID')} KM` : '—'}
+          </span>
+          <span className="bg-blue-100 text-blue-600 rounded px-1.5 py-0.5 font-bold text-[9px] flex-shrink-0">AUTO</span>
+        </div>
+
+        {/* Info banner jika arsip kosong */}
+        {!loading && !hasArsip && item.penjelasan?.trim() && (
+          <p className="text-[9.5px] text-amber-600 italic pt-1">
+            Tidak ada riwayat di arsip untuk item serupa di plat ini. Bisa diisi manual atau dibiarkan kosong.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ItemRow & ItemsSection — DI LUAR main component
+   ═══════════════════════════════════════════════════════════════ */
+function ItemRow({ item, idx, totalItems, vendorNum, onUpdate, onRemove, onBlurPenjelasan, kmCache, errors }) {
   const eb = `item${vendorNum}_${idx}`;
   const handlePenjelasan = useCallback(e => onUpdate(item.id, 'penjelasan', e.target.value), [item.id, onUpdate]);
   const handleSatuan     = useCallback(e => onUpdate(item.id, 'satuan',     e.target.value), [item.id, onUpdate]);
   const handleHarga      = useCallback(e => onUpdate(item.id, 'harga',      e.target.value), [item.id, onUpdate]);
+  const handleBlur       = useCallback(() => onBlurPenjelasan(item.id, item.penjelasan), [item.id, item.penjelasan, onBlurPenjelasan]);
   const itemTotal = calcItemTotal(item);
+
   return (
     <div className={`border rounded-xl p-3 space-y-2 ${errors[`${eb}_pen`]||errors[`${eb}_sat`]||errors[`${eb}_hrg`]?'border-red-300 bg-red-50':'border-slate-200 bg-white'}`}>
       <div className="flex justify-between items-center">
         <span className="text-[10px] font-bold text-slate-400">ITEM {idx + 1}</span>
         {totalItems > 1 && <button type="button" onMouseDown={e=>e.preventDefault()} onClick={() => onRemove(item.id)} className="text-red-400 hover:text-red-600"><Trash2 size={13}/></button>}
       </div>
-      <textarea value={item.penjelasan} onChange={handlePenjelasan} rows={2} placeholder="Penjelasan item..."
+      <textarea
+        value={item.penjelasan}
+        onChange={handlePenjelasan}
+        onBlur={handleBlur}
+        rows={2}
+        placeholder="Penjelasan item..."
         className={`w-full px-3 py-2.5 rounded-xl border text-sm text-slate-800 outline-none resize-none placeholder:text-slate-300 focus:ring-2 focus:ring-amber-100 transition-colors leading-relaxed ${errors[`${eb}_pen`]?'border-red-300':'border-slate-200 focus:border-amber-400'}`}/>
       <div className="grid grid-cols-5 gap-2">
         <input value={item.satuan} onChange={handleSatuan} placeholder="Satuan"
@@ -117,11 +212,14 @@ function ItemRow({ item, idx, totalItems, vendorNum, onUpdate, onRemove, errors 
           <span className="text-amber-500 font-semibold">{fmtCurrency(itemTotal)}</span>
         </div>
       )}
+
+      {/* Per-item KM section */}
+      <ItemKMSection item={item} kmCache={kmCache} onItemUpdate={onUpdate}/>
     </div>
   );
 }
 
-function ItemsSection({ items, total, vendorNum, errors, onUpdate, onAdd, onRemove }) {
+function ItemsSection({ items, total, vendorNum, errors, onUpdate, onAdd, onRemove, onBlurPenjelasan, itemKMCache }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -129,7 +227,9 @@ function ItemsSection({ items, total, vendorNum, errors, onUpdate, onAdd, onRemo
         <button type="button" onMouseDown={e=>e.preventDefault()} onClick={onAdd} className="flex items-center gap-1 text-xs font-bold text-amber-500 hover:text-amber-600"><Plus size={13}/> Tambah Item</button>
       </div>
       {items.map((item, idx) => (
-        <ItemRow key={item.id} item={item} idx={idx} totalItems={items.length} vendorNum={vendorNum} errors={errors} onUpdate={onUpdate} onRemove={onRemove}/>
+        <ItemRow key={item.id} item={item} idx={idx} totalItems={items.length} vendorNum={vendorNum}
+          errors={errors} onUpdate={onUpdate} onRemove={onRemove} onBlurPenjelasan={onBlurPenjelasan}
+          kmCache={itemKMCache[item.id]}/>
       ))}
       <div className="flex justify-between items-center bg-amber-50 rounded-xl px-3 py-2.5">
         <span className="text-sm font-extrabold text-amber-800">TOTAL</span>
@@ -139,103 +239,15 @@ function ItemsSection({ items, total, vendorNum, errors, onUpdate, onAdd, onRemo
   );
 }
 
-// ── RiwayatKMSection DI LUAR main component ──
-// Jika arsip ADA  → field a & b auto (read-only)
-// Jika arsip KOSONG → field a & b bisa diisi manual oleh pemohon
-function RiwayatKMSection({
-  hasArsip, loadingKM,
-  kmTerakhir, tanggalTerakhir, nomorTerakhir,
-  kmManual, tglManual, onKmManualChange, onTglManualChange,
-  kmSaatIni, onKMChange, error, errorKmTerakhir,
-}) {
-  // KM terakhir efektif: dari arsip jika ada, atau dari input manual
-  const kmTerakhirVal = hasArsip ? kmTerakhir : (parseInt(kmManual) || null);
-  const selisih = kmSaatIni && kmTerakhirVal != null
-    ? (parseInt(kmSaatIni) || 0) - kmTerakhirVal : null;
+const newItem = () => ({
+  id: crypto.randomUUID(),
+  penjelasan: '', satuan: '', harga: '',
+  km_pengajuan: '',   // KM saat pengajuan (opsional)
+  km_manual: '',      // KM terakhir manual jika arsip kosong
+  tgl_manual: '',     // Tanggal terakhir manual jika arsip kosong
+});
 
-  return (
-    <div className="space-y-2">
-      <label className="block text-xs font-bold text-slate-600">Riwayat KM Kendaraan <span className="text-red-500">*</span></label>
-
-      {/* Info banner jika arsip kosong */}
-      {!loadingKM && !hasArsip && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-start gap-2">
-          <AlertCircle size={13} className="text-amber-500 flex-shrink-0 mt-0.5"/>
-          <p className="text-[11px] text-amber-700 leading-snug">
-            Belum ada riwayat di arsip untuk kendaraan ini. Silakan isi <strong>tanggal & KM terakhir</strong> secara manual.
-          </p>
-        </div>
-      )}
-
-      <div className="border border-slate-200 rounded-xl overflow-hidden text-xs">
-        {/* a. Tanggal terakhir */}
-        <div className={`flex items-center border-b border-slate-100 px-3 py-2 gap-2 ${hasArsip ? 'bg-slate-50' : ''}`}>
-          <span className="w-44 text-slate-500 flex-shrink-0">
-            a. Tanggal Terakhir Pengajuan {!hasArsip && <span className="text-red-500">*</span>}
-          </span>
-          {loadingKM ? (
-            <span className="flex-1"><Loader size={11} className="text-amber-400 animate-spin"/></span>
-          ) : hasArsip ? (
-            <>
-              <span className="flex-1 font-semibold text-slate-700">
-                {fmtTanggal(tanggalTerakhir)}{nomorTerakhir ? ` (${nomorTerakhir})` : ''}
-              </span>
-              <span className="bg-blue-100 text-blue-600 rounded px-1.5 py-0.5 font-bold text-[9px] flex-shrink-0">AUTO</span>
-            </>
-          ) : (
-            <>
-              <input type="date" value={tglManual} onChange={e => onTglManualChange(e.target.value)}
-                className="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-800 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100"/>
-              <span className="bg-amber-100 text-amber-700 rounded px-1.5 py-0.5 font-bold text-[9px] flex-shrink-0">ISI</span>
-            </>
-          )}
-        </div>
-
-        {/* b. KM terakhir */}
-        <div className={`flex items-center border-b border-slate-100 px-3 py-2 gap-2 ${hasArsip ? 'bg-slate-50' : ''}`}>
-          <span className="w-44 text-slate-500 flex-shrink-0">
-            b. KM Terakhir Pengajuan {!hasArsip && <span className="text-red-500">*</span>}
-          </span>
-          {loadingKM ? (
-            <span className="flex-1"><Loader size={11} className="text-amber-400 animate-spin"/></span>
-          ) : hasArsip ? (
-            <>
-              <span className="flex-1 font-semibold text-slate-700">{fmtKM(kmTerakhir)}</span>
-              <span className="bg-blue-100 text-blue-600 rounded px-1.5 py-0.5 font-bold text-[9px] flex-shrink-0">AUTO</span>
-            </>
-          ) : (
-            <>
-              <input type="number" value={kmManual} onChange={e => onKmManualChange(e.target.value)} placeholder="Contoh: 15000"
-                className={`flex-1 px-3 py-1.5 rounded-lg border text-slate-800 outline-none focus:ring-2 focus:ring-amber-100 placeholder:text-slate-300 ${errorKmTerakhir?'border-red-300':'border-slate-200 focus:border-amber-400'}`}/>
-              <span className="bg-amber-100 text-amber-700 rounded px-1.5 py-0.5 font-bold text-[9px] flex-shrink-0">ISI</span>
-            </>
-          )}
-        </div>
-
-        {/* c. KM saat pengajuan */}
-        <div className="flex items-center border-b border-slate-100 px-3 py-2 gap-2">
-          <span className="w-44 text-slate-500 flex-shrink-0">c. KM Saat Pengajuan <span className="text-red-500">*</span></span>
-          <input type="number" value={kmSaatIni} onChange={e => onKMChange(e.target.value)} placeholder="Contoh: 16500"
-            className={`flex-1 px-3 py-1.5 rounded-lg border text-slate-800 outline-none focus:ring-2 focus:ring-amber-100 placeholder:text-slate-300 ${error?'border-red-300':'border-slate-200 focus:border-amber-400'}`}/>
-          <span className="bg-amber-100 text-amber-700 rounded px-1.5 py-0.5 font-bold text-[9px] flex-shrink-0">ISI</span>
-        </div>
-
-        {/* d. Selisih */}
-        <div className="flex items-center px-3 py-2.5 bg-slate-50 gap-2">
-          <span className="w-44 text-slate-500 flex-shrink-0">d. Selisih KM</span>
-          <span className={`flex-1 font-bold ${selisih != null ? selisih >= 0 ? 'text-emerald-600' : 'text-red-500' : 'text-slate-400 italic'}`}>
-            {selisih != null ? `${selisih >= 0 ? '+' : ''}${selisih.toLocaleString('id-ID')} KM` : '—'}
-          </span>
-          <span className="bg-blue-100 text-blue-600 rounded px-1.5 py-0.5 font-bold text-[9px] flex-shrink-0">AUTO</span>
-        </div>
-      </div>
-      {(error || errorKmTerakhir) && <p className="flex items-center gap-1 text-xs text-red-500"><AlertCircle size={10}/> {error || errorKmTerakhir}</p>}
-    </div>
-  );
-}
-
-const newItem = () => ({ id: crypto.randomUUID(), penjelasan: '', satuan: '', harga: '' });
-
+/* ═══════════════════════════════════════════════════════════════ */
 export default function NewFormPage() {
   const { user }  = useAuthStore();
   const navigate  = useNavigate();
@@ -243,14 +255,10 @@ export default function NewFormPage() {
   const [loading, setLoading] = useState(false);
   const [photos, setPhotos]   = useState([]);
   const [errors, setErrors]   = useState({});
-  const [kmTerakhir, setKmTerakhir]           = useState(null);
-  const [tanggalTerakhir, setTanggalTerakhir] = useState(null);
-  const [nomorTerakhir, setNomorTerakhir]     = useState(null);
-  const [kmSaatIni, setKmSaatIni]             = useState('');
-  const [loadingKM, setLoadingKM]             = useState(false);
-  const [hasArsip, setHasArsip]               = useState(false);   // ada riwayat di arsip?
-  const [kmManual, setKmManual]               = useState('');       // KM terakhir manual (jika arsip kosong)
-  const [tglManual, setTglManual]             = useState('');       // tanggal terakhir manual
+
+  // Cache KM history per item.id
+  // { [itemId]: { loading, hasArsip, kmTerakhir, tanggalTerakhir, nomorTerakhir } }
+  const [itemKMCache, setItemKMCache] = useState({});
 
   const [form, setForm] = useState({
     type:'PR', nomorUrut:'', cabangManual: user?.cabang||'',
@@ -263,58 +271,93 @@ export default function NewFormPage() {
 
   const set = useCallback((k, v) => { setForm(f=>({...f,[k]:v})); setErrors(e=>({...e,[k]:''})); }, []);
 
-  const fetchLastKM = useCallback(async (plat, keyword = '') => {
-    if (!plat?.trim()) return;
-    setLoadingKM(true);
+  // Fetch KM untuk item tertentu, berdasarkan plat + penjelasan
+  const fetchItemKM = useCallback(async (itemId, plat, keyword) => {
+    if (!plat?.trim() || !keyword?.trim()) {
+      setItemKMCache(c => ({ ...c, [itemId]: { loading: false, hasArsip: false } }));
+      return;
+    }
+    setItemKMCache(c => ({ ...c, [itemId]: { ...c[itemId], loading: true } }));
     try {
       const { data: res } = await historyAPI.getLastKM(plat.trim(), keyword);
       if (res?.data) {
-        setKmTerakhir(res.data.km_pengajuan);
-        setTanggalTerakhir(res.data.tanggal);
-        setNomorTerakhir(res.data.nomor_pengajuan);
-        setHasArsip(true);          // arsip ADA → field a & b auto
+        setItemKMCache(c => ({
+          ...c,
+          [itemId]: {
+            loading: false, hasArsip: true,
+            kmTerakhir: res.data.km_pengajuan,
+            tanggalTerakhir: res.data.tanggal,
+            nomorTerakhir: res.data.nomor_pengajuan,
+          }
+        }));
       } else {
-        setKmTerakhir(null); setTanggalTerakhir(null); setNomorTerakhir(null);
-        setHasArsip(false);         // arsip KOSONG → field a & b manual
+        setItemKMCache(c => ({ ...c, [itemId]: { loading: false, hasArsip: false } }));
       }
     } catch {
-      setHasArsip(false);
+      setItemKMCache(c => ({ ...c, [itemId]: { loading: false, hasArsip: false } }));
     }
-    setLoadingKM(false);
   }, []);
 
-  useEffect(() => {
-    if (step === 2 && form.kendaraan?.trim()) {
-      // Fetch KM terakhir berdasarkan plat + keyword dari item yang diisi
-      const keyword = form.items1.map(i => i.penjelasan).filter(Boolean).join(' ');
-      fetchLastKM(form.kendaraan, keyword);
-    }
-  }, [step]); // eslint-disable-line
+  // Handler saat user blur dari textarea penjelasan
+  const handleBlurPenjelasan1 = useCallback((itemId, penjelasan) => {
+    if (penjelasan?.trim() && form.kendaraan?.trim()) fetchItemKM(itemId, form.kendaraan, penjelasan);
+  }, [form.kendaraan, fetchItemKM]);
+  const handleBlurPenjelasan2 = useCallback((itemId, penjelasan) => {
+    if (penjelasan?.trim() && form.kendaraan?.trim()) fetchItemKM(itemId, form.kendaraan, penjelasan);
+  }, [form.kendaraan, fetchItemKM]);
 
+  // Item handlers
   const updateItem1 = useCallback((id,f,v)=>setForm(s=>({...s,items1:s.items1.map(it=>it.id===id?{...it,[f]:v}:it)})),[]);
   const updateItem2 = useCallback((id,f,v)=>setForm(s=>({...s,items2:s.items2.map(it=>it.id===id?{...it,[f]:v}:it)})),[]);
   const addItem1    = useCallback(()=>setForm(s=>({...s,items1:[...s.items1,newItem()]})),[]);
   const addItem2    = useCallback(()=>setForm(s=>({...s,items2:[...s.items2,newItem()]})),[]);
-  const removeItem1 = useCallback((id)=>setForm(s=>({...s,items1:s.items1.filter(it=>it.id!==id)})),[]);
-  const removeItem2 = useCallback((id)=>setForm(s=>({...s,items2:s.items2.filter(it=>it.id!==id)})),[]);
+  const removeItem1 = useCallback((id)=>{
+    setForm(s=>({...s,items1:s.items1.filter(it=>it.id!==id)}));
+    setItemKMCache(c => { const n = {...c}; delete n[id]; return n; });
+  },[]);
+  const removeItem2 = useCallback((id)=>{
+    setForm(s=>({...s,items2:s.items2.filter(it=>it.id!==id)}));
+    setItemKMCache(c => { const n = {...c}; delete n[id]; return n; });
+  },[]);
 
   const total1 = form.items1.reduce((s,i)=>s+calcItemTotal(i),0);
   const total2 = form.items2.reduce((s,i)=>s+calcItemTotal(i),0);
   const previewNomor = buildNomor(form.nomorUrut||'###', form.type, form.cabangManual||'CABANG');
 
+  // Build riwayat dari semua items yang punya data KM
   const buildRiwayat = () => {
-    const kmInt        = parseInt(kmSaatIni) || 0;
-    // Nilai efektif: arsip jika ada, manual jika kosong
-    const kmTerakhirEf = hasArsip ? kmTerakhir : (parseInt(kmManual) || null);
-    const tglTerakhirEf = hasArsip ? tanggalTerakhir : (tglManual || null);
-    const selisih      = kmTerakhirEf != null ? kmInt - kmTerakhirEf : null;
-    const sumberLabel  = hasArsip ? (nomorTerakhir ? ` (${nomorTerakhir})` : '') : ' (input manual)';
-    return [
-      `a. Tanggal Terakhir Pengajuan : ${tglTerakhirEf ? fmtTanggal(tglTerakhirEf) : 'Belum ada riwayat'}${tglTerakhirEf ? sumberLabel : ''}`,
-      `b. KM Terakhir Pengajuan      : ${kmTerakhirEf != null ? fmtKM(kmTerakhirEf) : '—'}`,
-      `c. KM Saat Pengajuan          : ${kmSaatIni ? fmtKM(kmInt) : '—'}`,
-      `d. Selisih KM                 : ${selisih != null ? `${selisih >= 0 ? '+' : ''}${selisih.toLocaleString('id-ID')} KM` : '—'}`,
-    ].join('\n');
+    const allItems = [
+      ...form.items1.map((i, idx) => ({ ...i, vendorNum: 1, idx })),
+      ...(form.useVendor2 ? form.items2.map((i, idx) => ({ ...i, vendorNum: 2, idx })) : []),
+    ];
+
+    const lines = [];
+    let counter = 0;
+
+    allItems.forEach(item => {
+      const cache         = itemKMCache[item.id] || {};
+      const hasArsip      = cache.hasArsip;
+      const kmTerakhirEf  = hasArsip ? cache.kmTerakhir : (parseInt(item.km_manual) || null);
+      const tglTerakhirEf = hasArsip ? cache.tanggalTerakhir : (item.tgl_manual || null);
+      const kmSekarang    = parseInt(item.km_pengajuan) || null;
+
+      // Skip item yang tidak punya data KM apapun
+      if (!kmSekarang && !kmTerakhirEf && !tglTerakhirEf) return;
+
+      counter++;
+      const selisih = kmSekarang && kmTerakhirEf != null ? kmSekarang - kmTerakhirEf : null;
+      const sumber  = hasArsip ? (cache.nomorTerakhir ? ` (${cache.nomorTerakhir})` : '') : ' (manual)';
+
+      lines.push(`${counter}. ${item.penjelasan || '(tanpa penjelasan)'}`);
+      lines.push(`   a. Tgl Terakhir : ${tglTerakhirEf ? fmtTanggal(tglTerakhirEf) + sumber : '—'}`);
+      lines.push(`   b. KM Terakhir  : ${kmTerakhirEf != null ? fmtKM(kmTerakhirEf) : '—'}`);
+      lines.push(`   c. KM Sekarang  : ${kmSekarang != null ? fmtKM(kmSekarang) : '—'}`);
+      lines.push(`   d. Selisih KM   : ${selisih != null ? `${selisih >= 0 ? '+' : ''}${selisih.toLocaleString('id-ID')} KM` : '—'}`);
+      lines.push('');
+    });
+
+    if (!lines.length) return '(Tidak ada riwayat KM yang diisi)';
+    return lines.join('\n').trim();
   };
 
   const validate = s => {
@@ -324,18 +367,11 @@ export default function NewFormPage() {
       if (!form.kendaraan.trim())       e.kendaraan='Wajib';
       if (!form.jenis_pembelian.trim()) e.jenis_pembelian='Wajib';
       if (!form.alasan.trim())          e.alasan='Wajib';
-
       if (!form.batas_waktu_dana.trim())  e.batas_waktu_dana='Wajib';
       if (!form.batas_akhir_pembayaran)   e.batas_akhir_pembayaran='Wajib';
     }
     if (s===2) {
       if (!form.vendor.trim()) e.vendor='Wajib';
-      // Validasi KM (dipindah ke step 2 karena KM diisi setelah item)
-      if (!kmSaatIni || parseInt(kmSaatIni) <= 0) e.km_pengajuan = 'KM saat pengajuan wajib diisi';
-      if (!hasArsip && !loadingKM) {
-        if (!kmManual || parseInt(kmManual) <= 0) e.km_terakhir = 'KM terakhir wajib diisi (arsip kosong)';
-        if (!tglManual) e.km_terakhir = 'Tanggal & KM terakhir wajib diisi (arsip kosong)';
-      }
       form.items1.forEach((it,i) => {
         if (!it.penjelasan.trim()) e[`item1_${i}_pen`]='Wajib';
         if (!it.satuan.trim())     e[`item1_${i}_sat`]='Wajib';
@@ -365,15 +401,27 @@ export default function NewFormPage() {
       const nomor   = buildNomor(form.nomorUrut, form.type, form.cabangManual);
       const riwayat = buildRiwayat();
       const items   = [
-        ...form.items1.map(i=>({penjelasan:i.penjelasan,satuan:i.satuan,vendor_num:1,harga:parseFloat(i.harga)||0,total:calcItemTotal(i)})),
-        ...(form.useVendor2?form.items2.map(i=>({penjelasan:i.penjelasan,satuan:i.satuan,vendor_num:2,harga:parseFloat(i.harga)||0,total:calcItemTotal(i)})):[]),
+        ...form.items1.map(i=>({
+          penjelasan:i.penjelasan, satuan:i.satuan, vendor_num:1,
+          harga:parseFloat(i.harga)||0, total:calcItemTotal(i),
+          km_pengajuan: parseInt(i.km_pengajuan) || null,
+        })),
+        ...(form.useVendor2?form.items2.map(i=>({
+          penjelasan:i.penjelasan, satuan:i.satuan, vendor_num:2,
+          harga:parseFloat(i.harga)||0, total:calcItemTotal(i),
+          km_pengajuan: parseInt(i.km_pengajuan) || null,
+        })):[]),
       ];
+
+      // Backwards-compat: simpan km_pengajuan submission-level dari item pertama yang punya KM
+      const firstKM = items.find(i => i.km_pengajuan)?.km_pengajuan || null;
+
       const payload = {
         nomor_pengajuan:nomor, nomor_urut:form.nomorUrut, cabang_manual:form.cabangManual,
         type:form.type, kendaraan:form.kendaraan, jenis_pembelian:form.jenis_pembelian,
         vendor:form.vendor, npwp:form.npwp, rekening_tujuan:form.rekening_tujuan,
         vendor2:form.useVendor2?form.vendor2:'', npwp2:form.useVendor2?form.npwp2:'',
-        alasan:form.alasan, riwayat, km_pengajuan:parseInt(kmSaatIni)||null,
+        alasan:form.alasan, riwayat, km_pengajuan: firstKM,
         batas_waktu_dana:form.batas_waktu_dana, batas_akhir_pembayaran:form.batas_akhir_pembayaran, items,
       };
       if (navigator.onLine) {
@@ -449,7 +497,7 @@ export default function NewFormPage() {
               <Field label="Pemohon"><input value={user?.name} disabled className={ic('')}/></Field>
               <Field label="Jabatan"><input value={user?.jabatan||'—'} disabled className={ic('')}/></Field>
             </div>
-            <Field label="Kendaraan / Plat Nomor" required error={errors.kendaraan}>
+            <Field label="Kendaraan / Plat Nomor" required error={errors.kendaraan} hint="Riwayat KM otomatis muncul saat isi item di langkah berikutnya">
               <input value={form.kendaraan} onChange={e=>set('kendaraan',e.target.value)} placeholder="BM 1234 ZZ" className={ic('kendaraan')}/>
             </Field>
             <Field label="Jenis Pembelian" required error={errors.jenis_pembelian}>
@@ -459,7 +507,6 @@ export default function NewFormPage() {
               <textarea value={form.alasan} onChange={e=>set('alasan',e.target.value)} rows={3} placeholder="Jelaskan alasan pengajuan..."
                 className={`w-full px-3 py-2.5 rounded-xl border text-sm text-slate-800 outline-none resize-none placeholder:text-slate-300 transition-colors leading-relaxed focus:ring-2 ${errors.alasan?'border-red-300 focus:border-red-400 focus:ring-red-50':'border-slate-200 focus:border-amber-400 focus:ring-amber-100'}`}/>
             </Field>
-
             <div className="grid grid-cols-2 gap-3">
               <Field label="Batas Waktu Dana" required error={errors.batas_waktu_dana}><input value={form.batas_waktu_dana} onChange={e=>set('batas_waktu_dana',e.target.value)} placeholder="30 Hari" className={ic('batas_waktu_dana')}/></Field>
               <Field label="Batas Akhir Pembayaran" required error={errors.batas_akhir_pembayaran}><input type="date" value={form.batas_akhir_pembayaran} onChange={e=>set('batas_akhir_pembayaran',e.target.value)} className={ic('batas_akhir_pembayaran')}/></Field>
@@ -478,36 +525,14 @@ export default function NewFormPage() {
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Nama Vendor *" error={errors.vendor}><input value={form.vendor} onChange={e=>set('vendor',e.target.value)} placeholder="Nama bengkel" className={ic('vendor')}/></Field>
-                <Field label="NPWP/KTP (opsional)"><input value={form.npwp} onChange={e=>set('npwp',e.target.value)} placeholder="XX.XXX..." className={ic('')}/></Field>
+                <Field label="NPWP (opsional)"><input value={form.npwp} onChange={e=>set('npwp',e.target.value)} placeholder="XX.XXX..." className={ic('')}/></Field>
               </div>
               <Field label="Rekening Tujuan Pembayaran" hint="Bank — Nomor a/n Nama">
                 <textarea value={form.rekening_tujuan} onChange={e=>set('rekening_tujuan',e.target.value)} rows={2} placeholder="BCA — 1234567890 a/n Nama" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none resize-none placeholder:text-slate-300 focus:border-amber-400 focus:ring-2 focus:ring-amber-100"/>
               </Field>
-              <ItemsSection items={form.items1} total={total1} vendorNum={1} errors={errors} onUpdate={updateItem1} onAdd={addItem1} onRemove={removeItem1}/>
-
-              {/* Riwayat KM — muncul setelah item diisi, berdasarkan plat + item */}
-              <div className="pt-1">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] text-slate-400 italic">
-                    KM diambil dari arsip plat <strong>{form.kendaraan}</strong> + item yang diisi
-                  </span>
-                  <button type="button"
-                    onClick={() => { const kw = form.items1.map(i=>i.penjelasan).filter(Boolean).join(' '); fetchLastKM(form.kendaraan, kw); }}
-                    className="text-[10px] text-amber-500 hover:text-amber-600 font-semibold flex items-center gap-1">
-                    ↻ Refresh KM
-                  </button>
-                </div>
-                <RiwayatKMSection
-                  hasArsip={hasArsip} loadingKM={loadingKM}
-                  kmTerakhir={kmTerakhir} tanggalTerakhir={tanggalTerakhir} nomorTerakhir={nomorTerakhir}
-                  kmManual={kmManual} tglManual={tglManual}
-                  onKmManualChange={v=>{setKmManual(v);setErrors(e=>({...e,km_terakhir:''}));}}
-                  onTglManualChange={v=>{setTglManual(v);setErrors(e=>({...e,km_terakhir:''}));}}
-                  kmSaatIni={kmSaatIni}
-                  onKMChange={v=>{setKmSaatIni(v);setErrors(e=>({...e,km_pengajuan:''}));}}
-                  error={errors.km_pengajuan} errorKmTerakhir={errors.km_terakhir}
-                />
-              </div>
+              <ItemsSection items={form.items1} total={total1} vendorNum={1} errors={errors}
+                onUpdate={updateItem1} onAdd={addItem1} onRemove={removeItem1}
+                onBlurPenjelasan={handleBlurPenjelasan1} itemKMCache={itemKMCache}/>
             </div>
           </Card>
           {form.kendaraan?.trim()&&<VehicleHistoryPanel kendaraan={form.kendaraan}/>}
@@ -530,9 +555,11 @@ export default function NewFormPage() {
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Nama Vendor 2 *" error={errors.vendor2}><input value={form.vendor2} onChange={e=>set('vendor2',e.target.value)} placeholder="Nama bengkel 2" className={ic('vendor2')}/></Field>
-                <Field label="NPWP/KTP (opsional)"><input value={form.npwp2} onChange={e=>set('npwp2',e.target.value)} placeholder="Opsional" className={ic('')}/></Field>
+                <Field label="NPWP (opsional)"><input value={form.npwp2} onChange={e=>set('npwp2',e.target.value)} placeholder="Opsional" className={ic('')}/></Field>
               </div>
-              <ItemsSection items={form.items2} total={total2} vendorNum={2} errors={errors} onUpdate={updateItem2} onAdd={addItem2} onRemove={removeItem2}/>
+              <ItemsSection items={form.items2} total={total2} vendorNum={2} errors={errors}
+                onUpdate={updateItem2} onAdd={addItem2} onRemove={removeItem2}
+                onBlurPenjelasan={handleBlurPenjelasan2} itemKMCache={itemKMCache}/>
             </div>
           )}
         </Card>
@@ -556,7 +583,7 @@ export default function NewFormPage() {
               <p className="text-[10px] text-slate-400 mb-1">Nomor Pengajuan</p>
               <p className="text-base font-black text-amber-400">{buildNomor(form.nomorUrut,form.type,form.cabangManual)}</p>
             </div>
-            {[['Jenis',form.type],['Pemohon',user?.name],['Kendaraan',form.kendaraan],['Jenis Pembelian',form.jenis_pembelian],['Vendor 1',form.vendor],...(form.rekening_tujuan?[['Rekening',form.rekening_tujuan]]:[]),['Total Vendor 1',fmtCurrency(total1)],...(form.useVendor2?[['Vendor 2',form.vendor2],['Total Vendor 2',fmtCurrency(total2)]]:[]),['KM Saat Ini',kmSaatIni?fmtKM(parseInt(kmSaatIni)):'—'],['Batas Waktu',form.batas_waktu_dana],['Batas Bayar',form.batas_akhir_pembayaran],['Foto',`${photos.length} foto`]].map(([k,v],i,arr)=>(
+            {[['Jenis',form.type],['Pemohon',user?.name],['Kendaraan',form.kendaraan],['Jenis Pembelian',form.jenis_pembelian],['Vendor 1',form.vendor],...(form.rekening_tujuan?[['Rekening',form.rekening_tujuan]]:[]),['Total Vendor 1',fmtCurrency(total1)],...(form.useVendor2?[['Vendor 2',form.vendor2],['Total Vendor 2',fmtCurrency(total2)]]:[]),['Batas Waktu',form.batas_waktu_dana],['Batas Bayar',form.batas_akhir_pembayaran],['Foto',`${photos.length} foto`]].map(([k,v],i,arr)=>(
               <div key={k} className={`flex justify-between gap-4 py-2 ${i<arr.length-1?'border-b border-slate-50':''}`}>
                 <span className="text-xs text-slate-400">{k}</span><span className="text-xs font-bold text-slate-700 text-right">{v}</span>
               </div>
