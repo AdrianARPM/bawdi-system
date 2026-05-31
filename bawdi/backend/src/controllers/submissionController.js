@@ -180,12 +180,15 @@ async function create(req, res) {
     });
     if (subErr) throw subErr;
 
+// Insert items (dengan km_pengajuan per-item + total qty × harga)
     await supabase.from('submission_items').insert(
       items.map((i, idx) => ({
         id: uuidv4(), submission_id: submissionId,
         penjelasan: i.penjelasan, satuan: i.satuan,
-        harga: Number(i.harga) || 0, total: Number(i.harga) || 0,
+        harga: Number(i.harga) || 0,
+        total: Number(i.total) || Number(i.harga) || 0,           // pakai i.total dari frontend (qty × harga)
         vendor_num: i.vendor_num || 1, urutan: idx + 1,
+        km_pengajuan: i.km_pengajuan ? Number(i.km_pengajuan) : null,   // KM per item
       }))
     );
 
