@@ -1,9 +1,8 @@
-// src/controllers/historyController.js  — v2 (+ getLastKM)
+// src/controllers/historyController.js  — v3 (per-item KM tracking)
 const supabase = require('../../config/supabase');
 
 /**
  * GET /api/history/vehicle
- * Riwayat pengajuan selesai/disetujui untuk suatu kendaraan
  */
 async function getVehicleHistory(req, res) {
   try {
@@ -17,9 +16,9 @@ async function getVehicleHistory(req, res) {
         id, nomor_pengajuan, type, status, tanggal,
         jenis_pembelian, total_harga, jumlah_bayar,
         tanggal_bayar, vendor, vendor2, vendor_pilihan,
-        km_pengajuan, revisi_count, ditutup_at,
+        revisi_count, ditutup_at,
         pemohon:users!submissions_pemohon_id_fkey(name),
-        items:submission_items(penjelasan, satuan, harga, total, vendor_num)
+        items:submission_items(penjelasan, satuan, harga, total, vendor_num, km_pengajuan)
       `)
       .ilike('kendaraan', kendaraan.trim())
       .in('status', ['Selesai', 'Disetujui'])
@@ -34,7 +33,6 @@ async function getVehicleHistory(req, res) {
       ...sub,
       items_preview: sub.items?.slice(0, 3).map(i => i.penjelasan).join(', '),
     }));
-
     res.json({ data: result });
   } catch (err) {
     console.error('[history/vehicle]', err);
@@ -44,53 +42,67 @@ async function getVehicleHistory(req, res) {
 
 /**
  * GET /api/history/last-km?kendaraan=BM1234XX&keyword=ban
- * Mengembalikan km_pengajuan terakhir + tanggal dari pengajuan sebelumnya
- * berdasarkan plat kendaraan + item yang paling relevan dengan keyword.
+ * Per-item KM lookup — mencari item yang penjelasannya cocok dengan keyword,
+ * mengembalikan km_pengajuan & tanggal dari pengajuan yang mengandung item itu.
  *
- * Prioritas: submission yang itemnya mengandung keyword → jika tidak ada, ambil terbaru saja.
+ * Hanya menggunakan submission dengan status terpercaya:
+ *   Terverifikasi, Disetujui, Selesai
  */
 async function getLastKM(req, res) {
   try {
     const { kendaraan, keyword } = req.query;
     if (!kendaraan?.trim())
       return res.status(400).json({ error: 'Parameter kendaraan wajib diisi' });
+    if (!keyword?.trim())
+      return res.json({ data: null, message: 'Keyword (penjelasan item) belum diisi' });
 
-    // Ambil semua submission untuk plat ini yang punya km_pengajuan
-    const { data: submissions, error } = await supabase
-      .from('submissions')
-      .select('id, nomor_pengajuan, tanggal, km_pengajuan, jenis_pembelian, items:submission_items(penjelasan)')
-      .ilike('kendaraan', kendaraan.trim())
-      .not('km_pengajuan', 'is', null)
-      .order('tanggal', { ascending: false })
-      .limit(20);
+    const plat  = kendaraan.trim().toLowerCase();
+    const kw    = keyword.trim().toLowerCase();
+    const words = kw.split(/\s+/).filter(w => w.length > 1);
+    if (!words.length)
+      return res.json({ data: null, message: 'Keyword terlalu pendek' });
 
-    if (error || !submissions?.length) {
-      return res.json({ data: null, message: 'Belum ada riwayat KM untuk kendaraan ini' });
-    }
-
-    let best = submissions[0]; // default: paling baru
-
-    // Jika ada keyword, cari submission yang itemnya paling relevan
-    if (keyword?.trim()) {
-      const kw = keyword.trim().toLowerCase();
-      const words = kw.split(/\s+/).filter(w => w.length > 1);
-
-      // Cari submission yang itemnya mengandung kata dari keyword
-      const matched = submissions.find(sub =>
-        sub.items?.some(item =>
-          words.some(w => item.penjelasan?.toLowerCase().includes(w))
+    // Query submission_items dengan JOIN ke submissions
+    const { data: items, error } = await supabase
+      .from('submission_items')
+      .select(`
+        id, penjelasan, km_pengajuan,
+        submission:submissions!inner(
+          id, nomor_pengajuan, tanggal, status, kendaraan
         )
-      );
+      `)
+      .not('km_pengajuan', 'is', null)
+      .order('id', { ascending: false })
+      .limit(200);
 
-      if (matched) best = matched;
-    }
+    if (error) throw error;
+    if (!items?.length)
+      return res.json({ data: null, message: 'Belum ada riwayat KM untuk item ini' });
+
+    // Filter: plat match + status terpercaya + penjelasan match keyword
+    const trustedStatus = ['Terverifikasi', 'Disetujui', 'Selesai'];
+    const matched = items.filter(it => {
+      const sub = it.submission;
+      if (!sub) return false;
+      if (!sub.kendaraan?.toLowerCase().includes(plat)) return false;
+      if (!trustedStatus.includes(sub.status)) return false;
+      const itemPenj = it.penjelasan?.toLowerCase() || '';
+      return words.some(w => itemPenj.includes(w));
+    });
+
+    if (!matched.length)
+      return res.json({ data: null, message: 'Belum ada riwayat KM untuk item serupa di kendaraan ini' });
+
+    // Urutkan tanggal terbaru
+    matched.sort((a, b) => new Date(b.submission.tanggal) - new Date(a.submission.tanggal));
+    const best = matched[0];
 
     res.json({
       data: {
-        tanggal:         best.tanggal,
-        km_pengajuan:    best.km_pengajuan,
-        nomor_pengajuan: best.nomor_pengajuan,
-        jenis_pembelian: best.jenis_pembelian,
+        tanggal:          best.submission.tanggal,
+        km_pengajuan:     best.km_pengajuan,
+        nomor_pengajuan:  best.submission.nomor_pengajuan,
+        penjelasan_item:  best.penjelasan,
       }
     });
   } catch (err) {
