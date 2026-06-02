@@ -30,6 +30,7 @@ export const authAPI = {
 export const submissionAPI = {
   list:         p  => api.get('/submissions', { params: p }),
   stats:        () => api.get('/submissions/stats'),
+  overdueAction:() => api.get('/submissions/overdue-action'),
   getOne:       id => api.get(`/submissions/${id}`),
   create:       d  => api.post('/submissions', d),
   verify:       id => api.put(`/submissions/${id}/verify`),
