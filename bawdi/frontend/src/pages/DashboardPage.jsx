@@ -5,6 +5,7 @@ import { LayoutDashboard, FileText, Clock, CheckCircle, XCircle, AlertTriangle, 
 import { submissionAPI } from '../utils/api';
 import { StatCard, Pill, fmtDate, fmtCurrency, daysSince, Spinner, Card } from '../components/ui';
 import useAuthStore from '../context/authStore';
+import OverdueModal from '../components/OverdueModal';
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
@@ -38,6 +39,8 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-5 max-w-2xl mx-auto">
+      {/* Modal pengingat pengajuan overdue > 3 hari */}
+      <OverdueModal />
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
