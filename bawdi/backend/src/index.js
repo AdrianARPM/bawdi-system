@@ -14,6 +14,7 @@ const userRoutes       = require('./routes/users');
 const photoRoutes      = require('./routes/photos');
 const revisionRoutes   = require('./routes/revisions');
 const historyRoutes    = require('./routes/history');
+const analyticsRoutes  = require('./routes/analytics');
 const { startScheduler } = require('./utils/notifScheduler');
 
 const app = express();
@@ -42,7 +43,7 @@ app.use('/api/users',         userRoutes);
 app.use('/api/photos',        photoRoutes);
 app.use('/api/revisions',     revisionRoutes);
 app.use('/api/history',       historyRoutes);
-
+app.use('/api/analytics',     analyticsRoutes);
 // Health check — verifikasi versi yang sedang berjalan
 app.get('/health', (_, res) =>
   res.json({ status: 'ok', version: '7.0.0', timestamp: new Date().toISOString() }));
