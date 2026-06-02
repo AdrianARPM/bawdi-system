@@ -6,9 +6,10 @@ const ctrl = require('../controllers/submissionController');
 router.use(authenticate);
 
 router.get('/stats', ctrl.stats);
+router.get('/overdue-action', ctrl.overdueForAction);
 router.get('/',      ctrl.list);
 router.get('/:id',   ctrl.getOne);
-router.get('/overdue-action', ctrl.overdueForAction);
+
 router.post('/', authorize('Operasional', 'Admin'), ctrl.create);
 
 // Verify hanya untuk PR — controller cek tipe & role
