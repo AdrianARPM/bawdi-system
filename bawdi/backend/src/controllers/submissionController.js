@@ -440,4 +440,70 @@ async function reject(req, res) {
   }
 }
 
-module.exports = { list, getOne, create, verify, approve, reject, stats, selectVendor };
+// TAMBAHKAN fungsi ini ke src/controllers/submissionController.js
+// (letakkan sebelum baris module.exports di bagian bawah)
+
+// Helper: cek Kepala Operasional
+// (jika sudah ada `isKepalaOp` di file, JANGAN deklarasi ulang — pakai yang sudah ada)
+const _isKepalaOp = (user) => user?.jabatan === 'Kepala Operasional';
+
+// ── GET /api/submissions/overdue-action ───────────────────────────
+// Pengajuan > 3 hari yang butuh tindakan dari user saat ini
+async function overdueForAction(req, res) {
+  try {
+    const user = req.user;
+    const threeDaysAgo = new Date(Date.now() - 3 * 86400000).toISOString();
+
+    let statuses = [];
+    let typeFilter = null;
+
+    if (user.role === 'Verifikator') {
+      statuses = ['Menunggu Verifikasi'];
+      typeFilter = 'PR';                        // Verifikator hanya tangani PR
+    } else if (user.role === 'Approval') {
+      statuses = ['Terverifikasi', 'Disetujui']; // approve PR + proses bayar PR/PAR
+    } else if (_isKepalaOp(user)) {
+      statuses = ['Menunggu Verifikasi'];
+      typeFilter = 'PAR';                        // Kepala Op tangani PAR
+    } else if (user.role === 'Admin') {
+      statuses = ['Menunggu Verifikasi', 'Terverifikasi', 'Disetujui'];
+    } else {
+      return res.json({ data: [] });             // Operasional biasa: tidak ada
+    }
+
+    let query = supabase
+      .from('submissions')
+      .select(`
+        id, nomor_pengajuan, type, status, tanggal, kendaraan,
+        total_harga,
+        pemohon:users!submissions_pemohon_id_fkey(name)
+      `)
+      .in('status', statuses)
+      .lt('tanggal', threeDaysAgo)
+      .order('tanggal', { ascending: true });
+
+    if (typeFilter) query = query.eq('type', typeFilter);
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const result = (data || []).map(s => ({
+      ...s,
+      days: Math.floor((Date.now() - new Date(s.tanggal).getTime()) / 86400000),
+      action: s.status === 'Menunggu Verifikasi'
+        ? (s.type === 'PAR' ? 'Perlu persetujuan Anda' : 'Perlu verifikasi')
+        : s.status === 'Terverifikasi' ? 'Perlu persetujuan Anda'
+        : 'Perlu proses pembayaran',
+    }));
+
+    res.json({ data: result });
+  } catch (err) {
+    console.error('[overdueForAction]', err);
+    res.status(500).json({ error: 'Gagal mengambil pengajuan overdue' });
+  }
+}
+
+// JANGAN LUPA tambahkan `overdueForAction` ke module.exports:
+// module.exports = { list, getOne, create, verify, approve, reject, stats, selectVendor, overdueForAction };
+
+module.exports = { list, getOne, create, verify, approve, reject, stats, selectVendor, overdueForAction };
