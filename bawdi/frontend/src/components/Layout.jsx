@@ -1,7 +1,7 @@
 // src/components/Layout.jsx  — v7 (Draft hanya Admin/Verifikator/Approval)
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { LayoutDashboard, FileText, Plus, Users, LogOut, Menu, Truck, Archive, Bell } from 'lucide-react';
+import { LayoutDashboard, FileText, Plus, Users, LogOut, Menu, Truck, Archive, Bell, BarChart3 } from 'lucide-react';
 import useAuthStore from '../context/authStore';
 import { notifAPI } from '../utils/api';
 
@@ -85,6 +85,10 @@ export default function Layout() {
         {/* Draft hanya untuk Admin, Verifikator, Approval */}
         {DRAFT_ROLES.includes(user?.role) && (
           <NavItem to="/draft" icon={Archive} label="Draft / Arsip" onClick={close}/>
+        )}
+        {/* Analitik — manajemen & Kepala Operasional */}
+        {(['Admin','Verifikator','Approval'].includes(user?.role) || user?.jabatan === 'Kepala Operasional') && (
+          <NavItem to="/analytics" icon={BarChart3} label="Analitik" onClick={close}/>
         )}
         {user?.role === 'Admin' && (
           <NavItem to="/users" icon={Users} label="Kelola User" onClick={close}/>
