@@ -1,4 +1,8 @@
-// src/controllers/submissionController.js  — v8 (dengan PAR flow)
+// src/controllers/submissionController.js  — v9 (dengan PAR flow)
+// Fix v9:
+//  1. total_harga submission dihitung qty (satuan) × harga, bukan harga saja
+//  2. submissions.km_pengajuan (level submission, backward-compat) ikut disimpan
+//  3. total & km_pengajuan per item disimpan konsisten via helper calcRow
 const supabase = require('../../config/supabase');
 const { v4: uuidv4 } = require('uuid');
 const { sendEmailToRole, sendEmailToUser, emailTemplates } = require('../utils/emailService');
@@ -139,7 +143,7 @@ async function create(req, res) {
       nomor_pengajuan, nomor_urut, cabang_manual,
       type, kendaraan, vendor, npwp, rekening_tujuan,
       vendor2, npwp2, jenis_pembelian, alasan, riwayat,
-      batas_waktu_dana, batas_akhir_pembayaran, items,km_pengajuan
+      batas_waktu_dana, batas_akhir_pembayaran, items, km_pengajuan,
     } = req.body;
 
     if (!nomor_pengajuan || !type || !kendaraan || !vendor || !items?.length)
@@ -159,7 +163,9 @@ async function create(req, res) {
       }
     }
 
-    const total1 = items.filter(i => i.vendor_num !== 2).reduce((s, i) => s + (Number(i.harga) || 0), 0);
+    // Total baris = i.total dari frontend (qty × harga); fallback hitung sendiri
+    const calcRow = i => Number(i.total) || (parseFloat(i.satuan) || 1) * (Number(i.harga) || 0);
+    const total1 = items.filter(i => i.vendor_num !== 2).reduce((s, i) => s + calcRow(i), 0);
     const submissionId = uuidv4();
     const now = new Date().toISOString();
 
@@ -174,21 +180,22 @@ async function create(req, res) {
       vendor2: vendor2 || '', npwp2: npwp2 || '',
       vendor2_selected: !!(vendor2?.trim()),
       jenis_pembelian, alasan, riwayat,
+      km_pengajuan: km_pengajuan != null ? Number(km_pengajuan) : null,
       batas_waktu_dana, batas_akhir_pembayaran,
       total_harga: total1,
       tanggal: now,
     });
     if (subErr) throw subErr;
 
-// Insert items (dengan km_pengajuan per-item + total qty × harga)
+    // Insert items — total = qty × harga (calcRow), km_pengajuan per item
     await supabase.from('submission_items').insert(
       items.map((i, idx) => ({
         id: uuidv4(), submission_id: submissionId,
         penjelasan: i.penjelasan, satuan: i.satuan,
         harga: Number(i.harga) || 0,
-        total: Number(i.total) || Number(i.harga) || 0,           // pakai i.total dari frontend (qty × harga)
+        total: calcRow(i),
         vendor_num: i.vendor_num || 1, urutan: idx + 1,
-        km_pengajuan: i.km_pengajuan ? Number(i.km_pengajuan) : null,   // KM per item
+        km_pengajuan: i.km_pengajuan != null ? Number(i.km_pengajuan) : null,
       }))
     );
 
@@ -440,13 +447,6 @@ async function reject(req, res) {
   }
 }
 
-// TAMBAHKAN fungsi ini ke src/controllers/submissionController.js
-// (letakkan sebelum baris module.exports di bagian bawah)
-
-// Helper: cek Kepala Operasional
-// (jika sudah ada `isKepalaOp` di file, JANGAN deklarasi ulang — pakai yang sudah ada)
-const _isKepalaOp = (user) => user?.jabatan === 'Kepala Operasional';
-
 // ── GET /api/submissions/overdue-action ───────────────────────────
 // Pengajuan > 3 hari yang butuh tindakan dari user saat ini
 async function overdueForAction(req, res) {
@@ -462,7 +462,7 @@ async function overdueForAction(req, res) {
       typeFilter = 'PR';                        // Verifikator hanya tangani PR
     } else if (user.role === 'Approval') {
       statuses = ['Terverifikasi', 'Disetujui']; // approve PR + proses bayar PR/PAR
-    } else if (_isKepalaOp(user)) {
+    } else if (isKepalaOp(user)) {
       statuses = ['Menunggu Verifikasi'];
       typeFilter = 'PAR';                        // Kepala Op tangani PAR
     } else if (user.role === 'Admin') {
@@ -502,8 +502,5 @@ async function overdueForAction(req, res) {
     res.status(500).json({ error: 'Gagal mengambil pengajuan overdue' });
   }
 }
-
-// JANGAN LUPA tambahkan `overdueForAction` ke module.exports:
-// module.exports = { list, getOne, create, verify, approve, reject, stats, selectVendor, overdueForAction };
 
 module.exports = { list, getOne, create, verify, approve, reject, stats, selectVendor, overdueForAction };
