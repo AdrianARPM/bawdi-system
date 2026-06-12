@@ -1,4 +1,6 @@
-// src/pages/NewFormPage.jsx  — v11
+// src/pages/NewFormPage.jsx  — v12
+// v12: Plat kendaraan jadi DROPDOWN dari Master Kendaraan (+ opsi "Plat baru")
+//      Menghilangkan typo plat; plat baru tetap bisa & auto-register ke master
 // Perubahan dari v10:
 // 1. Riwayat KM SEKARANG PER-ITEM (tidak lagi global per submission)
 // 2. Setiap ItemRow punya section KM-nya sendiri (opsional, tetap muncul)
@@ -8,7 +10,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2, Check, ChevronLeft, Upload, X, AlertCircle, Loader } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { submissionAPI, photoAPI, historyAPI, offlineQueue } from '../utils/api';
+import { submissionAPI, photoAPI, historyAPI, vehicleAPI, offlineQueue } from '../utils/api';
 import { Card, Button, fmtCurrency } from '../components/ui';
 import VehicleHistoryPanel from '../components/VehicleHistoryPanel';
 import useAuthStore from '../context/authStore';
@@ -283,6 +285,15 @@ export default function NewFormPage() {
   const [photos, setPhotos]   = useState([]);
   const [errors, setErrors]   = useState({});
 
+  // v12: Dropdown plat dari Master Kendaraan (+ opsi plat baru)
+  const [platList, setPlatList] = useState([]);   // plat aktif dari master
+  const [platBaru, setPlatBaru] = useState(false); // mode input plat baru
+  useEffect(() => {
+    vehicleAPI.list()
+      .then(res => setPlatList((res.data?.data || []).filter(v => v.is_active).map(v => v.plat)))
+      .catch(() => setPlatList([])); // master kosong/gagal → fallback ketik manual
+  }, []);
+
   // Cache KM history per item.id
   // { [itemId]: { loading, hasArsip, kmTerakhir, tanggalTerakhir, nomorTerakhir } }
   const [itemKMCache, setItemKMCache] = useState({});
@@ -529,7 +540,34 @@ export default function NewFormPage() {
               <Field label="Jabatan"><input value={user?.jabatan||'—'} disabled className={ic('')}/></Field>
             </div>
             <Field label="Kendaraan / Plat Nomor" required error={errors.kendaraan} hint="Riwayat KM otomatis muncul saat isi item di langkah berikutnya">
-              <input value={form.kendaraan} onChange={e=>set('kendaraan',e.target.value)} placeholder="BM 1234 ZZ" className={ic('kendaraan')}/>
+              {platList.length > 0 && !platBaru ? (
+                <select
+                  value={platList.includes(form.kendaraan) ? form.kendaraan : ''}
+                  onChange={e => {
+                    if (e.target.value === '__new__') { setPlatBaru(true); set('kendaraan', ''); }
+                    else set('kendaraan', e.target.value);
+                  }}
+                  className={`${ic('kendaraan')} bg-white ${form.kendaraan ? 'text-slate-800' : 'text-slate-400'}`}>
+                  <option value="">— Pilih kendaraan dari master —</option>
+                  {platList.map(p => <option key={p} value={p}>{p}</option>)}
+                  <option value="__new__">＋ Plat baru (belum terdaftar)…</option>
+                </select>
+              ) : (
+                <div className="space-y-1">
+                  <input value={form.kendaraan} onChange={e=>set('kendaraan',e.target.value.toUpperCase())} placeholder="BM 1234 ZZ" className={ic('kendaraan')}/>
+                  {platList.length > 0 && (
+                    <button type="button" onClick={() => { setPlatBaru(false); set('kendaraan',''); }}
+                      className="text-[10.5px] font-bold text-amber-500 hover:text-amber-600">
+                      ← Pilih dari daftar master
+                    </button>
+                  )}
+                  {platBaru && (
+                    <p className="text-[10px] text-slate-400 italic">
+                      Plat baru otomatis terdaftar ke Master Kendaraan setelah pengajuan dikirim.
+                    </p>
+                  )}
+                </div>
+              )}
             </Field>
             <Field label="Jenis Pembelian" required error={errors.jenis_pembelian}>
               <input value={form.jenis_pembelian} onChange={e=>set('jenis_pembelian',e.target.value)} placeholder="Penggantian Ban" className={ic('jenis_pembelian')}/>
