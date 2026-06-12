@@ -73,6 +73,27 @@ export const revisionAPI = {
   approveSnapshot: snapId    => api.put(`/revisions/snapshot/${snapId}/approve`),
   rejectSnapshot:  (snapId,d)=> api.put(`/revisions/snapshot/${snapId}/reject`, d),
 };
+export const vehicleAPI = {
+  list:   (year)        => api.get('/vehicles', { params: { year } }),
+  create: (d)           => api.post('/vehicles', d),
+  update: (id, d)       => api.put(`/vehicles/${id}`, d),
+  report: (plat, year)  => api.get('/vehicles/report', { params: { plat, year } }),
+  // Export Excel — responseType blob lalu trigger unduhan di browser
+  async exportExcel(year, plat = '') {
+    const res = await api.get('/vehicles/export', {
+      params: plat ? { year, plat } : { year },
+      responseType: 'blob',
+    });
+    const url = URL.createObjectURL(res.data);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = plat
+      ? `BAWDI - Laporan ${plat} ${year}.xlsx`
+      : `BAWDI - Laporan Kendaraan ${year}.xlsx`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  },
+};
 export const historyAPI = {
   getVehicleHistory: (kendaraan, limit = 5) =>
     api.get('/history/vehicle', { params: { kendaraan, limit } }),
