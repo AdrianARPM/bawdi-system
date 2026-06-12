@@ -11,6 +11,7 @@ import NewFormPage      from './pages/NewFormPage';
 import UsersPage        from './pages/UsersPage';
 import DraftPage        from './pages/DraftPage';
 import AnalyticsPage    from './pages/AnalyticsPage';
+import VehiclesPage     from './pages/VehiclesPage';
 import Layout           from './components/Layout';
 
 function PrivateRoute({ children, roles }) {
@@ -41,6 +42,7 @@ export default function App() {
           <Route path="users"           element={<PrivateRoute roles={['Admin']}><UsersPage /></PrivateRoute>} />
           <Route path="draft"           element={<DraftPage />} />
           <Route path="analytics"       element={<PrivateRoute roles={['Admin','Verifikator','Approval','Operasional']}><AnalyticsPage /></PrivateRoute>} />
+          <Route path="vehicles"        element={<VehiclesPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
