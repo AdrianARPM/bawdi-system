@@ -1,11 +1,10 @@
-// src/controllers/submissionController.js  — v9 (dengan PAR flow)
-// Fix v9:
-//  1. total_harga submission dihitung qty (satuan) × harga, bukan harga saja
-//  2. submissions.km_pengajuan (level submission, backward-compat) ikut disimpan
-//  3. total & km_pengajuan per item disimpan konsisten via helper calcRow
+// src/controllers/submissionController.js  — v10 (PAR flow + Master Data)
+// Fix v9 : total qty × harga, km_pengajuan tersimpan (submission & per-item)
+// Fitur v10: kategori_biaya per item + auto-register plat ke master vehicles
 const supabase = require('../../config/supabase');
 const { v4: uuidv4 } = require('uuid');
 const { sendEmailToRole, sendEmailToUser, emailTemplates } = require('../utils/emailService');
+const { autoRegisterVehicle } = require('./vehicleController');
 
 // Helper: cek apakah user adalah Kepala Operasional
 const isKepalaOp = (user) => user?.jabatan === 'Kepala Operasional';
@@ -187,7 +186,7 @@ async function create(req, res) {
     });
     if (subErr) throw subErr;
 
-    // Insert items — total = qty × harga (calcRow), km_pengajuan per item
+    // Insert items — total qty × harga, KM per item, kategori biaya (v10)
     await supabase.from('submission_items').insert(
       items.map((i, idx) => ({
         id: uuidv4(), submission_id: submissionId,
@@ -196,8 +195,12 @@ async function create(req, res) {
         total: calcRow(i),
         vendor_num: i.vendor_num || 1, urutan: idx + 1,
         km_pengajuan: i.km_pengajuan != null ? Number(i.km_pengajuan) : null,
+        kategori_biaya: i.kategori_biaya || 'Lainnya',
       }))
     );
+
+    // v10: auto-register plat ke master kendaraan (non-blocking)
+    autoRegisterVehicle(kendaraan, req.user.cabang).catch(() => {});
 
     await supabase.from('notification_schedule').upsert({
       id: uuidv4(), submission_id: submissionId,
