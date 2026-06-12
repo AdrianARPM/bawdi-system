@@ -90,6 +90,9 @@ export default function Layout() {
         {(['Admin','Verifikator','Approval'].includes(user?.role) || user?.jabatan === 'Kepala Operasional') && (
           <NavItem to="/analytics" icon={BarChart3} label="Analitik" onClick={close}/>
         )}
+        {(['Admin','Verifikator','Approval'].includes(user?.role) || user?.jabatan === 'Kepala Operasional') && (
+          <NavItem to="/vehicles" icon={Truck} label="Master Kendaraan" onClick={close}/>
+        )}
         {user?.role === 'Admin' && (
           <NavItem to="/users" icon={Users} label="Kelola User" onClick={close}/>
         )}
