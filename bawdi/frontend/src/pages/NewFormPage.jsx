@@ -181,7 +181,13 @@ function ItemRow({ item, idx, totalItems, vendorNum, onUpdate, onRemove, onBlurP
   const handlePenjelasan = useCallback(e => onUpdate(item.id, 'penjelasan', e.target.value), [item.id, onUpdate]);
   const handleSatuan     = useCallback(e => onUpdate(item.id, 'satuan',     e.target.value), [item.id, onUpdate]);
   const handleHarga      = useCallback(e => onUpdate(item.id, 'harga',      e.target.value), [item.id, onUpdate]);
-  const handleBlur       = useCallback(() => onBlurPenjelasan(item.id, item.penjelasan), [item.id, item.penjelasan, onBlurPenjelasan]);
+  const handleBlur       = useCallback(() => {
+    onBlurPenjelasan(item.id, item.penjelasan);
+    if (!item.kategori_biaya) {
+      const g = guessKategori(item.penjelasan);
+      if (g) onUpdate(item.id, 'kategori_biaya', g);
+    }
+  }, [item.id, item.penjelasan, item.kategori_biaya, onBlurPenjelasan, onUpdate]);
   const itemTotal = calcItemTotal(item);
 
   return (
@@ -206,6 +212,14 @@ function ItemRow({ item, idx, totalItems, vendorNum, onUpdate, onRemove, onBlurP
             className={`w-full pl-8 pr-3 py-2.5 rounded-xl border text-sm text-slate-800 outline-none placeholder:text-slate-300 focus:ring-2 focus:ring-amber-100 ${errors[`${eb}_hrg`]?'border-red-300':'border-slate-200 focus:border-amber-400'}`}/>
         </div>
       </div>
+      {/* Kategori biaya — memetakan ke kolom laporan Excel perusahaan */}
+      <select
+        value={item.kategori_biaya || ''}
+        onChange={e => onUpdate(item.id, 'kategori_biaya', e.target.value)}
+        className={`w-full px-3 py-2 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-amber-100 ${item.kategori_biaya ? 'text-slate-800' : 'text-slate-400'} ${errors[`${eb}_kat`] ? 'border-red-300' : 'border-slate-200 focus:border-amber-400'}`}>
+        <option value="">— Pilih kategori biaya —</option>
+        {KATEGORI_BIAYA.map(k => <option key={k} value={k}>{k}</option>)}
+      </select>
       {itemTotal > 0 && (
         <div className="flex items-center justify-between text-xs">
           <span className="text-slate-400">{parseFloat(item.satuan) > 1 && `${parseFloat(item.satuan)} × ${fmtCurrency(parseFloat(item.harga)||0)} =`}</span>
@@ -239,10 +253,23 @@ function ItemsSection({ items, total, vendorNum, errors, onUpdate, onAdd, onRemo
   );
 }
 
+const KATEGORI_BIAYA = ['Sewa', 'Service', 'Ban', 'Izin Kendaraan', 'Lainnya'];
+
+// Tebak kategori awal dari penjelasan (pemohon tetap bisa mengubah)
+function guessKategori(text) {
+  const t = (text || '').toLowerCase();
+  if (/\bban\b|tambal|velg/.test(t)) return 'Ban';
+  if (/izin|\bkir\b|keur|retribusi/.test(t)) return 'Izin Kendaraan';
+  if (/sewa|rental|\brent\b/.test(t)) return 'Sewa';
+  if (/servis|service|oli|\brem\b|kampas|aki|filter|lahar|bearing|gigi|gear|kopling|radiator|busi|seal|shock/.test(t)) return 'Service';
+  return '';
+}
+
 const newItem = () => ({
   id: crypto.randomUUID(),
   penjelasan: '', satuan: '', harga: '',
   km_pengajuan: '',   // KM saat pengajuan (opsional)
+  kategori_biaya: '', // Kategori biaya (wajib) — utk laporan master data
   km_manual: '',      // KM terakhir manual jika arsip kosong
   tgl_manual: '',     // Tanggal terakhir manual jika arsip kosong
 });
@@ -375,6 +402,7 @@ export default function NewFormPage() {
       form.items1.forEach((it,i) => {
         if (!it.penjelasan.trim()) e[`item1_${i}_pen`]='Wajib';
         if (!it.satuan.trim())     e[`item1_${i}_sat`]='Wajib';
+        if (!it.kategori_biaya)    e[`item1_${i}_kat`]='Wajib';
         if (!it.harga||parseFloat(it.harga)<=0) e[`item1_${i}_hrg`]='Wajib';
       });
     }
@@ -383,6 +411,7 @@ export default function NewFormPage() {
       form.items2.forEach((it,i) => {
         if (!it.penjelasan.trim()) e[`item2_${i}_pen`]='Wajib';
         if (!it.satuan.trim())     e[`item2_${i}_sat`]='Wajib';
+        if (!it.kategori_biaya)    e[`item2_${i}_kat`]='Wajib';
         if (!it.harga||parseFloat(it.harga)<=0) e[`item2_${i}_hrg`]='Wajib';
       });
     }
@@ -405,11 +434,13 @@ export default function NewFormPage() {
           penjelasan:i.penjelasan, satuan:i.satuan, vendor_num:1,
           harga:parseFloat(i.harga)||0, total:calcItemTotal(i),
           km_pengajuan: parseInt(i.km_pengajuan) || null,
+          kategori_biaya: i.kategori_biaya || 'Lainnya',
         })),
         ...(form.useVendor2?form.items2.map(i=>({
           penjelasan:i.penjelasan, satuan:i.satuan, vendor_num:2,
           harga:parseFloat(i.harga)||0, total:calcItemTotal(i),
           km_pengajuan: parseInt(i.km_pengajuan) || null,
+          kategori_biaya: i.kategori_biaya || 'Lainnya',
         })):[]),
       ];
 
