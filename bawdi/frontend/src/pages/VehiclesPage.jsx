@@ -206,7 +206,7 @@ function ReportView({ plat, year, onBack, onExport, exporting }) {
             <table className="w-full text-[11px]">
               <thead>
                 <tr className="bg-slate-50 text-slate-500">
-                  {['No','No PR','Pemakaian','Sewa','Service','Ban','Izin','Lainnya','KM','Selisih','Keterangan']
+                  {['No','No PR','Tanggal','Sewa','Service','Ban','Izin','Lainnya','KM Pengajuan','Selisih','Keterangan']
                     .map(h => <th key={h} className="px-2 py-2 font-bold text-left whitespace-nowrap">{h}</th>)}
                 </tr>
               </thead>
