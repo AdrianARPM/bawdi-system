@@ -225,8 +225,8 @@ function writeSheet(wb, plat, year, rows, vehicle) {
   });
 
   // Header tabel (baris 10) — persis kolom laporan manual
-  const HEADERS = ['No', 'No PR', 'Pemakaian', 'Biaya Sewa', 'Biaya Service', 'Biaya Ban',
-                   'Biaya Izin Kendaraan', 'Biaya Lainnya', 'KM', 'Selisih KM', 'Keterangan'];
+  const HEADERS = ['No', 'No PR', 'Tanggal', 'Biaya Sewa', 'Biaya Service', 'Biaya Ban',
+                   'Biaya Izin Kendaraan', 'Biaya Lainnya', 'KM Pengajuan', 'Selisih KM', 'Keterangan'];
   const hrow = ws.getRow(10);
   HEADERS.forEach((t, idx) => {
     const c = hrow.getCell(idx + 1);
