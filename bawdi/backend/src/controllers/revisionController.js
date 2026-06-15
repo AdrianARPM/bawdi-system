@@ -1,4 +1,7 @@
 // src/controllers/revisionController.js  — BUGFIX
+// v11: KM per item + kategori_biaya ikut terbawa ke snapshot revisi
+//      (requestRevision menyalin, editRevision menyimpan). Perbaikan total
+//      revisi: total = qty (satuan) × harga, konsisten dgn submission v9.
 // Fix: query submission disederhanakan, tidak pakai join active_snap yang bermasalah
 const supabase = require('../../config/supabase');
 const { v4: uuidv4 } = require('uuid');
@@ -138,15 +141,18 @@ async function requestRevision(req, res) {
 
     // Salin items ke snapshot
     if (sourceItems.length > 0) {
+      const calcRow = i => Number(i.total) || (parseFloat(i.satuan) || 1) * (Number(i.harga) || 0);
       const itemRows = sourceItems.map((item, idx) => ({
-        id:          uuidv4(),
-        snapshot_id: snapshotId,
-        penjelasan:  item.penjelasan || '',
-        satuan:      item.satuan     || '1 Kali',
-        harga:       Number(item.harga)           || 0,
-        total:       Number(item.total || item.harga) || 0,
-        vendor_num:  item.vendor_num || 1,
-        urutan:      idx + 1,
+        id:            uuidv4(),
+        snapshot_id:   snapshotId,
+        penjelasan:    item.penjelasan || '',
+        satuan:        item.satuan     || '1 Kali',
+        harga:         Number(item.harga) || 0,
+        total:         calcRow(item),
+        vendor_num:    item.vendor_num || 1,
+        urutan:        idx + 1,
+        km_pengajuan:  item.km_pengajuan != null ? Number(item.km_pengajuan) : null,
+        kategori_biaya: item.kategori_biaya || 'Lainnya',
       }));
       await supabase.from('revision_snapshot_items').insert(itemRows);
     }
@@ -210,7 +216,9 @@ async function editRevision(req, res) {
 
     if (!items?.length) return res.status(400).json({ error: 'Minimal 1 item wajib ada' });
 
-    const total_harga = items.reduce((s, i) => s + (Number(i.harga) || 0), 0);
+    const calcRow = i => Number(i.total) || (parseFloat(i.satuan) || 1) * (Number(i.harga) || 0);
+    // total_harga revisi hanya menghitung item vendor 1 (konsisten dgn create)
+    const total_harga = items.filter(i => (i.vendor_num || 1) !== 2).reduce((s, i) => s + calcRow(i), 0);
 
     await supabase.from('revision_snapshots').update({
       alasan: alasan || '', riwayat: riwayat || '',
@@ -224,14 +232,16 @@ async function editRevision(req, res) {
     await supabase.from('revision_snapshot_items').delete().eq('snapshot_id', req.params.snapshotId);
     await supabase.from('revision_snapshot_items').insert(
       items.map((item, idx) => ({
-        id:          uuidv4(),
-        snapshot_id: req.params.snapshotId,
-        penjelasan:  item.penjelasan || '',
-        satuan:      item.satuan     || '1 Kali',
-        harga:       Number(item.harga) || 0,
-        total:       Number(item.harga) || 0,
-        vendor_num:  item.vendor_num || 1,
-        urutan:      idx + 1,
+        id:            uuidv4(),
+        snapshot_id:   req.params.snapshotId,
+        penjelasan:    item.penjelasan || '',
+        satuan:        item.satuan     || '1 Kali',
+        harga:         Number(item.harga) || 0,
+        total:         calcRow(item),
+        vendor_num:    item.vendor_num || 1,
+        urutan:        idx + 1,
+        km_pengajuan:  item.km_pengajuan != null ? Number(item.km_pengajuan) : null,
+        kategori_biaya: item.kategori_biaya || 'Lainnya',
       }))
     );
 
