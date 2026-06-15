@@ -1,4 +1,6 @@
 // src/components/RevisiEditor.jsx  — BUGFIX item form focus loss
+// v11: form revisi kini membawa km_pengajuan & kategori_biaya per item
+//      agar tidak hilang saat pengajuan direvisi.
 // Fix: stable key untuk item rows, hapus onInput auto-resize yang menyebabkan re-render
 import { useState, useCallback } from 'react';
 import { Plus, Trash2, X } from 'lucide-react';
@@ -12,6 +14,8 @@ import { Button, fmtCurrency } from './ui';
    2. key menggunakan _idx dari filter → tidak stabil saat list berubah
    Fix: gunakan item.id sebagai key, hapus onInput, pakai min-h tetap
 ─────────────────────────────────────────────────────────────── */
+const KATEGORI_BIAYA = ['Sewa', 'Service', 'Ban', 'Izin Kendaraan', 'Lainnya'];
+
 function ItemRow({ item, onUpdate, onRemove, canRemove, vendorLabel, vendorColor }) {
   return (
     <div className="border border-slate-200 rounded-xl p-3 space-y-2 bg-white">
@@ -63,6 +67,24 @@ function ItemRow({ item, onUpdate, onRemove, canRemove, vendorLabel, vendorColor
                        placeholder:text-slate-300 transition-colors"
           />
         </div>
+      </div>
+
+      {/* v11: Kategori biaya + KM saat pengajuan (per item) */}
+      <div className="grid grid-cols-5 gap-2">
+        <select
+          value={item.kategori_biaya || ''}
+          onChange={e => onUpdate('kategori_biaya', e.target.value)}
+          className={`col-span-3 px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 ${item.kategori_biaya ? 'text-slate-800' : 'text-slate-400'}`}>
+          <option value="">— Kategori biaya —</option>
+          {KATEGORI_BIAYA.map(k => <option key={k} value={k}>{k}</option>)}
+        </select>
+        <input
+          type="number"
+          value={item.km_pengajuan || ''}
+          onChange={e => onUpdate('km_pengajuan', e.target.value)}
+          placeholder="KM"
+          className="col-span-2 px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 placeholder:text-slate-300"
+        />
       </div>
 
       {item.harga > 0 && (
@@ -129,11 +151,13 @@ export default function RevisiEditor({ snapshot, onClose, onSubmitted }) {
     rekening_tujuan: snapshot.rekening_tujuan || '',
     // Gunakan id asli dari database sebagai key yang stabil
     items: (snapshot.items || []).map(i => ({
-      id:         i.id || `new-${Date.now()}-${Math.random()}`,
-      penjelasan: i.penjelasan || '',
-      satuan:     i.satuan     || '',
-      harga:      String(i.harga || ''),
-      vendor_num: i.vendor_num || 1,
+      id:            i.id || `new-${Date.now()}-${Math.random()}`,
+      penjelasan:    i.penjelasan || '',
+      satuan:        i.satuan     || '',
+      harga:         String(i.harga || ''),
+      vendor_num:    i.vendor_num || 1,
+      km_pengajuan:  i.km_pengajuan != null ? String(i.km_pengajuan) : '',
+      kategori_biaya: i.kategori_biaya || 'Lainnya',
     })),
   });
 
@@ -154,11 +178,13 @@ export default function RevisiEditor({ snapshot, onClose, onSubmitted }) {
     setForm(f => ({
       ...f,
       items: [...f.items, {
-        id:         `new-${Date.now()}-${Math.random()}`,
-        penjelasan: '',
-        satuan:     '',
-        harga:      '',
-        vendor_num: vendorNum,
+        id:            `new-${Date.now()}-${Math.random()}`,
+        penjelasan:    '',
+        satuan:        '',
+        harga:         '',
+        vendor_num:    vendorNum,
+        km_pengajuan:  '',
+        kategori_biaya: 'Lainnya',
       }],
     }));
   }, []);
