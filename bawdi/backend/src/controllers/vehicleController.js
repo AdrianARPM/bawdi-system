@@ -122,37 +122,49 @@ async function buildReportRows(plat, year) {
   const from = `${year}-01-01T00:00:00Z`;
   const to   = `${year + 1}-01-01T00:00:00Z`;
 
+  // Ambil submission + item asli (tanpa nested revisi, agar tidak ada
+  // ambiguitas relasi PostgREST: submissions↔revision_snapshots punya 2 FK).
   const { data: subs, error } = await supabase
     .from('submissions')
     .select(`
-      id, nomor_pengajuan, nomor_urut, tanggal, status, kendaraan, vendor_pilihan, active_revision_id,
-      items:submission_items(penjelasan, satuan, harga, total, vendor_num, km_pengajuan, kategori_biaya, urutan),
-      revisions:revision_snapshots(
-        id, revision_number, status,
-        snap_items:revision_snapshot_items(penjelasan, satuan, harga, total, vendor_num, km_pengajuan, kategori_biaya, urutan)
-      )
+      id, nomor_pengajuan, nomor_urut, tanggal, status, kendaraan, vendor_pilihan,
+      items:submission_items(penjelasan, satuan, harga, total, vendor_num, km_pengajuan, kategori_biaya, urutan)
     `)
     .in('status', ['Disetujui', 'Selesai'])
     .gte('tanggal', from).lt('tanggal', to)
     .order('tanggal', { ascending: true });
-  if (error) throw error;
+  if (error) throw new Error('query submissions: ' + error.message);
 
   const target = normPlat(plat);
-  const rows = [];
+  const candidates = (subs || []).filter(sub => normPlat(sub.kendaraan) === target);
 
-  for (const sub of subs || []) {
-    if (normPlat(sub.kendaraan) !== target) continue;
+  // Ambil snapshot revisi DISETUJUI untuk submission yg relevan (query terpisah).
+  const subIds = candidates.map(s => s.id);
+  const revBySub = {};   // { submission_id: snap_items[] dari revisi tertinggi }
+  if (subIds.length) {
+    const { data: snaps, error: snapErr } = await supabase
+      .from('revision_snapshots')
+      .select(`
+        submission_id, revision_number, status,
+        snap_items:revision_snapshot_items(penjelasan, satuan, harga, total, vendor_num, km_pengajuan, kategori_biaya, urutan)
+      `)
+      .in('submission_id', subIds)
+      .eq('status', 'disetujui')
+      .order('revision_number', { ascending: true });
+    if (snapErr) throw new Error('query revisi: ' + snapErr.message);
+    // revision_number menaik → yang terakhir menimpa = revisi tertinggi
+    for (const sn of snaps || []) {
+      if (sn.snap_items?.length) revBySub[sn.submission_id] = sn.snap_items;
+    }
+  }
+
+  const rows = [];
+  for (const sub of candidates) {
     const pickedVendor = sub.vendor_pilihan || 1;
 
-    // Bila ada revisi yang DISETUJUI, pakai item dari snapshot revisi terbaru
-    // (submission_items sengaja tidak ditimpa saat approve agar tab "Asli"
-    //  tetap original — jadi laporan harus ambil dari snapshot).
-    const approvedRevs = (sub.revisions || [])
-      .filter(r => r.status === 'disetujui')
-      .sort((a, b) => (b.revision_number || 0) - (a.revision_number || 0));
-    const sourceItems = approvedRevs[0]?.snap_items?.length
-      ? approvedRevs[0].snap_items
-      : (sub.items || []);
+    // Bila ada revisi disetujui, pakai item snapshot revisi terbaru;
+    // jika tidak, pakai submission_items asli.
+    const sourceItems = revBySub[sub.id] || sub.items || [];
 
     const items = sourceItems
       .filter(i => (i.vendor_num || 1) === pickedVendor)
@@ -198,7 +210,7 @@ async function report(req, res) {
     res.json({ data: { plat, year, rows, totals } });
   } catch (err) {
     console.error('[vehicles/report]', err);
-    res.status(500).json({ error: 'Gagal menyusun laporan' });
+    res.status(500).json({ error: 'Gagal menyusun laporan: ' + err.message });
   }
 }
 
