@@ -91,7 +91,7 @@ export default function Layout() {
           <NavItem to="/analytics" icon={BarChart3} label="Analitik" onClick={close}/>
         )}
         {/* Master Kendaraan — dapat dilihat semua user (edit hanya Admin) */}
-        <NavItem to="/vehicles" icon={Truck} label="Master Kendaraan" onClick={close}/>
+        <NavItem to="/vehicles" icon={Truck} label="Super Track" onClick={close}/>
         {user?.role === 'Admin' && (
           <NavItem to="/users" icon={Users} label="Kelola User" onClick={close}/>
         )}
