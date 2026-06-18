@@ -1,10 +1,11 @@
-// src/pages/VehiclesPage.jsx — v10 (Master Data Kendaraan)
+// src/pages/VehiclesPage.jsx — v14 (Master Data Kendaraan)
+// v14: akses lihat dibuka utk semua user login (edit tetap Admin).
 // Daftar master kendaraan + preview laporan per plat + export Excel
 // Akses: Admin, Verifikator, Approval, Kepala Operasional (Operasional biasa: ditolak)
 import { useState, useEffect, useCallback } from 'react';
 import {
   Truck, Search, Download, Plus, Pencil, X, Loader,
-  FileSpreadsheet, ShieldOff, ChevronLeft, RefreshCw,
+  FileSpreadsheet, ChevronLeft, RefreshCw,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { vehicleAPI } from '../utils/api';
@@ -17,8 +18,9 @@ const YEARS = [thisYear, thisYear - 1, thisYear - 2];
 
 export default function VehiclesPage() {
   const { user } = useAuthStore();
-  const allowed = ['Admin', 'Verifikator', 'Approval'].includes(user?.role)
-    || user?.jabatan === 'Kepala Operasional';
+  // v14: Master Kendaraan dapat DILIHAT semua user login.
+  //      Tambah/Edit kendaraan tetap khusus Admin (dicek per-tombol di bawah).
+  const allowed = !!user;
 
   const [vehicles, setVehicles]   = useState([]);
   const [loading, setLoading]     = useState(true);
@@ -39,20 +41,6 @@ export default function VehiclesPage() {
   }, [year]);
 
   useEffect(() => { if (allowed) load(); }, [allowed, load]);
-
-  if (!allowed) {
-    return (
-      <div className="max-w-md mx-auto mt-20 text-center px-4">
-        <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
-          <ShieldOff size={28} className="text-red-400"/>
-        </div>
-        <h2 className="text-lg font-black text-slate-800 mb-2">Akses Ditolak</h2>
-        <p className="text-sm text-slate-400">
-          Halaman Master Kendaraan hanya untuk Admin, Verifikator, Approval, dan Kepala Operasional.
-        </p>
-      </div>
-    );
-  }
 
   const filtered = vehicles.filter(v =>
     !q.trim() || v.plat.toLowerCase().includes(q.trim().toLowerCase())
@@ -206,7 +194,7 @@ function ReportView({ plat, year, onBack, onExport, exporting }) {
             <table className="w-full text-[11px]">
               <thead>
                 <tr className="bg-slate-50 text-slate-500">
-                  {['No','No PR','Tanggal','Sewa','Service','Ban','Izin','Lainnya','KM Pengajuan','Selisih','Keterangan']
+                  {['No','No PR','Pemakaian','Sewa','Service','Ban','Izin','Lainnya','KM','Selisih','Keterangan']
                     .map(h => <th key={h} className="px-2 py-2 font-bold text-left whitespace-nowrap">{h}</th>)}
                 </tr>
               </thead>
