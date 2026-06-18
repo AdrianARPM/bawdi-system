@@ -36,7 +36,7 @@ export default function VehiclesPage() {
     try {
       const { data } = await vehicleAPI.list(year);
       setVehicles(data.data || []);
-    } catch { toast.error('Gagal memuat master kendaraan'); }
+    } catch { toast.error('Gagal memuat super track'); }
     finally { setLoading(false); }
   }, [year]);
 
@@ -71,7 +71,7 @@ export default function VehiclesPage() {
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
           <Truck size={20} className="text-amber-500"/>
-          <h1 className="text-lg font-black text-slate-800">Master Kendaraan</h1>
+          <h1 className="text-lg font-black text-slate-800">Super Track</h1>
         </div>
         <span className="text-xs text-slate-400">{filtered.length} kendaraan</span>
         <div className="ml-auto flex items-center gap-2">
