@@ -1,6 +1,8 @@
 // src/controllers/submissionController.js  — v10 (PAR flow + Master Data)
 // Fix v9 : total qty × harga, km_pengajuan tersimpan (submission & per-item)
 // Fitur v10: kategori_biaya per item + auto-register plat ke master vehicles
+// Fitur v15: penanda is_umum (PR barang kantor/GA) — tanpa kendaraan/KM,
+//            tidak auto-register ke master kendaraan
 const supabase = require('../../config/supabase');
 const { v4: uuidv4 } = require('uuid');
 const { sendEmailToRole, sendEmailToUser, emailTemplates } = require('../utils/emailService');
@@ -143,10 +145,14 @@ async function create(req, res) {
       type, kendaraan, vendor, npwp, rekening_tujuan,
       vendor2, npwp2, jenis_pembelian, alasan, riwayat,
       batas_waktu_dana, batas_akhir_pembayaran, items, km_pengajuan,
+      is_umum,
     } = req.body;
 
-    if (!nomor_pengajuan || !type || !kendaraan || !vendor || !items?.length)
+    // Pengajuan umum (barang kantor/GA) tidak punya kendaraan.
+    if (!nomor_pengajuan || !type || !vendor || !items?.length)
       return res.status(400).json({ error: 'Semua field wajib diisi' });
+    if (!is_umum && !kendaraan)
+      return res.status(400).json({ error: 'Kendaraan wajib diisi' });
 
     // Cek duplikat nomor dalam project/cabang yang sama
     if (nomor_urut && cabang_manual) {
@@ -174,7 +180,9 @@ async function create(req, res) {
       type, status: 'Menunggu Verifikasi',
       pemohon_id: req.user.id,
       cabang: req.user.cabang,
-      kendaraan, vendor, npwp: npwp || '',
+      kendaraan: is_umum ? '' : kendaraan,
+      is_umum: !!is_umum,
+      vendor, npwp: npwp || '',
       rekening_tujuan: rekening_tujuan || '',
       vendor2: vendor2 || '', npwp2: npwp2 || '',
       vendor2_selected: !!(vendor2?.trim()),
@@ -199,8 +207,9 @@ async function create(req, res) {
       }))
     );
 
-    // v10: auto-register plat ke master kendaraan (non-blocking)
-    autoRegisterVehicle(kendaraan, req.user.cabang).catch(() => {});
+    // v10: auto-register plat ke master kendaraan (non-blocking).
+    // v15: pengajuan umum (barang kantor) tidak didaftarkan ke master.
+    if (!is_umum) autoRegisterVehicle(kendaraan, req.user.cabang).catch(() => {});
 
     await supabase.from('notification_schedule').upsert({
       id: uuidv4(), submission_id: submissionId,
