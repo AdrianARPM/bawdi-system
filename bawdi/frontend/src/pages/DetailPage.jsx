@@ -753,6 +753,7 @@ export default function DetailPage() {
           <h1 className="text-base font-black text-slate-800 truncate">{sub.nomor_pengajuan}</h1>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
             <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-slate-100 text-slate-500">{sub.type}</span>
+            {sub.is_umum && <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-violet-100 text-violet-600">UMUM</span>}
             <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${statusCls}`}>{sub.status}</span>
             {isAlert && (
               <span className="text-[10px] font-bold text-orange-500 bg-orange-50 px-2 py-0.5 rounded-full">
@@ -917,7 +918,7 @@ export default function DetailPage() {
             {[
               ['Pemohon',          sub.pemohon?.name],
               ['Cabang',           sub.cabang],
-              ['Kendaraan',        sub.kendaraan],
+              ...(sub.is_umum ? [] : [['Kendaraan', sub.kendaraan]]),
               ['Jenis Pembelian',  sub.jenis_pembelian],
               ['Vendor 1',         sub.vendor],
               ...(sub.npwp              ? [['NPWP',           sub.npwp]]             : []),
