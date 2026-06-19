@@ -1,4 +1,6 @@
-// src/pages/NewFormPage.jsx  — v12
+// src/pages/NewFormPage.jsx  — v15
+// v15: mode 'Barang Kantor / Umum' (is_umum). PR tanpa kendaraan/KM/kategori,
+//      tidak masuk Master Kendaraan. Alur & nomor tetap PR.
 // v12: Plat kendaraan jadi DROPDOWN dari Master Kendaraan (+ opsi "Plat baru")
 //      Menghilangkan typo plat; plat baru tetap bisa & auto-register ke master
 // Perubahan dari v10:
@@ -178,7 +180,7 @@ function ItemKMSection({ item, kmCache, onItemUpdate }) {
 /* ═══════════════════════════════════════════════════════════════
    ItemRow & ItemsSection — DI LUAR main component
    ═══════════════════════════════════════════════════════════════ */
-function ItemRow({ item, idx, totalItems, vendorNum, onUpdate, onRemove, onBlurPenjelasan, kmCache, errors }) {
+function ItemRow({ item, idx, totalItems, vendorNum, onUpdate, onRemove, onBlurPenjelasan, kmCache, errors, isUmum }) {
   const eb = `item${vendorNum}_${idx}`;
   const handlePenjelasan = useCallback(e => onUpdate(item.id, 'penjelasan', e.target.value), [item.id, onUpdate]);
   const handleSatuan     = useCallback(e => onUpdate(item.id, 'satuan',     e.target.value), [item.id, onUpdate]);
@@ -214,7 +216,8 @@ function ItemRow({ item, idx, totalItems, vendorNum, onUpdate, onRemove, onBlurP
             className={`w-full pl-8 pr-3 py-2.5 rounded-xl border text-sm text-slate-800 outline-none placeholder:text-slate-300 focus:ring-2 focus:ring-amber-100 ${errors[`${eb}_hrg`]?'border-red-300':'border-slate-200 focus:border-amber-400'}`}/>
         </div>
       </div>
-      {/* Kategori biaya — memetakan ke kolom laporan Excel perusahaan */}
+      {/* Kategori biaya — memetakan ke kolom laporan Excel perusahaan (disembunyikan utk pengajuan umum) */}
+      {!isUmum && (
       <select
         value={item.kategori_biaya || ''}
         onChange={e => onUpdate(item.id, 'kategori_biaya', e.target.value)}
@@ -222,6 +225,7 @@ function ItemRow({ item, idx, totalItems, vendorNum, onUpdate, onRemove, onBlurP
         <option value="">— Pilih kategori biaya —</option>
         {KATEGORI_BIAYA.map(k => <option key={k} value={k}>{k}</option>)}
       </select>
+      )}
       {itemTotal > 0 && (
         <div className="flex items-center justify-between text-xs">
           <span className="text-slate-400">{parseFloat(item.satuan) > 1 && `${parseFloat(item.satuan)} × ${fmtCurrency(parseFloat(item.harga)||0)} =`}</span>
@@ -229,13 +233,13 @@ function ItemRow({ item, idx, totalItems, vendorNum, onUpdate, onRemove, onBlurP
         </div>
       )}
 
-      {/* Per-item KM section */}
-      <ItemKMSection item={item} kmCache={kmCache} onItemUpdate={onUpdate}/>
+      {/* Per-item KM section (disembunyikan utk pengajuan umum) */}
+      {!isUmum && <ItemKMSection item={item} kmCache={kmCache} onItemUpdate={onUpdate}/>}
     </div>
   );
 }
 
-function ItemsSection({ items, total, vendorNum, errors, onUpdate, onAdd, onRemove, onBlurPenjelasan, itemKMCache }) {
+function ItemsSection({ items, total, vendorNum, errors, onUpdate, onAdd, onRemove, onBlurPenjelasan, itemKMCache, isUmum }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -245,7 +249,7 @@ function ItemsSection({ items, total, vendorNum, errors, onUpdate, onAdd, onRemo
       {items.map((item, idx) => (
         <ItemRow key={item.id} item={item} idx={idx} totalItems={items.length} vendorNum={vendorNum}
           errors={errors} onUpdate={onUpdate} onRemove={onRemove} onBlurPenjelasan={onBlurPenjelasan}
-          kmCache={itemKMCache[item.id]}/>
+          kmCache={itemKMCache[item.id]} isUmum={isUmum}/>
       ))}
       <div className="flex justify-between items-center bg-amber-50 rounded-xl px-3 py-2.5">
         <span className="text-sm font-extrabold text-amber-800">TOTAL</span>
@@ -300,6 +304,7 @@ export default function NewFormPage() {
 
   const [form, setForm] = useState({
     type:'PR', nomorUrut:'', cabangManual: user?.cabang||'',
+    is_umum:false,
     kendaraan:'', jenis_pembelian:'',
     vendor:'', npwp:'', rekening_tujuan:'',
     items1:[newItem()],
@@ -402,7 +407,7 @@ export default function NewFormPage() {
     const e = {};
     if (s===0) { if (!form.nomorUrut.trim()) e.nomorUrut='Wajib'; if (!form.cabangManual.trim()) e.cabangManual='Wajib'; }
     if (s===1) {
-      if (!form.kendaraan.trim())       e.kendaraan='Wajib';
+      if (!form.is_umum && !form.kendaraan.trim()) e.kendaraan='Wajib';
       if (!form.jenis_pembelian.trim()) e.jenis_pembelian='Wajib';
       if (!form.alasan.trim())          e.alasan='Wajib';
       if (!form.batas_waktu_dana.trim())  e.batas_waktu_dana='Wajib';
@@ -413,7 +418,7 @@ export default function NewFormPage() {
       form.items1.forEach((it,i) => {
         if (!it.penjelasan.trim()) e[`item1_${i}_pen`]='Wajib';
         if (!it.satuan.trim())     e[`item1_${i}_sat`]='Wajib';
-        if (!it.kategori_biaya)    e[`item1_${i}_kat`]='Wajib';
+        if (!form.is_umum && !it.kategori_biaya) e[`item1_${i}_kat`]='Wajib';
         if (!it.harga||parseFloat(it.harga)<=0) e[`item1_${i}_hrg`]='Wajib';
       });
     }
@@ -422,7 +427,7 @@ export default function NewFormPage() {
       form.items2.forEach((it,i) => {
         if (!it.penjelasan.trim()) e[`item2_${i}_pen`]='Wajib';
         if (!it.satuan.trim())     e[`item2_${i}_sat`]='Wajib';
-        if (!it.kategori_biaya)    e[`item2_${i}_kat`]='Wajib';
+        if (!form.is_umum && !it.kategori_biaya) e[`item2_${i}_kat`]='Wajib';
         if (!it.harga||parseFloat(it.harga)<=0) e[`item2_${i}_hrg`]='Wajib';
       });
     }
@@ -439,7 +444,7 @@ export default function NewFormPage() {
     setLoading(true);
     try {
       const nomor   = buildNomor(form.nomorUrut, form.type, form.cabangManual);
-      const riwayat = buildRiwayat();
+      const riwayat = form.is_umum ? '' : buildRiwayat();
       const items   = [
         ...form.items1.map(i=>({
           penjelasan:i.penjelasan, satuan:i.satuan, vendor_num:1,
@@ -460,7 +465,8 @@ export default function NewFormPage() {
 
       const payload = {
         nomor_pengajuan:nomor, nomor_urut:form.nomorUrut, cabang_manual:form.cabangManual,
-        type:form.type, kendaraan:form.kendaraan, jenis_pembelian:form.jenis_pembelian,
+        type:form.type, is_umum:form.is_umum,
+        kendaraan:form.is_umum?'':form.kendaraan, jenis_pembelian:form.jenis_pembelian,
         vendor:form.vendor, npwp:form.npwp, rekening_tujuan:form.rekening_tujuan,
         vendor2:form.useVendor2?form.vendor2:'', npwp2:form.useVendor2?form.npwp2:'',
         alasan:form.alasan, riwayat, km_pengajuan: firstKM,
@@ -510,13 +516,27 @@ export default function NewFormPage() {
           <h2 className="text-sm font-bold text-slate-700 mb-4">Pilih Jenis Pengajuan</h2>
           <div className="grid grid-cols-2 gap-3 mb-5">
             {[['PR','Purchase Requisition','Permintaan pembelian rutin'],['PAR','Purchase Auth. Request','Otorisasi nilai besar']].map(([t,title,desc])=>(
-              <button key={t} type="button" onClick={()=>set('type',t)} className={`p-4 rounded-2xl border-2 text-left transition-all ${form.type===t?'border-amber-500 bg-amber-50':'border-slate-200 hover:border-slate-300'}`}>
+              <button key={t} type="button" onClick={()=>{set('type',t); if(t!=='PR') set('is_umum',false);}} className={`p-4 rounded-2xl border-2 text-left transition-all ${form.type===t?'border-amber-500 bg-amber-50':'border-slate-200 hover:border-slate-300'}`}>
                 <p className={`text-2xl font-black mb-1 ${form.type===t?'text-amber-500':'text-slate-300'}`}>{t}</p>
                 <p className="text-xs font-bold text-slate-700 mb-0.5">{title}</p>
                 <p className="text-[10px] text-slate-400">{desc}</p>
               </button>
             ))}
           </div>
+          {form.type==='PR' && (
+            <div className="mb-5">
+              <p className="text-xs font-bold text-slate-700 mb-2">Isi pengajuan untuk</p>
+              <div className="grid grid-cols-2 gap-3">
+                {[[false,'Perawatan Kendaraan','Dengan plat & riwayat KM'],[true,'Barang Kantor / Umum','ATK, aset — tanpa kendaraan']].map(([val,title,desc])=>(
+                  <button key={String(val)} type="button" onClick={()=>set('is_umum',val)}
+                    className={`p-3 rounded-2xl border-2 text-left transition-all ${form.is_umum===val?'border-amber-500 bg-amber-50':'border-slate-200 hover:border-slate-300'}`}>
+                    <p className={`text-sm font-black mb-0.5 ${form.is_umum===val?'text-amber-600':'text-slate-500'}`}>{title}</p>
+                    <p className="text-[10px] text-slate-400">{desc}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200">
             <p className="text-xs font-bold text-slate-700 mb-3">Format Nomor Pengajuan</p>
             <div className="bg-white border-2 border-amber-300 rounded-xl px-4 py-2.5 mb-3 text-center">
@@ -533,12 +553,13 @@ export default function NewFormPage() {
 
       {step===1&&(
         <Card>
-          <h2 className="text-sm font-bold text-slate-700 mb-4">Data Kendaraan & Keterangan</h2>
+          <h2 className="text-sm font-bold text-slate-700 mb-4">{form.is_umum?'Data Pengajuan & Keterangan':'Data Kendaraan & Keterangan'}</h2>
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <Field label="Pemohon"><input value={user?.name} disabled className={ic('')}/></Field>
               <Field label="Jabatan"><input value={user?.jabatan||'—'} disabled className={ic('')}/></Field>
             </div>
+            {!form.is_umum && (
             <Field label="Kendaraan / Plat Nomor" required error={errors.kendaraan} hint="Riwayat KM otomatis muncul saat isi item di langkah berikutnya">
               {platList.length > 0 && !platBaru ? (
                 <select
@@ -569,6 +590,7 @@ export default function NewFormPage() {
                 </div>
               )}
             </Field>
+            )}
             <Field label="Jenis Pembelian" required error={errors.jenis_pembelian}>
               <input value={form.jenis_pembelian} onChange={e=>set('jenis_pembelian',e.target.value)} placeholder="Penggantian Ban" className={ic('jenis_pembelian')}/>
             </Field>
@@ -601,10 +623,10 @@ export default function NewFormPage() {
               </Field>
               <ItemsSection items={form.items1} total={total1} vendorNum={1} errors={errors}
                 onUpdate={updateItem1} onAdd={addItem1} onRemove={removeItem1}
-                onBlurPenjelasan={handleBlurPenjelasan1} itemKMCache={itemKMCache}/>
+                onBlurPenjelasan={handleBlurPenjelasan1} itemKMCache={itemKMCache} isUmum={form.is_umum}/>
             </div>
           </Card>
-          {form.kendaraan?.trim()&&<VehicleHistoryPanel kendaraan={form.kendaraan}/>}
+          {!form.is_umum&&form.kendaraan?.trim()&&<VehicleHistoryPanel kendaraan={form.kendaraan}/>}
         </div>
       )}
 
@@ -628,7 +650,7 @@ export default function NewFormPage() {
               </div>
               <ItemsSection items={form.items2} total={total2} vendorNum={2} errors={errors}
                 onUpdate={updateItem2} onAdd={addItem2} onRemove={removeItem2}
-                onBlurPenjelasan={handleBlurPenjelasan2} itemKMCache={itemKMCache}/>
+                onBlurPenjelasan={handleBlurPenjelasan2} itemKMCache={itemKMCache} isUmum={form.is_umum}/>
             </div>
           )}
         </Card>
@@ -652,15 +674,17 @@ export default function NewFormPage() {
               <p className="text-[10px] text-slate-400 mb-1">Nomor Pengajuan</p>
               <p className="text-base font-black text-amber-400">{buildNomor(form.nomorUrut,form.type,form.cabangManual)}</p>
             </div>
-            {[['Jenis',form.type],['Pemohon',user?.name],['Kendaraan',form.kendaraan],['Jenis Pembelian',form.jenis_pembelian],['Vendor 1',form.vendor],...(form.rekening_tujuan?[['Rekening',form.rekening_tujuan]]:[]),['Total Vendor 1',fmtCurrency(total1)],...(form.useVendor2?[['Vendor 2',form.vendor2],['Total Vendor 2',fmtCurrency(total2)]]:[]),['Batas Waktu',form.batas_waktu_dana],['Batas Bayar',form.batas_akhir_pembayaran],['Foto',`${photos.length} foto`]].map(([k,v],i,arr)=>(
+            {[['Jenis',form.type],...(form.is_umum?[['Mode','Barang Kantor / Umum']]:[]),['Pemohon',user?.name],...(form.is_umum?[]:[['Kendaraan',form.kendaraan]]),['Jenis Pembelian',form.jenis_pembelian],['Vendor 1',form.vendor],...(form.rekening_tujuan?[['Rekening',form.rekening_tujuan]]:[]),['Total Vendor 1',fmtCurrency(total1)],...(form.useVendor2?[['Vendor 2',form.vendor2],['Total Vendor 2',fmtCurrency(total2)]]:[]),['Batas Waktu',form.batas_waktu_dana],['Batas Bayar',form.batas_akhir_pembayaran],['Foto',`${photos.length} foto`]].map(([k,v],i,arr)=>(
               <div key={k} className={`flex justify-between gap-4 py-2 ${i<arr.length-1?'border-b border-slate-50':''}`}>
                 <span className="text-xs text-slate-400">{k}</span><span className="text-xs font-bold text-slate-700 text-right">{v}</span>
               </div>
             ))}
           </Card>
           <Card>
+            {!form.is_umum && (<>
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Preview Riwayat KM:</p>
             <div className="text-xs text-slate-700 leading-relaxed whitespace-pre-line bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-200 font-mono">{buildRiwayat()}</div>
+            </>)}
           </Card>
         </div>
       )}
