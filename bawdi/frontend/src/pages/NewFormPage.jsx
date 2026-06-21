@@ -616,7 +616,7 @@ export default function NewFormPage() {
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Nama Vendor *" error={errors.vendor}><input value={form.vendor} onChange={e=>set('vendor',e.target.value)} placeholder="Nama bengkel" className={ic('vendor')}/></Field>
-                <Field label="NPWP (opsional)"><input value={form.npwp} onChange={e=>set('npwp',e.target.value)} placeholder="XX.XXX..." className={ic('')}/></Field>
+                <Field label="NPWP/KTP (opsional)"><input value={form.npwp} onChange={e=>set('npwp',e.target.value)} placeholder="XX.XXX..." className={ic('')}/></Field>
               </div>
               <Field label="Rekening Tujuan Pembayaran" hint="Bank — Nomor a/n Nama">
                 <textarea value={form.rekening_tujuan} onChange={e=>set('rekening_tujuan',e.target.value)} rows={2} placeholder="BCA — 1234567890 a/n Nama" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none resize-none placeholder:text-slate-300 focus:border-amber-400 focus:ring-2 focus:ring-amber-100"/>
