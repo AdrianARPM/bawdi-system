@@ -1,4 +1,7 @@
-// src/controllers/revisionController.js  — BUGFIX
+// src/controllers/revisionController.js  — v16
+// v16: uploadNota dibatasi (Approval/Admin atau Operasional PEMOHON pengajuan);
+//      tambah deleteNota dgn aturan akses sama. recordPayment/closeSubmission
+//      tetap Approval/Admin (lewat route authorize) — tidak diubah.
 // v11: KM per item + kategori_biaya ikut terbawa ke snapshot revisi
 //      (requestRevision menyalin, editRevision menyimpan). Perbaikan total
 //      revisi: total = qty (satuan) × harga, konsisten dgn submission v9.
@@ -512,9 +515,14 @@ async function rejectRevision(req, res) {
 async function uploadNota(req, res) {
   try {
     const { data: sub } = await supabase.from('submissions')
-      .select('status, nomor_pengajuan').eq('id', req.params.submissionId).single();
+      .select('status, nomor_pengajuan, pemohon_id').eq('id', req.params.submissionId).single();
     if (!sub) return res.status(404).json({ error: 'Pengajuan tidak ditemukan' });
     if (sub.status !== 'Disetujui') return res.status(400).json({ error: 'Nota hanya bisa diupload setelah Disetujui' });
+
+    // Akses: Approval/Admin, atau Operasional yang merupakan PEMOHON pengajuan ini.
+    const isOwnerOp = req.user.role === 'Operasional' && sub.pemohon_id === req.user.id;
+    if (!['Approval', 'Admin'].includes(req.user.role) && !isOwnerOp)
+      return res.status(403).json({ error: 'Hanya Approval atau pemohon pengajuan ini yang dapat mengunggah nota' });
 
     const { fileName, fileData, fileType, keterangan } = req.body;
     if (!fileName || !fileData || !fileType) return res.status(400).json({ error: 'fileName, fileData, fileType wajib' });
@@ -561,6 +569,54 @@ async function listNota(req, res) {
     if (error) throw error;
     res.json({ data });
   } catch { res.status(500).json({ error: 'Gagal mengambil nota' }); }
+}
+
+// DELETE /api/revisions/nota/:notaId
+// Hapus / ganti nota. Akses: Approval/Admin atau Operasional pemohon pengajuan.
+async function deleteNota(req, res) {
+  try {
+    const { data: nota } = await supabase.from('payment_notes')
+      .select('id, submission_id, file_url, file_name').eq('id', req.params.notaId).single();
+    if (!nota) return res.status(404).json({ error: 'Nota tidak ditemukan' });
+
+    const { data: sub } = await supabase.from('submissions')
+      .select('pemohon_id, nota_url').eq('id', nota.submission_id).single();
+    if (!sub) return res.status(404).json({ error: 'Pengajuan tidak ditemukan' });
+
+    const isOwnerOp = req.user.role === 'Operasional' && sub.pemohon_id === req.user.id;
+    if (!['Approval', 'Admin'].includes(req.user.role) && !isOwnerOp)
+      return res.status(403).json({ error: 'Tidak berwenang menghapus nota ini' });
+
+    // Hapus file dari storage (best-effort — record tetap dihapus walau file gagal)
+    try {
+      const path = nota.file_url.split(`${BUCKET_NOTA}/`)[1];
+      if (path) await supabase.storage.from(BUCKET_NOTA).remove([path]);
+    } catch (_) { /* abaikan */ }
+
+    await supabase.from('payment_notes').delete().eq('id', nota.id);
+
+    // Bila nota aktif di submission yang dihapus, alihkan ke nota terbaru yang tersisa
+    if (sub.nota_url === nota.file_url) {
+      const { data: rest } = await supabase.from('payment_notes')
+        .select('file_url, file_name, created_at')
+        .eq('submission_id', nota.submission_id)
+        .order('created_at', { ascending: false }).limit(1);
+      const latest = rest?.[0];
+      await supabase.from('submissions').update({
+        nota_url:       latest?.file_url  || '',
+        nota_file_name: latest?.file_name || '',
+      }).eq('id', nota.submission_id);
+    }
+
+    await supabase.from('messages').insert({
+      id: uuidv4(), submission_id: nota.submission_id, user_id: req.user.id,
+      message: `🗑️ Nota "${nota.file_name}" dihapus oleh ${req.user.name}`, is_system: true,
+    });
+
+    res.json({ message: 'Nota berhasil dihapus' });
+  } catch (err) {
+    res.status(500).json({ error: 'Gagal menghapus nota: ' + err.message });
+  }
 }
 
 async function recordPayment(req, res) {
@@ -659,5 +715,5 @@ async function getDraft(req, res) {
 module.exports = {
   getRevisions, requestRevision, editRevision, submitRevision,
   verifyRevision, approveRevision, rejectRevision,
-  uploadNota, listNota, recordPayment, closeSubmission, getDraft,
+  uploadNota, listNota, deleteNota, recordPayment, closeSubmission, getDraft,
 };
