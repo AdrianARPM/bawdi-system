@@ -1,5 +1,12 @@
-// src/controllers/historyController.js  — v3 (per-item KM tracking)
+// src/controllers/historyController.js  — v17 (dropdown item + exact KM match)
+// v17: getLastKM kini mencocokkan penjelasan SAMA-PERSIS (bukan 'mengandung kata'),
+//      sehingga 'Lampu Depan' tak lagi keliru cocok dgn 'Kampas Rem Depan'.
+//      Tambah getVehicleItems: daftar item unik yg pernah diajukan utk 1 kendaraan
+//      (untuk dropdown autocomplete di form).
 const supabase = require('../../config/supabase');
+
+// Normalisasi teks: trim + lowercase + rapikan spasi ganda.
+const normTxt = (v) => (v || '').trim().toLowerCase().replace(/\s+/g, ' ');
 
 /**
  * GET /api/history/vehicle
@@ -56,10 +63,9 @@ async function getLastKM(req, res) {
     if (!keyword?.trim())
       return res.json({ data: null, message: 'Keyword (penjelasan item) belum diisi' });
 
-    const plat  = kendaraan.trim().toLowerCase();
-    const kw    = keyword.trim().toLowerCase();
-    const words = kw.split(/\s+/).filter(w => w.length > 1);
-    if (!words.length)
+    const platN = normTxt(kendaraan);
+    const kwN   = normTxt(keyword);
+    if (!kwN)
       return res.json({ data: null, message: 'Keyword terlalu pendek' });
 
     // Query submission_items dengan JOIN ke submissions
@@ -81,13 +87,14 @@ async function getLastKM(req, res) {
 
     // Filter: plat match + status terpercaya + penjelasan match keyword
     const trustedStatus = ['Terverifikasi', 'Disetujui', 'Selesai'];
+    // v17: cocok HANYA bila plat sama-persis & penjelasan item SAMA-PERSIS
+    //      (setelah dinormalisasi). Tidak lagi 'mengandung kata'.
     const matched = items.filter(it => {
       const sub = it.submission;
       if (!sub) return false;
-      if (!sub.kendaraan?.toLowerCase().includes(plat)) return false;
+      if (normTxt(sub.kendaraan) !== platN) return false;
       if (!trustedStatus.includes(sub.status)) return false;
-      const itemPenj = it.penjelasan?.toLowerCase() || '';
-      return words.some(w => itemPenj.includes(w));
+      return normTxt(it.penjelasan) === kwN;
     });
 
     if (!matched.length)
@@ -111,4 +118,60 @@ async function getLastKM(req, res) {
   }
 }
 
-module.exports = { getVehicleHistory, getLastKM };
+/**
+ * GET /api/history/items?kendaraan=BM1234XX
+ * Daftar item UNIK yang pernah diajukan utk kendaraan tsb (status terpercaya),
+ * masing-masing dgn nomor pengajuan & KM terakhirnya. Untuk dropdown autocomplete.
+ */
+async function getVehicleItems(req, res) {
+  try {
+    const { kendaraan } = req.query;
+    if (!kendaraan?.trim())
+      return res.status(400).json({ error: 'Parameter kendaraan wajib diisi' });
+
+    const platN = normTxt(kendaraan);
+
+    const { data: items, error } = await supabase
+      .from('submission_items')
+      .select(`
+        penjelasan, km_pengajuan, satuan, harga, kategori_biaya,
+        submission:submissions!inner(nomor_pengajuan, tanggal, status, kendaraan)
+      `)
+      .not('penjelasan', 'is', null)
+      .order('id', { ascending: false })
+      .limit(500);
+
+    if (error) throw error;
+
+    const trusted = ['Terverifikasi', 'Disetujui', 'Selesai'];
+    const byPenj = new Map(); // key: penjelasan ternormalisasi → entri terbaru
+    for (const it of items || []) {
+      const sub = it.submission;
+      if (!sub) continue;
+      if (normTxt(sub.kendaraan) !== platN) continue;
+      if (!trusted.includes(sub.status)) continue;
+      const key = normTxt(it.penjelasan);
+      if (!key) continue;
+      const prev = byPenj.get(key);
+      if (!prev || new Date(sub.tanggal) > new Date(prev.tanggal)) {
+        byPenj.set(key, {
+          penjelasan:      it.penjelasan.trim(),
+          km_pengajuan:    it.km_pengajuan,
+          satuan:          it.satuan,
+          harga:           it.harga,
+          kategori_biaya:  it.kategori_biaya,
+          nomor_pengajuan: sub.nomor_pengajuan,
+          tanggal:         sub.tanggal,
+        });
+      }
+    }
+
+    const list = [...byPenj.values()].sort((a, b) => a.penjelasan.localeCompare(b.penjelasan));
+    res.json({ data: list });
+  } catch (err) {
+    console.error('[history/items]', err);
+    res.status(500).json({ error: 'Gagal mengambil daftar item' });
+  }
+}
+
+module.exports = { getVehicleHistory, getLastKM, getVehicleItems };
