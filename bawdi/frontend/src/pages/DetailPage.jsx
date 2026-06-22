@@ -937,27 +937,6 @@ export default function DetailPage() {
             ))}
           </Card>
 
-          {/* Keterangan */}
-          <Card>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Keterangan</p>
-            <div className="space-y-3">
-              <div>
-                <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Alasan</p>
-                <p className="text-sm text-slate-700 leading-relaxed">{sub.alasan || '—'}</p>
-              </div>
-              <div>
-                <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Riwayat</p>
-                <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{sub.riwayat || '—'}</p>
-              </div>
-              {sub.alasan_tolak && (
-                <div className="bg-red-50 border border-red-100 rounded-xl p-3">
-                  <p className="text-[10px] font-bold text-red-500 uppercase mb-1">Alasan Penolakan</p>
-                  <p className="text-sm text-red-700">{sub.alasan_tolak}</p>
-                </div>
-              )}
-            </div>
-          </Card>
-
           {/* Items */}
           <Card padding={false}>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-4 pt-3 pb-2">Rincian Item</p>
@@ -983,6 +962,27 @@ export default function DetailPage() {
             <div className="flex justify-between px-4 py-3 bg-amber-50 border-t border-amber-100">
               <span className="text-sm font-extrabold text-amber-800">TOTAL</span>
               <span className="text-base font-black text-amber-500">{fmtCurrency(sub.total_harga)}</span>
+            </div>
+          </Card>
+
+          {/* Keterangan */}
+          <Card>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Keterangan</p>
+            <div className="space-y-3">
+              <div>
+                <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Alasan</p>
+                <p className="text-sm text-slate-700 leading-relaxed">{sub.alasan || '—'}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Riwayat</p>
+                <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{sub.riwayat || '—'}</p>
+              </div>
+              {sub.alasan_tolak && (
+                <div className="bg-red-50 border border-red-100 rounded-xl p-3">
+                  <p className="text-[10px] font-bold text-red-500 uppercase mb-1">Alasan Penolakan</p>
+                  <p className="text-sm text-red-700">{sub.alasan_tolak}</p>
+                </div>
+              )}
             </div>
           </Card>
 
