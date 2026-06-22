@@ -99,7 +99,10 @@ export const historyAPI = {
     api.get('/history/vehicle', { params: { kendaraan, limit } }),
   getLastKM: (kendaraan, keyword = '') =>
     api.get('/history/last-km', { params: { kendaraan, keyword } }),
+  getVehicleItems: (kendaraan) =>
+    api.get('/history/items', { params: { kendaraan } }),
 };
+
 export const analyticsAPI = {
   get: (months = 6) => api.get('/analytics', { params: { months } }),
 };
