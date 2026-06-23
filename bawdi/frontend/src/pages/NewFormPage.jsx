@@ -1,4 +1,6 @@
 // src/pages/NewFormPage.jsx  — v18
+// v20: KM Terakhir manual (km_manual/tgl_manual) ikut dikirim & disimpan → jadi
+//      acuan awal Super Track utk item/plat yg belum punya riwayat KM digital.
 // v18: diskon nominal per item (opsional). Total item = (qty × harga) − diskon.
 // v17: penjelasan item jadi COMBOBOX autocomplete dari item yg pernah diajukan
 //      untuk kendaraan terpilih (tiap saran tampil dgn nomor pengajuan). Tetap
@@ -529,12 +531,16 @@ export default function NewFormPage() {
           penjelasan:i.penjelasan, satuan:i.satuan, vendor_num:1,
           harga:parseFloat(i.harga)||0, diskon:parseFloat(i.diskon)||0, total:calcItemTotal(i),
           km_pengajuan: parseInt(i.km_pengajuan) || null,
+          km_manual: parseInt(i.km_manual) || null,
+          tgl_manual: i.tgl_manual || null,
           kategori_biaya: i.kategori_biaya || 'Lainnya',
         })),
         ...(form.useVendor2?form.items2.map(i=>({
           penjelasan:i.penjelasan, satuan:i.satuan, vendor_num:2,
           harga:parseFloat(i.harga)||0, diskon:parseFloat(i.diskon)||0, total:calcItemTotal(i),
           km_pengajuan: parseInt(i.km_pengajuan) || null,
+          km_manual: parseInt(i.km_manual) || null,
+          tgl_manual: i.tgl_manual || null,
           kategori_biaya: i.kategori_biaya || 'Lainnya',
         })):[]),
       ];
