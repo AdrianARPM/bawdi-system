@@ -6,7 +6,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   ChevronLeft, Send, Check, User, Download, Eye,
   X, ZoomIn, Upload, FileText, CreditCard, Lock,
-  RefreshCw, Loader
+  RefreshCw, Loader, Trash2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { submissionAPI, messageAPI, revisionAPI } from '../utils/api';
@@ -360,6 +360,23 @@ function PaymentPanel({ sub, user, onRefresh }) {
 
   const canClose    = sub.nota_url && sub.tanggal_bayar && sub.jumlah_bayar > 0;
   const isAA        = ['Approval', 'Admin'].includes(user.role);
+// v20: yang boleh hapus nota = Approval/Admin atau Operasional pemohon asli
+  const canManageNota = isAA || (user.role === 'Operasional' && sub.pemohon_id === user.id);
+
+  const handleDeleteNota = async (n) => {
+    if (!window.confirm(`Hapus nota "${n.file_name}"? Tindakan ini tidak bisa dibatalkan.`)) return;
+    setSaving('delnota-' + n.id);
+    try {
+      await revisionAPI.deleteNota(n.id);
+      await loadNotas();
+      await onRefresh();
+      toast.success('Nota dihapus');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Gagal menghapus nota');
+    }
+    setSaving('');
+  };
+  
   const isDiSetujui = sub.status === 'Disetujui';
   const isSelesai   = sub.status === 'Selesai';
 
@@ -399,6 +416,12 @@ function PaymentPanel({ sub, user, onRefresh }) {
                     className="p-1.5 rounded-lg bg-amber-500 hover:bg-amber-600">
                     <Download size={12} className="text-white"/>
                   </a>
+                  {canManageNota && (
+                    <button onClick={() => handleDeleteNota(n)} disabled={saving === 'delnota-' + n.id}
+                      className="p-1.5 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50">
+                      <Trash2 size={12} className="text-red-500"/>
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
