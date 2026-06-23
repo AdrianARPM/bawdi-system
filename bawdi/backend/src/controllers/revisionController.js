@@ -160,6 +160,8 @@ async function requestRevision(req, res) {
         vendor_num:    item.vendor_num || 1,
         urutan:        idx + 1,
         km_pengajuan:  item.km_pengajuan != null ? Number(item.km_pengajuan) : null,
+        km_manual:     item.km_manual != null ? Number(item.km_manual) : null,
+        tgl_manual:    item.tgl_manual || null,
         kategori_biaya: item.kategori_biaya || 'Lainnya',
       }));
       await supabase.from('revision_snapshot_items').insert(itemRows);
@@ -253,6 +255,8 @@ async function editRevision(req, res) {
         vendor_num:    item.vendor_num || 1,
         urutan:        idx + 1,
         km_pengajuan:  item.km_pengajuan != null ? Number(item.km_pengajuan) : null,
+        km_manual:     item.km_manual != null ? Number(item.km_manual) : null,
+        tgl_manual:    item.tgl_manual || null,
         kategori_biaya: item.kategori_biaya || 'Lainnya',
       }))
     );

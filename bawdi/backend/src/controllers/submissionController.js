@@ -93,7 +93,7 @@ async function list(req, res) {
       .from('submissions')
       .select(`
         id, nomor_pengajuan, type, status, tanggal, kendaraan, vendor, vendor2,
-        vendor_pilihan, jenis_pembelian, total_harga, batas_akhir_pembayaran, approval_at, nota_url,
+        vendor_pilihan, jenis_pembelian, total_harga, batas_akhir_pembayaran,
         pemohon:users!submissions_pemohon_id_fkey(name, cabang),
         verifikator:users!submissions_verifikator_id_fkey(name),
         approver:users!submissions_approver_id_fkey(name)
@@ -210,6 +210,8 @@ async function create(req, res) {
         total: calcRow(i),
         vendor_num: i.vendor_num || 1, urutan: idx + 1,
         km_pengajuan: i.km_pengajuan != null ? Number(i.km_pengajuan) : null,
+        km_manual:    i.km_manual != null ? Number(i.km_manual) : null,
+        tgl_manual:   i.tgl_manual || null,
         kategori_biaya: i.kategori_biaya || 'Lainnya',
       }))
     );

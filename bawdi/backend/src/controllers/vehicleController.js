@@ -129,7 +129,7 @@ async function buildReportRows(plat, year) {
     .select(`
       id, nomor_pengajuan, nomor_urut, tanggal, status, kendaraan, vendor_pilihan,
       pemohon:users!submissions_pemohon_id_fkey(name),
-      items:submission_items(penjelasan, satuan, harga, total, vendor_num, km_pengajuan, kategori_biaya, urutan)
+      items:submission_items(penjelasan, satuan, harga, total, vendor_num, km_pengajuan, km_manual, kategori_biaya, urutan)
     `)
     .in('status', ['Disetujui', 'Selesai'])
     .gte('tanggal', from).lt('tanggal', to)
@@ -147,7 +147,7 @@ async function buildReportRows(plat, year) {
       .from('revision_snapshots')
       .select(`
         submission_id, revision_number, status,
-        snap_items:revision_snapshot_items(penjelasan, satuan, harga, total, vendor_num, km_pengajuan, kategori_biaya, urutan)
+        snap_items:revision_snapshot_items(penjelasan, satuan, harga, total, vendor_num, km_pengajuan, km_manual, kategori_biaya, urutan)
       `)
       .in('submission_id', subIds)
       .eq('status', 'disetujui')
@@ -179,14 +179,19 @@ async function buildReportRows(plat, year) {
         kategori:  KATEGORI.includes(it.kategori_biaya) ? it.kategori_biaya : 'Lainnya',
         biaya:     Number(it.total) || 0,
         km:        it.km_pengajuan != null ? Number(it.km_pengajuan) : null,
+        km_manual: it.km_manual != null ? Number(it.km_manual) : null,
         keterangan: it.penjelasan || '',
       });
     }
   }
 
-  // Selisih KM: beda dgn KM terisi sebelumnya (urut kronologis)
+  // Selisih KM: beda dgn KM terisi sebelumnya (urut kronologis).
+  // v20: ACUAN AWAL — bila plat belum punya riwayat KM digital, pakai KM Terakhir
+  // manual (km_manual) paling awal sbg titik nol, agar selisih entri pertama tdk 0.
+  // Satu angka per kendaraan: km_manual pertama (kronologis) yg terisi.
   let prevKM = null;
   for (const r of rows) {
+    if (prevKM == null && r.km_manual != null) prevKM = r.km_manual;
     if (r.km != null) {
       r.selisih_km = prevKM != null ? r.km - prevKM : null;
       prevKM = r.km;
