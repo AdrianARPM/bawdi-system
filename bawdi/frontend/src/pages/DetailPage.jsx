@@ -685,6 +685,7 @@ export default function DetailPage() {
   if (!sub)    return <div className="text-center py-20 text-slate-400">Pengajuan tidak ditemukan</div>;
 
   const isAlert      = ['Menunggu Verifikasi', 'Terverifikasi', 'Perlu Revisi'].includes(sub.status) && daysSince(sub.tanggal) > 2;
+  const notaAlert    = sub.status === 'Disetujui' && !sub.nota_url && daysSince(sub.approval_at) >= 2;
   const photos       = sub.photos || [];
   const items1       = (sub.items || []).filter(i => i.vendor_num !== 2);
   const items2       = (sub.items || []).filter(i => i.vendor_num === 2);
@@ -784,6 +785,7 @@ export default function DetailPage() {
             <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-slate-100 text-slate-500">{sub.type}</span>
             {sub.is_umum && <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-violet-100 text-violet-600">UMUM</span>}
             <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${statusCls}`}>{sub.status}</span>
+            {notaAlert && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-600">⚠ Nota belum diunggah ({daysSince(sub.approval_at)}h)</span>}
             {isAlert && (
               <span className="text-[10px] font-bold text-orange-500 bg-orange-50 px-2 py-0.5 rounded-full">
                 ⚠ {daysSince(sub.tanggal)}h
