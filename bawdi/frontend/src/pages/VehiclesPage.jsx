@@ -1,4 +1,5 @@
-// src/pages/VehiclesPage.jsx — v14 (Master Data Kendaraan)
+// src/pages/VehiclesPage.jsx — v19 (Super Track)
+// v19: laporan menampilkan No PR LENGKAP + kolom Nama Pemohon (setelah No PR).
 // v14: akses lihat dibuka utk semua user login (edit tetap Admin).
 // Daftar master kendaraan + preview laporan per plat + export Excel
 // Akses: Admin, Verifikator, Approval, Kepala Operasional (Operasional biasa: ditolak)
@@ -194,7 +195,7 @@ function ReportView({ plat, year, onBack, onExport, exporting }) {
             <table className="w-full text-[11px]">
               <thead>
                 <tr className="bg-slate-50 text-slate-500">
-                  {['No','No PR','Tanggal','Sewa','Service','Ban','Izin','Lainnya','KM Pengajuan','Selisih','Keterangan']
+                  {['No','No PR','Nama Pemohon','Tanggal','Sewa','Service','Ban','Izin','Lainnya','KM Pengajuan','Selisih','Keterangan']
                     .map(h => <th key={h} className="px-2 py-2 font-bold text-left whitespace-nowrap">{h}</th>)}
                 </tr>
               </thead>
@@ -202,7 +203,8 @@ function ReportView({ plat, year, onBack, onExport, exporting }) {
                 {data.rows.map((r, i) => (
                   <tr key={i} className="border-t border-slate-100">
                     <td className="px-2 py-1.5 text-slate-400">{i + 1}</td>
-                    <td className="px-2 py-1.5 font-semibold">{r.no_pr || '—'}</td>
+                    <td className="px-2 py-1.5 font-semibold whitespace-nowrap">{r.no_pr || '—'}</td>
+                    <td className="px-2 py-1.5 whitespace-nowrap">{r.nama_pemohon || '—'}</td>
                     <td className="px-2 py-1.5 whitespace-nowrap">{fmtDate(r.tanggal)}</td>
                     {KATEGORI.map(k => (
                       <td key={k} className="px-2 py-1.5 text-right tabular-nums">
@@ -217,7 +219,7 @@ function ReportView({ plat, year, onBack, onExport, exporting }) {
                   </tr>
                 ))}
                 {!data.rows.length && (
-                  <tr><td colSpan={11} className="text-center text-slate-400 py-8">
+                  <tr><td colSpan={12} className="text-center text-slate-400 py-8">
                     Tidak ada transaksi Disetujui/Selesai pada {year}.
                   </td></tr>
                 )}
@@ -225,7 +227,7 @@ function ReportView({ plat, year, onBack, onExport, exporting }) {
               {data.rows.length > 0 && (
                 <tfoot>
                   <tr className="border-t-2 border-slate-200 font-black bg-amber-50/50">
-                    <td colSpan={3} className="px-2 py-2">TOTAL</td>
+                    <td colSpan={4} className="px-2 py-2">TOTAL</td>
                     {KATEGORI.map(k => (
                       <td key={k} className="px-2 py-2 text-right tabular-nums text-amber-600">
                         {data.totals[k] ? fmtCurrency(data.totals[k]) : '—'}
