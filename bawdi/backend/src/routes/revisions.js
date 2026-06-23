@@ -15,10 +15,11 @@ router.get('/:submissionId',           ctrl.getRevisions);
 // Controller cek tipe pengajuan dan jabatan
 router.post('/:submissionId/request',  authorize('Approval','Verifikator','Admin','Operasional'), ctrl.requestRevision);
 
-router.post('/:submissionId/nota',     ctrl.uploadNota);
-router.get('/:submissionId/nota',      ctrl.listNota);
-router.put('/:submissionId/payment',   authorize('Approval','Admin'), ctrl.recordPayment);
-router.put('/:submissionId/close',     authorize('Approval','Admin'), ctrl.closeSubmission);
+router.post('/:submissionId/nota',    ctrl.uploadNota);
+router.get('/:submissionId/nota',     ctrl.listNota);
+router.delete('/nota/:notaId',        authorize('Approval','Admin','Operasional'), ctrl.deleteNota);
+router.put('/:submissionId/payment',  authorize('Approval','Admin'), ctrl.recordPayment);
+router.put('/:submissionId/close',    authorize('Approval','Admin'), ctrl.closeSubmission);
 
 // Per snapshot (revisi individual)
 router.put('/snapshot/:snapshotId',          authorize('Operasional','Admin'), ctrl.editRevision);
