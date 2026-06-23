@@ -68,10 +68,11 @@ export default function SubmissionsPage() {
       <div className="space-y-2.5">
         {filtered.map(s => {
           const isAlert = ['Menunggu Verifikasi','Terverifikasi'].includes(s.status) && daysSince(s.tanggal) > 3;
+          const notaAlert = s.status === 'Disetujui' && !s.nota_url && daysSince(s.approval_at) >= 2;
           return (
             <Link key={s.id} to={`/submissions/${s.id}`}
               className={`block bg-white rounded-2xl p-4 border shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5 ${
-                isAlert ? 'border-orange-200' : 'border-slate-100'
+                notaAlert ? 'border-red-200' : isAlert ? 'border-orange-200' : 'border-slate-100'
               }`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
@@ -83,8 +84,11 @@ export default function SubmissionsPage() {
                   </div>
                   <p className="text-xs text-slate-500 truncate mb-0.5">{s.kendaraan} · {s.vendor}</p>
                   <p className="text-xs text-slate-400">{s.pemohon?.name} · {fmtDate(s.tanggal)}</p>
-                  {isAlert && (
+                 {isAlert && (
                     <p className="text-xs font-semibold text-orange-500 mt-1.5">⚠ {daysSince(s.tanggal)} hari tidak ada tanggapan</p>
+                  )}
+                  {notaAlert && (
+                    <p className="text-xs font-semibold text-red-500 mt-1.5">⚠ Nota belum diunggah ({daysSince(s.approval_at)} hari)</p>
                   )}
                 </div>
                 <div className="text-right flex-shrink-0">
