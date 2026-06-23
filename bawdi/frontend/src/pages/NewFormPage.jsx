@@ -1,7 +1,4 @@
-// src/pages/NewFormPage.jsx  — v17
-// v17: penjelasan item jadi COMBOBOX autocomplete dari item yg pernah diajukan
-//      untuk kendaraan terpilih (tiap saran tampil dgn nomor pengajuan). Tetap
-//      bisa ketik item baru. KM auto-fill kini cocok SAMA-PERSIS (lihat backend).
+// src/pages/NewFormPage.jsx  — v15
 // v15: mode 'Barang Kantor / Umum' (is_umum). PR tanpa kendaraan/KM/kategori,
 //      tidak masuk Master Kendaraan. Alur & nomor tetap PR.
 // v12: Plat kendaraan jadi DROPDOWN dari Master Kendaraan (+ opsi "Plat baru")
@@ -31,9 +28,10 @@ function buildNomor(nomorUrut, type, cabangManual) {
 }
 
 function calcItemTotal(item) {
-  const qty   = parseFloat(item.satuan) || 1;
-  const harga = parseFloat(item.harga)  || 0;
-  return qty * harga;
+  const qty    = parseFloat(item.satuan) || 1;
+  const harga  = parseFloat(item.harga)  || 0;
+  const diskon = parseFloat(item.diskon) || 0;
+  return Math.max(0, qty * harga - diskon);
 }
 
 function fmtKM(km) {
@@ -183,11 +181,12 @@ function ItemKMSection({ item, kmCache, onItemUpdate }) {
 /* ═══════════════════════════════════════════════════════════════
    ItemRow & ItemsSection — DI LUAR main component
    ═══════════════════════════════════════════════════════════════ */
-function ItemRow({ item, idx, totalItems, vendorNum, onUpdate, onRemove, onBlurPenjelasan, kmCache, errors, isUmum, suggestions = [] }) {
+function ItemRow({ item, idx, totalItems, vendorNum, onUpdate, onRemove, onBlurPenjelasan, kmCache, errors, isUmum }) {
   const eb = `item${vendorNum}_${idx}`;
   const handlePenjelasan = useCallback(e => onUpdate(item.id, 'penjelasan', e.target.value), [item.id, onUpdate]);
   const handleSatuan     = useCallback(e => onUpdate(item.id, 'satuan',     e.target.value), [item.id, onUpdate]);
   const handleHarga      = useCallback(e => onUpdate(item.id, 'harga',      e.target.value), [item.id, onUpdate]);
+  const handleDiskon     = useCallback(e => onUpdate(item.id, 'diskon',     e.target.value), [item.id, onUpdate]);
   const handleBlur       = useCallback(() => {
     onBlurPenjelasan(item.id, item.penjelasan);
     if (!item.kategori_biaya) {
@@ -195,26 +194,6 @@ function ItemRow({ item, idx, totalItems, vendorNum, onUpdate, onRemove, onBlurP
       if (g) onUpdate(item.id, 'kategori_biaya', g);
     }
   }, [item.id, item.penjelasan, item.kategori_biaya, onBlurPenjelasan, onUpdate]);
-
-  // v17: combobox autocomplete penjelasan (saran dari item kendaraan terpilih)
-  const [openSug, setOpenSug] = useState(false);
-  const norm = (v) => (v || '').trim().toLowerCase().replace(/\s+/g, ' ');
-  const q = norm(item.penjelasan);
-  const filteredSug = (suggestions || [])
-    .filter(sg => {
-      const n = norm(sg.penjelasan);
-      if (!n) return false;
-      if (n === q) return false;          // sudah sama persis → tak perlu disarankan
-      return q ? n.includes(q) : true;    // kosong → tampilkan semua
-    })
-    .slice(0, 8);
-  const pickSug = useCallback((sg) => {
-    onUpdate(item.id, 'penjelasan', sg.penjelasan);
-    if (!item.kategori_biaya && sg.kategori_biaya) onUpdate(item.id, 'kategori_biaya', sg.kategori_biaya);
-    onBlurPenjelasan(item.id, sg.penjelasan);   // ambil KM (cocok sama-persis)
-    setOpenSug(false);
-  }, [item.id, item.kategori_biaya, onUpdate, onBlurPenjelasan]);
-
   const itemTotal = calcItemTotal(item);
 
   return (
@@ -223,32 +202,13 @@ function ItemRow({ item, idx, totalItems, vendorNum, onUpdate, onRemove, onBlurP
         <span className="text-[10px] font-bold text-slate-400">ITEM {idx + 1}</span>
         {totalItems > 1 && <button type="button" onMouseDown={e=>e.preventDefault()} onClick={() => onRemove(item.id)} className="text-red-400 hover:text-red-600"><Trash2 size={13}/></button>}
       </div>
-      <div className="relative">
-        <textarea
-          value={item.penjelasan}
-          onChange={e=>{handlePenjelasan(e); setOpenSug(true);}}
-          onFocus={()=>setOpenSug(true)}
-          onBlur={()=>{ setTimeout(()=>setOpenSug(false), 120); handleBlur(); }}
-          rows={2}
-          placeholder="Ketik / pilih item..."
-          className={`w-full px-3 py-2.5 rounded-xl border text-sm text-slate-800 outline-none resize-none placeholder:text-slate-300 focus:ring-2 focus:ring-amber-100 transition-colors leading-relaxed ${errors[`${eb}_pen`]?'border-red-300':'border-slate-200 focus:border-amber-400'}`}/>
-        {openSug && !isUmum && filteredSug.length > 0 && (
-          <div className="absolute z-30 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden max-h-56 overflow-y-auto">
-            {filteredSug.map((sg, i) => (
-              <button
-                key={i} type="button"
-                onMouseDown={e=>e.preventDefault()}
-                onClick={()=>pickSug(sg)}
-                className="w-full text-left px-3 py-2 hover:bg-amber-50 border-b border-slate-50 last:border-0">
-                <p className="text-sm text-slate-700 leading-snug">{sg.penjelasan}</p>
-                <p className="text-[10px] text-slate-400 mt-0.5">
-                  {sg.nomor_pengajuan}{sg.km_pengajuan != null ? ` · KM ${fmtKM(sg.km_pengajuan)}` : ''}
-                </p>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+      <textarea
+        value={item.penjelasan}
+        onChange={handlePenjelasan}
+        onBlur={handleBlur}
+        rows={2}
+        placeholder="Penjelasan item..."
+        className={`w-full px-3 py-2.5 rounded-xl border text-sm text-slate-800 outline-none resize-none placeholder:text-slate-300 focus:ring-2 focus:ring-amber-100 transition-colors leading-relaxed ${errors[`${eb}_pen`]?'border-red-300':'border-slate-200 focus:border-amber-400'}`}/>
       <div className="grid grid-cols-5 gap-2">
         <input value={item.satuan} onChange={handleSatuan} placeholder="Satuan"
           className={`col-span-2 px-3 py-2.5 rounded-xl border text-sm text-slate-800 outline-none placeholder:text-slate-300 focus:ring-2 focus:ring-amber-100 ${errors[`${eb}_sat`]?'border-red-300':'border-slate-200 focus:border-amber-400'}`}/>
@@ -257,6 +217,12 @@ function ItemRow({ item, idx, totalItems, vendorNum, onUpdate, onRemove, onBlurP
           <input type="number" value={item.harga} onChange={handleHarga} placeholder="0"
             className={`w-full pl-8 pr-3 py-2.5 rounded-xl border text-sm text-slate-800 outline-none placeholder:text-slate-300 focus:ring-2 focus:ring-amber-100 ${errors[`${eb}_hrg`]?'border-red-300':'border-slate-200 focus:border-amber-400'}`}/>
         </div>
+      </div>
+      {/* Diskon nominal per item (opsional) */}
+      <div className="relative">
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">Diskon Rp</span>
+        <input type="number" value={item.diskon || ''} onChange={handleDiskon} placeholder="0 (opsional)"
+          className="w-full pl-20 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none placeholder:text-slate-300 focus:ring-2 focus:ring-amber-100 focus:border-amber-400"/>
       </div>
       {/* Kategori biaya — memetakan ke kolom laporan Excel perusahaan (disembunyikan utk pengajuan umum) */}
       {!isUmum && (
@@ -268,10 +234,24 @@ function ItemRow({ item, idx, totalItems, vendorNum, onUpdate, onRemove, onBlurP
         {KATEGORI_BIAYA.map(k => <option key={k} value={k}>{k}</option>)}
       </select>
       )}
-      {itemTotal > 0 && (
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-slate-400">{parseFloat(item.satuan) > 1 && `${parseFloat(item.satuan)} × ${fmtCurrency(parseFloat(item.harga)||0)} =`}</span>
-          <span className="text-amber-500 font-semibold">{fmtCurrency(itemTotal)}</span>
+      {(parseFloat(item.harga) > 0) && (
+        <div className="text-xs space-y-0.5">
+          {parseFloat(item.diskon) > 0 && (
+            <div className="flex items-center justify-between text-slate-400">
+              <span>{`${parseFloat(item.satuan)||1} × ${fmtCurrency(parseFloat(item.harga)||0)}`}</span>
+              <span>{fmtCurrency((parseFloat(item.satuan)||1)*(parseFloat(item.harga)||0))}</span>
+            </div>
+          )}
+          {parseFloat(item.diskon) > 0 && (
+            <div className="flex items-center justify-between text-rose-500">
+              <span>Diskon</span>
+              <span>− {fmtCurrency(parseFloat(item.diskon)||0)}</span>
+            </div>
+          )}
+          <div className="flex items-center justify-between">
+            <span className="text-slate-400">{parseFloat(item.diskon) > 0 ? 'Harga akhir' : (parseFloat(item.satuan) > 1 ? `${parseFloat(item.satuan)} × ${fmtCurrency(parseFloat(item.harga)||0)} =` : '')}</span>
+            <span className="text-amber-500 font-semibold">{fmtCurrency(itemTotal)}</span>
+          </div>
         </div>
       )}
 
@@ -281,7 +261,7 @@ function ItemRow({ item, idx, totalItems, vendorNum, onUpdate, onRemove, onBlurP
   );
 }
 
-function ItemsSection({ items, total, vendorNum, errors, onUpdate, onAdd, onRemove, onBlurPenjelasan, itemKMCache, isUmum, suggestions }) {
+function ItemsSection({ items, total, vendorNum, errors, onUpdate, onAdd, onRemove, onBlurPenjelasan, itemKMCache, isUmum }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -291,7 +271,7 @@ function ItemsSection({ items, total, vendorNum, errors, onUpdate, onAdd, onRemo
       {items.map((item, idx) => (
         <ItemRow key={item.id} item={item} idx={idx} totalItems={items.length} vendorNum={vendorNum}
           errors={errors} onUpdate={onUpdate} onRemove={onRemove} onBlurPenjelasan={onBlurPenjelasan}
-          kmCache={itemKMCache[item.id]} isUmum={isUmum} suggestions={suggestions}/>
+          kmCache={itemKMCache[item.id]} isUmum={isUmum}/>
       ))}
       <div className="flex justify-between items-center bg-amber-50 rounded-xl px-3 py-2.5">
         <span className="text-sm font-extrabold text-amber-800">TOTAL</span>
@@ -315,7 +295,7 @@ function guessKategori(text) {
 
 const newItem = () => ({
   id: crypto.randomUUID(),
-  penjelasan: '', satuan: '', harga: '',
+  penjelasan: '', satuan: '', harga: '', diskon: '',
   km_pengajuan: '',   // KM saat pengajuan (opsional)
   kategori_biaya: '', // Kategori biaya (wajib) — utk laporan master data
   km_manual: '',      // KM terakhir manual jika arsip kosong
@@ -344,9 +324,6 @@ export default function NewFormPage() {
   // { [itemId]: { loading, hasArsip, kmTerakhir, tanggalTerakhir, nomorTerakhir } }
   const [itemKMCache, setItemKMCache] = useState({});
 
-  // v17: daftar item yg pernah diajukan utk kendaraan terpilih (untuk autocomplete)
-  const [itemSuggestions, setItemSuggestions] = useState([]);
-
   const [form, setForm] = useState({
     type:'PR', nomorUrut:'', cabangManual: user?.cabang||'',
     is_umum:false,
@@ -358,17 +335,6 @@ export default function NewFormPage() {
   });
 
   const set = useCallback((k, v) => { setForm(f=>({...f,[k]:v})); setErrors(e=>({...e,[k]:''})); }, []);
-
-  // v17: muat daftar item untuk autocomplete tiap kali kendaraan berubah
-  useEffect(() => {
-    const plat = form.kendaraan?.trim();
-    if (form.is_umum || !plat) { setItemSuggestions([]); return; }
-    let aktif = true;
-    historyAPI.getVehicleItems(plat)
-      .then(res => { if (aktif) setItemSuggestions(res.data?.data || []); })
-      .catch(() => { if (aktif) setItemSuggestions([]); });
-    return () => { aktif = false; };
-  }, [form.kendaraan, form.is_umum]);
 
   // Fetch KM untuk item tertentu, berdasarkan plat + penjelasan
   const fetchItemKM = useCallback(async (itemId, plat, keyword) => {
@@ -504,13 +470,13 @@ export default function NewFormPage() {
       const items   = [
         ...form.items1.map(i=>({
           penjelasan:i.penjelasan, satuan:i.satuan, vendor_num:1,
-          harga:parseFloat(i.harga)||0, total:calcItemTotal(i),
+          harga:parseFloat(i.harga)||0, diskon:parseFloat(i.diskon)||0, total:calcItemTotal(i),
           km_pengajuan: parseInt(i.km_pengajuan) || null,
           kategori_biaya: i.kategori_biaya || 'Lainnya',
         })),
         ...(form.useVendor2?form.items2.map(i=>({
           penjelasan:i.penjelasan, satuan:i.satuan, vendor_num:2,
-          harga:parseFloat(i.harga)||0, total:calcItemTotal(i),
+          harga:parseFloat(i.harga)||0, diskon:parseFloat(i.diskon)||0, total:calcItemTotal(i),
           km_pengajuan: parseInt(i.km_pengajuan) || null,
           kategori_biaya: i.kategori_biaya || 'Lainnya',
         })):[]),
@@ -679,8 +645,7 @@ export default function NewFormPage() {
               </Field>
               <ItemsSection items={form.items1} total={total1} vendorNum={1} errors={errors}
                 onUpdate={updateItem1} onAdd={addItem1} onRemove={removeItem1}
-                onBlurPenjelasan={handleBlurPenjelasan1} itemKMCache={itemKMCache} isUmum={form.is_umum}
-                suggestions={itemSuggestions}/>
+                onBlurPenjelasan={handleBlurPenjelasan1} itemKMCache={itemKMCache} isUmum={form.is_umum}/>
             </div>
           </Card>
           {!form.is_umum&&form.kendaraan?.trim()&&<VehicleHistoryPanel kendaraan={form.kendaraan}/>}
@@ -707,8 +672,7 @@ export default function NewFormPage() {
               </div>
               <ItemsSection items={form.items2} total={total2} vendorNum={2} errors={errors}
                 onUpdate={updateItem2} onAdd={addItem2} onRemove={removeItem2}
-                onBlurPenjelasan={handleBlurPenjelasan2} itemKMCache={itemKMCache} isUmum={form.is_umum}
-                suggestions={itemSuggestions}/>
+                onBlurPenjelasan={handleBlurPenjelasan2} itemKMCache={itemKMCache} isUmum={form.is_umum}/>
             </div>
           )}
         </Card>

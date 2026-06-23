@@ -231,6 +231,12 @@ function RevisiPanel({ snapshot, sub, user, onAction }) {
                 )}
                 <p className="text-sm font-medium text-slate-700 leading-relaxed">{item.penjelasan}</p>
               </div>
+              {Number(item.diskon) > 0 && (
+                <div className="flex justify-between text-[11px] text-rose-500 mb-0.5">
+                  <span>Diskon (dari {fmtCurrency((Number(item.total)||0) + (Number(item.diskon)||0))})</span>
+                  <span>− {fmtCurrency(item.diskon)}</span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="text-xs text-slate-400">{item.satuan}</span>
                 <span className="text-xs font-bold text-slate-600">{fmtCurrency(item.total || item.harga)}</span>
@@ -937,34 +943,6 @@ export default function DetailPage() {
             ))}
           </Card>
 
-          {/* Items */}
-          <Card padding={false}>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-4 pt-3 pb-2">Rincian Item</p>
-            {[
-              ...items1.map(i => ({ ...i, _v: 1 })),
-              ...items2.map(i => ({ ...i, _v: 2 })),
-            ].map((item, i, arr) => (
-              <div key={item.id || i} className={`px-4 py-3 ${i < arr.length - 1 ? 'border-b border-slate-50' : ''}`}>
-                <div className="flex items-start gap-2 mb-1">
-                  {items2.length > 0 && (
-                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 mt-0.5 ${
-                      item._v === 1 ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'
-                    }`}>V{item._v}</span>
-                  )}
-                  <p className="text-sm font-medium text-slate-700 leading-relaxed">{item.penjelasan}</p>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-xs text-slate-400">{item.satuan}</span>
-                  <span className="text-xs font-bold text-slate-600">{fmtCurrency(item.total || item.harga)}</span>
-                </div>
-              </div>
-            ))}
-            <div className="flex justify-between px-4 py-3 bg-amber-50 border-t border-amber-100">
-              <span className="text-sm font-extrabold text-amber-800">TOTAL</span>
-              <span className="text-base font-black text-amber-500">{fmtCurrency(sub.total_harga)}</span>
-            </div>
-          </Card>
-
           {/* Keterangan */}
           <Card>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Keterangan</p>
@@ -983,6 +961,40 @@ export default function DetailPage() {
                   <p className="text-sm text-red-700">{sub.alasan_tolak}</p>
                 </div>
               )}
+            </div>
+          </Card>
+
+          {/* Items */}
+          <Card padding={false}>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-4 pt-3 pb-2">Rincian Item</p>
+            {[
+              ...items1.map(i => ({ ...i, _v: 1 })),
+              ...items2.map(i => ({ ...i, _v: 2 })),
+            ].map((item, i, arr) => (
+              <div key={item.id || i} className={`px-4 py-3 ${i < arr.length - 1 ? 'border-b border-slate-50' : ''}`}>
+                <div className="flex items-start gap-2 mb-1">
+                  {items2.length > 0 && (
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 mt-0.5 ${
+                      item._v === 1 ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'
+                    }`}>V{item._v}</span>
+                  )}
+                  <p className="text-sm font-medium text-slate-700 leading-relaxed">{item.penjelasan}</p>
+                </div>
+                {Number(item.diskon) > 0 && (
+                  <div className="flex justify-between text-[11px] text-rose-500 mb-0.5">
+                    <span>Diskon (dari {fmtCurrency((Number(item.total)||0) + (Number(item.diskon)||0))})</span>
+                    <span>− {fmtCurrency(item.diskon)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-xs text-slate-400">{item.satuan}</span>
+                  <span className="text-xs font-bold text-slate-600">{fmtCurrency(item.total || item.harga)}</span>
+                </div>
+              </div>
+            ))}
+            <div className="flex justify-between px-4 py-3 bg-amber-50 border-t border-amber-100">
+              <span className="text-sm font-extrabold text-amber-800">TOTAL</span>
+              <span className="text-base font-black text-amber-500">{fmtCurrency(sub.total_harga)}</span>
             </div>
           </Card>
 
