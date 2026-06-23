@@ -128,6 +128,7 @@ async function buildReportRows(plat, year) {
     .from('submissions')
     .select(`
       id, nomor_pengajuan, nomor_urut, tanggal, status, kendaraan, vendor_pilihan,
+      pemohon:users!submissions_pemohon_id_fkey(name),
       items:submission_items(penjelasan, satuan, harga, total, vendor_num, km_pengajuan, kategori_biaya, urutan)
     `)
     .in('status', ['Disetujui', 'Selesai'])
@@ -172,8 +173,9 @@ async function buildReportRows(plat, year) {
 
     for (const it of items) {
       rows.push({
-        no_pr:     sub.nomor_urut || sub.nomor_pengajuan || '',
-        tanggal:   sub.tanggal,
+        no_pr:        sub.nomor_pengajuan || sub.nomor_urut || '',
+        nama_pemohon: sub.pemohon?.name || '',
+        tanggal:      sub.tanggal,
         kategori:  KATEGORI.includes(it.kategori_biaya) ? it.kategori_biaya : 'Lainnya',
         biaya:     Number(it.total) || 0,
         km:        it.km_pengajuan != null ? Number(it.km_pengajuan) : null,
@@ -225,12 +227,13 @@ function writeSheet(wb, plat, year, rows, vehicle) {
   const money = '#,##0;(#,##0);"-"';
 
   ws.columns = [
-    { width: 5 },  { width: 9 },  { width: 12 }, { width: 12 }, { width: 13 },
-    { width: 12 }, { width: 16 }, { width: 13 }, { width: 10 }, { width: 11 }, { width: 30 },
+    { width: 5 },  { width: 22 }, { width: 18 }, { width: 12 }, { width: 12 },
+    { width: 13 }, { width: 12 }, { width: 16 }, { width: 13 }, { width: 10 },
+    { width: 11 }, { width: 30 },
   ];
 
   // Judul
-  ws.mergeCells('A1:K1');
+  ws.mergeCells('A1:L1');
   ws.getCell('A1').value = 'FORM LAPORAN';
   ws.getCell('A1').font = { name: 'Arial', size: 14, bold: true };
   ws.getCell('A1').alignment = { horizontal: 'center' };
@@ -252,8 +255,8 @@ function writeSheet(wb, plat, year, rows, vehicle) {
   });
 
   // Header tabel (baris 10) — persis kolom laporan manual
-  const HEADERS = ['No', 'No PR', 'Pemakaian', 'Biaya Sewa', 'Biaya Service', 'Biaya Ban',
-                   'Biaya Izin Kendaraan', 'Biaya Lainnya', 'KM', 'Selisih KM', 'Keterangan'];
+  const HEADERS = ['No', 'No PR', 'Nama Pemohon', 'Pemakaian', 'Biaya Sewa', 'Biaya Service',
+                   'Biaya Ban', 'Biaya Izin Kendaraan', 'Biaya Lainnya', 'KM', 'Selisih KM', 'Keterangan'];
   const hrow = ws.getRow(10);
   HEADERS.forEach((t, idx) => {
     const c = hrow.getCell(idx + 1);
@@ -266,7 +269,7 @@ function writeSheet(wb, plat, year, rows, vehicle) {
   hrow.height = 28;
 
   // Mapping kategori → indeks kolom biaya (D..H = 4..8)
-  const COL = { 'Sewa': 4, 'Service': 5, 'Ban': 6, 'Izin Kendaraan': 7, 'Lainnya': 8 };
+  const COL = { 'Sewa': 5, 'Service': 6, 'Ban': 7, 'Izin Kendaraan': 8, 'Lainnya': 9 };
 
   // Baris data
   const startRow = 11;
@@ -274,19 +277,20 @@ function writeSheet(wb, plat, year, rows, vehicle) {
     const row = ws.getRow(startRow + i);
     row.getCell(1).value = i + 1;
     row.getCell(2).value = r.no_pr;
+    row.getCell(3).value = r.nama_pemohon || '';
     const d = new Date(r.tanggal);
-    row.getCell(3).value = d;
-    row.getCell(3).numFmt = 'dd-mmm-yy';
+    row.getCell(4).value = d;
+    row.getCell(4).numFmt = 'dd-mmm-yy';
     row.getCell(COL[r.kategori]).value = r.biaya;
-    if (r.km != null)        row.getCell(9).value  = r.km;
-    if (r.selisih_km != null) row.getCell(10).value = r.selisih_km;
-    row.getCell(11).value = r.keterangan;
-    for (let c = 1; c <= 11; c++) {
+    if (r.km != null)        row.getCell(10).value = r.km;
+    if (r.selisih_km != null) row.getCell(11).value = r.selisih_km;
+    row.getCell(12).value = r.keterangan;
+    for (let c = 1; c <= 12; c++) {
       const cell = row.getCell(c);
       cell.border = border;
       cell.font = { name: 'Arial', size: 10 };
-      if (c >= 4 && c <= 8) cell.numFmt = money;
-      if (c === 9 || c === 10) cell.numFmt = '#,##0';
+      if (c >= 5 && c <= 9) cell.numFmt = money;
+      if (c === 10 || c === 11) cell.numFmt = '#,##0';
     }
     row.getCell(1).alignment = { horizontal: 'center' };
     row.getCell(2).alignment = { horizontal: 'center' };
@@ -295,42 +299,42 @@ function writeSheet(wb, plat, year, rows, vehicle) {
   // Baris total — pakai FORMULA SUM (bukan nilai hardcode)
   const endData = startRow + Math.max(rows.length, 1) - 1;
   const totalRow = ws.getRow(endData + 1);
-  totalRow.getCell(3).value = 'TOTAL';
-  totalRow.getCell(3).font = { name: 'Arial', size: 10, bold: true };
-  ['D', 'E', 'F', 'G', 'H'].forEach(colL => {
+  totalRow.getCell(4).value = 'TOTAL';
+  totalRow.getCell(4).font = { name: 'Arial', size: 10, bold: true };
+  ['E', 'F', 'G', 'H', 'I'].forEach(colL => {
     const cell = totalRow.getCell(colL.charCodeAt(0) - 64);
     cell.value = { formula: `SUM(${colL}${startRow}:${colL}${endData})` };
     cell.numFmt = money;
     cell.font = { name: 'Arial', size: 10, bold: true };
   });
-  for (let c = 1; c <= 11; c++) totalRow.getCell(c).border = border;
+  for (let c = 1; c <= 12; c++) totalRow.getCell(c).border = border;
 
   // Blok ringkasan (mengikuti laporan manual)
   const sumStart = endData + 3;
   const sumRows = [
-    ['Biaya Sewa',                 { formula: `D${endData + 1}` }],
-    ['Biaya Perawatan',            { formula: `E${endData + 1}+F${endData + 1}` }],
-    ['Biaya Lainnya',              { formula: `G${endData + 1}+H${endData + 1}` }],
+    ['Biaya Sewa',                 { formula: `E${endData + 1}` }],
+    ['Biaya Perawatan',            { formula: `F${endData + 1}+G${endData + 1}` }],
+    ['Biaya Lainnya',              { formula: `H${endData + 1}+I${endData + 1}` }],
     ['Sisa yang harus dibayarkan', 0],
   ];
   sumRows.forEach((s, i) => {
     const r = sumStart + i;
-    ws.getCell(`D${r}`).value = s[0];
-    ws.getCell(`D${r}`).font = { name: 'Arial', size: 10 };
-    ws.getCell(`E${r}`).value = s[1];
-    ws.getCell(`E${r}`).numFmt = money;
+    ws.getCell(`E${r}`).value = s[0];
     ws.getCell(`E${r}`).font = { name: 'Arial', size: 10 };
+    ws.getCell(`F${r}`).value = s[1];
+    ws.getCell(`F${r}`).numFmt = money;
+    ws.getCell(`F${r}`).font = { name: 'Arial', size: 10 };
   });
 
   // Tanggal & blok tanda tangan
-  ws.getCell(`H${sumStart}`).value = 'Tanggal';
-  ws.getCell(`K${sumStart}`).value = new Date(`${year}-12-31`);
-  ws.getCell(`K${sumStart}`).numFmt = 'dd-mmm-yy';
-  ws.getCell(`H${sumStart + 4}`).value = 'Dibuat oleh';
-  ws.getCell(`H${sumStart + 7}`).value = 'Diperiksa Oleh :';
-  ws.getCell(`H${sumStart + 11}`).value = 'Disetujui Oleh  :';
+  ws.getCell(`I${sumStart}`).value = 'Tanggal';
+  ws.getCell(`L${sumStart}`).value = new Date(`${year}-12-31`);
+  ws.getCell(`L${sumStart}`).numFmt = 'dd-mmm-yy';
+  ws.getCell(`I${sumStart + 4}`).value = 'Dibuat oleh';
+  ws.getCell(`I${sumStart + 7}`).value = 'Diperiksa Oleh :';
+  ws.getCell(`I${sumStart + 11}`).value = 'Disetujui Oleh  :';
   [sumStart, sumStart + 4, sumStart + 7, sumStart + 11].forEach(r => {
-    ws.getCell(`H${r}`).font = { name: 'Arial', size: 10 };
+    ws.getCell(`I${r}`).font = { name: 'Arial', size: 10 };
   });
 }
 
