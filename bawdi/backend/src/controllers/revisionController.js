@@ -2,6 +2,7 @@
 // v16: uploadNota dibatasi (Approval/Admin atau Operasional PEMOHON pengajuan);
 //      tambah deleteNota dgn aturan akses sama. recordPayment/closeSubmission
 //      tetap Approval/Admin (lewat route authorize) — tidak diubah.
+// v18: diskon per item ikut terbawa ke snapshot revisi; total = (qty×harga)−diskon
 // v11: KM per item + kategori_biaya ikut terbawa ke snapshot revisi
 //      (requestRevision menyalin, editRevision menyimpan). Perbaikan total
 //      revisi: total = qty (satuan) × harga, konsisten dgn submission v9.
@@ -144,13 +145,17 @@ async function requestRevision(req, res) {
 
     // Salin items ke snapshot
     if (sourceItems.length > 0) {
-      const calcRow = i => Number(i.total) || (parseFloat(i.satuan) || 1) * (Number(i.harga) || 0);
+      const calcRow = i => {
+        const gross = (parseFloat(i.satuan) || 1) * (Number(i.harga) || 0);
+        return Number(i.total) || Math.max(0, gross - (Number(i.diskon) || 0));
+      };
       const itemRows = sourceItems.map((item, idx) => ({
         id:            uuidv4(),
         snapshot_id:   snapshotId,
         penjelasan:    item.penjelasan || '',
         satuan:        item.satuan     || '1 Kali',
         harga:         Number(item.harga) || 0,
+        diskon:        Number(item.diskon) || 0,
         total:         calcRow(item),
         vendor_num:    item.vendor_num || 1,
         urutan:        idx + 1,
@@ -219,7 +224,10 @@ async function editRevision(req, res) {
 
     if (!items?.length) return res.status(400).json({ error: 'Minimal 1 item wajib ada' });
 
-    const calcRow = i => Number(i.total) || (parseFloat(i.satuan) || 1) * (Number(i.harga) || 0);
+    const calcRow = i => {
+      const gross = (parseFloat(i.satuan) || 1) * (Number(i.harga) || 0);
+      return Number(i.total) || Math.max(0, gross - (Number(i.diskon) || 0));
+    };
     // total_harga revisi hanya menghitung item vendor 1 (konsisten dgn create)
     const total_harga = items.filter(i => (i.vendor_num || 1) !== 2).reduce((s, i) => s + calcRow(i), 0);
 
@@ -240,6 +248,7 @@ async function editRevision(req, res) {
         penjelasan:    item.penjelasan || '',
         satuan:        item.satuan     || '1 Kali',
         harga:         Number(item.harga) || 0,
+        diskon:        Number(item.diskon) || 0,
         total:         calcRow(item),
         vendor_num:    item.vendor_num || 1,
         urutan:        idx + 1,

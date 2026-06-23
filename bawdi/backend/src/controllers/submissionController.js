@@ -1,6 +1,7 @@
 // src/controllers/submissionController.js  — v10 (PAR flow + Master Data)
 // Fix v9 : total qty × harga, km_pengajuan tersimpan (submission & per-item)
 // Fitur v10: kategori_biaya per item + auto-register plat ke master vehicles
+// Fitur v18: diskon nominal per item — total = (qty × harga) − diskon
 // Fitur v15: penanda is_umum (PR barang kantor/GA) — tanpa kendaraan/KM,
 //            tidak auto-register ke master kendaraan
 const supabase = require('../../config/supabase');
@@ -168,8 +169,13 @@ async function create(req, res) {
       }
     }
 
-    // Total baris = i.total dari frontend (qty × harga); fallback hitung sendiri
-    const calcRow = i => Number(i.total) || (parseFloat(i.satuan) || 1) * (Number(i.harga) || 0);
+    // Total baris = i.total dari frontend (sudah net diskon); fallback hitung sendiri:
+    // (qty × harga) − diskon. Tidak pernah negatif.
+    const calcRow = i => {
+      const gross = (parseFloat(i.satuan) || 1) * (Number(i.harga) || 0);
+      const net   = gross - (Number(i.diskon) || 0);
+      return Number(i.total) || Math.max(0, net);
+    };
     const total1 = items.filter(i => i.vendor_num !== 2).reduce((s, i) => s + calcRow(i), 0);
     const submissionId = uuidv4();
     const now = new Date().toISOString();
@@ -200,6 +206,7 @@ async function create(req, res) {
         id: uuidv4(), submission_id: submissionId,
         penjelasan: i.penjelasan, satuan: i.satuan,
         harga: Number(i.harga) || 0,
+        diskon: Number(i.diskon) || 0,
         total: calcRow(i),
         vendor_num: i.vendor_num || 1, urutan: idx + 1,
         km_pengajuan: i.km_pengajuan != null ? Number(i.km_pengajuan) : null,
