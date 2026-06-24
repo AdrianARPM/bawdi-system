@@ -638,7 +638,7 @@ async function recordDP(req, res) {
       .select('status, nomor_pengajuan, pemohon_id, nota_url').eq('id', req.params.submissionId).single();
     if (!sub) return res.status(404).json({ error: 'Pengajuan tidak ditemukan' });
     if (sub.status !== 'Disetujui') return res.status(400).json({ error: 'DP hanya bisa dicatat setelah Disetujui' });
-    if (!sub.nota_url) return res.status(400).json({ error: 'Upload nota dulu sebelum mencatat DP' });
+    //if (!sub.nota_url) return res.status(400).json({ error: 'Upload nota dulu sebelum mencatat DP' });
 
     const fmt = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(Number(jumlah_dp));
 
@@ -672,7 +672,7 @@ async function recordPayment(req, res) {
       .select('status, nomor_pengajuan, pemohon_id, nota_url').eq('id', req.params.submissionId).single();
     if (!sub) return res.status(404).json({ error: 'Pengajuan tidak ditemukan' });
     if (sub.status !== 'Disetujui') return res.status(400).json({ error: 'Pembayaran hanya bisa dicatat setelah Disetujui' });
-    if (!sub.nota_url) return res.status(400).json({ error: 'Upload nota dulu sebelum mencatat pembayaran' });
+    //if (!sub.nota_url) return res.status(400).json({ error: 'Upload nota dulu sebelum mencatat pembayaran' });
 
     const fmt = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(Number(jumlah_bayar));
 
