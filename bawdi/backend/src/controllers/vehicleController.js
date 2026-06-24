@@ -7,6 +7,8 @@ const supabase = require('../../config/supabase');
 const { v4: uuidv4 } = require('uuid');
 const ExcelJS = require('exceljs');
 
+// v21: normalisasi nama item utk kelompokkan riwayat per-item
+const normTxt = (v) => (v || '').trim().toLowerCase().replace(/\s+/g, ' ');
 const KATEGORI = ['Sewa', 'Service', 'Ban', 'Izin Kendaraan', 'Lainnya'];
 
 // Normalisasi plat: uppercase + rapikan spasi → "bm 1234  aa" => "BM 1234 AA"
@@ -185,16 +187,18 @@ async function buildReportRows(plat, year) {
     }
   }
 
-  // Selisih KM: beda dgn KM terisi sebelumnya (urut kronologis).
-  // v20: ACUAN AWAL — bila plat belum punya riwayat KM digital, pakai KM Terakhir
-  // manual (km_manual) paling awal sbg titik nol, agar selisih entri pertama tdk 0.
-  // Satu angka per kendaraan: km_manual pertama (kronologis) yg terisi.
-  let prevKM = null;
+  // Selisih KM PER-ITEM (v21): tiap item dibandingkan dgn KM item yg SAMA pada
+  // pengajuan sebelumnya (urut kronologis). Saat item muncul PERTAMA kali & belum
+  // ada riwayat digital, pakai KM Terakhir manual (km_manual) sbg acuan awal item
+  // itu. Konsisten dgn selisih per-item di form. Tanpa acuan → selisih kosong.
+  const lastKMByItem = {};   // norm(nama item) → km_pengajuan terakhir item itu
   for (const r of rows) {
-    if (prevKM == null && r.km_manual != null) prevKM = r.km_manual;
     if (r.km != null) {
-      r.selisih_km = prevKM != null ? r.km - prevKM : null;
-      prevKM = r.km;
+      const key  = normTxt(r.keterangan);
+      let   base = lastKMByItem[key];
+      if (base == null && r.km_manual != null) base = r.km_manual;  // acuan awal item
+      r.selisih_km = base != null ? r.km - base : null;
+      lastKMByItem[key] = r.km;
     } else {
       r.selisih_km = null;
     }
