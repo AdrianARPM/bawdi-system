@@ -295,6 +295,10 @@ function PaymentPanel({ sub, user, onRefresh }) {
   const [payTime,   setPayTime]  = useState('');
   const [payJumlah, setPayJumlah]= useState('');
   const [payCat,    setPayCat]   = useState('');
+  const [dpDate,    setDpDate]   = useState('');
+  const [dpTime,    setDpTime]   = useState('');
+  const [dpJumlah,  setDpJumlah] = useState('');
+  const [dpCat,     setDpCat]    = useState('');
   const [closeCat,  setCloseCat] = useState('');
   const notaRef = useRef();
 
@@ -328,6 +332,22 @@ function PaymentPanel({ sub, user, onRefresh }) {
     }
     setSaving('');
     e.target.value = '';
+  };
+
+  const handleDP = async () => {
+    if (!dpDate || !dpJumlah) { toast.error('Tanggal dan jumlah DP wajib diisi'); return; }
+    setSaving('dp');
+    try {
+      const tgl = dpDate && dpTime ? `${dpDate}T${dpTime}:00` : dpDate;
+      await revisionAPI.recordDP(sub.id, {
+        tanggal_dp: tgl, jumlah_dp: dpJumlah, catatan_dp: dpCat,
+      });
+      await onRefresh();
+      toast.success('DP dicatat!');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Gagal mencatat DP');
+    }
+    setSaving('');
   };
 
   const handlePay = async () => {
@@ -445,6 +465,64 @@ function PaymentPanel({ sub, user, onRefresh }) {
           </div>
         )}
       </Card>
+
+      {/* Catat DP (opsional) */}
+      {isDiSetujui && !isSelesai && isAA && (
+        <Card>
+          <div className="flex items-center gap-2 mb-3">
+            <CreditCard size={15} className="text-amber-500"/>
+            <p className="text-sm font-bold text-slate-700">Catat DP (Uang Muka)</p>
+            <span className="text-[10px] font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">opsional</span>
+            {sub.tanggal_dp && (
+              <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full ml-auto">✓ Tercatat</span>
+            )}
+          </div>
+
+          {sub.tanggal_dp ? (
+            <div className="bg-amber-50 rounded-xl p-3 space-y-1">
+              <p className="text-xs text-amber-600">Tanggal DP: <strong>{fmtDateTime(sub.tanggal_dp)}</strong></p>
+              <p className="text-xs text-amber-600">Jumlah DP: <strong>{fmtCurrency(sub.jumlah_dp)}</strong></p>
+              {sub.catatan_dp && <p className="text-xs text-amber-600">Catatan: {sub.catatan_dp}</p>}
+              {sub.total_harga > 0 && (
+                <p className="text-xs text-slate-500 pt-1 border-t border-amber-100">
+                  Sisa dari total {fmtCurrency(sub.total_harga)}: <strong>{fmtCurrency(Math.max(0, (sub.total_harga||0) - (sub.jumlah_dp||0)))}</strong>
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1.5">Tanggal DP *</label>
+                  <input type="date" value={dpDate} onChange={e => setDpDate(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-amber-400"/>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1.5">Jam DP</label>
+                  <input type="time" value={dpTime} onChange={e => setDpTime(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-amber-400"/>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1.5">Jumlah DP (Rp) *</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">Rp</span>
+                  <input type="number" value={dpJumlah} onChange={e => setDpJumlah(e.target.value)}
+                    placeholder="0"
+                    className="w-full pl-8 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-amber-400"/>
+                </div>
+              </div>
+              <textarea value={dpCat} onChange={e => setDpCat(e.target.value)} rows={2}
+                placeholder="Catatan DP (opsional)..."
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none resize-none focus:border-amber-400"/>
+              <Button variant="secondary" className="w-full" onClick={handleDP}
+                loading={saving === 'dp'} disabled={!dpDate || !dpJumlah}>
+                💵 Simpan DP
+              </Button>
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* Catat Pembayaran */}
       {isDiSetujui && !isSelesai && isAA && (
@@ -685,7 +763,6 @@ export default function DetailPage() {
   if (!sub)    return <div className="text-center py-20 text-slate-400">Pengajuan tidak ditemukan</div>;
 
   const isAlert      = ['Menunggu Verifikasi', 'Terverifikasi', 'Perlu Revisi'].includes(sub.status) && daysSince(sub.tanggal) > 2;
-  const notaAlert    = sub.status === 'Disetujui' && !sub.nota_url && daysSince(sub.approval_at) >= 2;
   const photos       = sub.photos || [];
   const items1       = (sub.items || []).filter(i => i.vendor_num !== 2);
   const items2       = (sub.items || []).filter(i => i.vendor_num === 2);
@@ -785,7 +862,7 @@ export default function DetailPage() {
             <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-slate-100 text-slate-500">{sub.type}</span>
             {sub.is_umum && <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-violet-100 text-violet-600">UMUM</span>}
             <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${statusCls}`}>{sub.status}</span>
-            {notaAlert && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-600">⚠ Nota belum diunggah ({daysSince(sub.approval_at)}h)</span>}
+            {sub.jumlah_dp > 0 && !isSelesai && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">DP</span>}
             {isAlert && (
               <span className="text-[10px] font-bold text-orange-500 bg-orange-50 px-2 py-0.5 rounded-full">
                 ⚠ {daysSince(sub.tanggal)}h
