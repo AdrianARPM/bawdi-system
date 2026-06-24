@@ -65,6 +65,7 @@ export const revisionAPI = {
   uploadNota:    (sid,d)=> api.post(`/revisions/${sid}/nota`, d),
   listNota:      sid    => api.get(`/revisions/${sid}/nota`),
   deleteNota:    notaId => api.delete(`/revisions/nota/${notaId}`),
+  recordDP:      (sid,d)=> api.put(`/revisions/${sid}/dp`, d),
   recordPayment: (sid,d)=> api.put(`/revisions/${sid}/payment`, d),
   close:         (sid,d)=> api.put(`/revisions/${sid}/close`, d),
   getDraft:      p      => api.get('/revisions/draft', { params: p }),
