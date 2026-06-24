@@ -211,6 +211,10 @@ try {                                                               // ✅ try a
   ];
 
   doc.setFontSize(8);
+  // Lebar area nilai tiap kolom (agar teks panjang membungkus, tidak menembus kertas)
+  const valW1 = col2X - col1ValX - 3;
+  const valW2 = (pageW - margin) - col2ValX - 1;
+  const metaLineH = 4;
   metadata.forEach(row => {
     // Kolom 1
     doc.setFont('helvetica', 'bold');
@@ -219,9 +223,11 @@ try {                                                               // ✅ try a
     doc.text(':', col1ValX - 2, currentY);
     doc.setFont('helvetica', row[0].bold ? 'bold' : 'normal');
     doc.setTextColor(0, 0, 0);
-    doc.text(row[0].val, col1ValX, currentY);
+    const lines1 = doc.splitTextToSize(String(row[0].val ?? '—'), valW1);
+    doc.text(lines1, col1ValX, currentY);
 
     // Kolom 2
+    let lines2 = [];
     if (row[1]) {
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(100, 100, 100);
@@ -229,9 +235,10 @@ try {                                                               // ✅ try a
       doc.text(':', col2ValX - 2, currentY);
       doc.setFont('helvetica', row[1].bold ? 'bold' : 'normal');
       doc.setTextColor(0, 0, 0);
-      doc.text(row[1].val, col2ValX, currentY);
+      lines2 = doc.splitTextToSize(String(row[1].val ?? '—'), valW2);
+      doc.text(lines2, col2ValX, currentY);
     }
-    currentY += rowH;
+    currentY += Math.max(lines1.length, lines2.length, 1) * metaLineH;
   });
 
   currentY += 2;
