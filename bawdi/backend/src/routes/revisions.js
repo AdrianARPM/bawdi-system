@@ -18,6 +18,7 @@ router.post('/:submissionId/request',  authorize('Approval','Verifikator','Admin
 router.post('/:submissionId/nota',    ctrl.uploadNota);
 router.get('/:submissionId/nota',     ctrl.listNota);
 router.delete('/nota/:notaId',        authorize('Approval','Admin','Operasional'), ctrl.deleteNota);
+router.put('/:submissionId/dp',       authorize('Approval','Admin'), ctrl.recordDP);
 router.put('/:submissionId/payment',  authorize('Approval','Admin'), ctrl.recordPayment);
 router.put('/:submissionId/close',    authorize('Approval','Admin'), ctrl.closeSubmission);
 
