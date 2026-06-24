@@ -160,8 +160,6 @@ async function requestRevision(req, res) {
         vendor_num:    item.vendor_num || 1,
         urutan:        idx + 1,
         km_pengajuan:  item.km_pengajuan != null ? Number(item.km_pengajuan) : null,
-        km_manual:     item.km_manual != null ? Number(item.km_manual) : null,
-        tgl_manual:    item.tgl_manual || null,
         kategori_biaya: item.kategori_biaya || 'Lainnya',
       }));
       await supabase.from('revision_snapshot_items').insert(itemRows);
@@ -255,8 +253,6 @@ async function editRevision(req, res) {
         vendor_num:    item.vendor_num || 1,
         urutan:        idx + 1,
         km_pengajuan:  item.km_pengajuan != null ? Number(item.km_pengajuan) : null,
-        km_manual:     item.km_manual != null ? Number(item.km_manual) : null,
-        tgl_manual:    item.tgl_manual || null,
         kategori_biaya: item.kategori_biaya || 'Lainnya',
       }))
     );
@@ -632,6 +628,40 @@ async function deleteNota(req, res) {
   }
 }
 
+async function recordDP(req, res) {
+  try {
+    const { tanggal_dp, jumlah_dp, catatan_dp } = req.body;
+    if (!tanggal_dp) return res.status(400).json({ error: 'Tanggal DP wajib' });
+    if (!jumlah_dp || Number(jumlah_dp) <= 0) return res.status(400).json({ error: 'Jumlah DP wajib' });
+
+    const { data: sub } = await supabase.from('submissions')
+      .select('status, nomor_pengajuan, pemohon_id, nota_url').eq('id', req.params.submissionId).single();
+    if (!sub) return res.status(404).json({ error: 'Pengajuan tidak ditemukan' });
+    if (sub.status !== 'Disetujui') return res.status(400).json({ error: 'DP hanya bisa dicatat setelah Disetujui' });
+    if (!sub.nota_url) return res.status(400).json({ error: 'Upload nota dulu sebelum mencatat DP' });
+
+    const fmt = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(Number(jumlah_dp));
+
+    await supabase.from('submissions').update({
+      tanggal_dp, dp_oleh: req.user.id,
+      jumlah_dp: Number(jumlah_dp), catatan_dp: catatan_dp || '',
+    }).eq('id', req.params.submissionId);
+
+    await supabase.from('messages').insert({
+      id: uuidv4(), submission_id: req.params.submissionId, user_id: req.user.id,
+      message: `\u{1F4B5} DP ${fmt} dicatat oleh ${req.user.name} pada ${new Date(tanggal_dp).toLocaleString('id-ID')}`,
+      is_system: true,
+    });
+
+    await notifyUser(sub.pemohon_id, req.params.submissionId, 'dp_recorded',
+      `\u{1F4B5} DP ${sub.nomor_pengajuan} sebesar ${fmt} telah dicatat.`);
+
+    res.json({ message: 'DP berhasil dicatat' });
+  } catch (err) {
+    res.status(500).json({ error: 'Gagal mencatat DP: ' + err.message });
+  }
+}
+
 async function recordPayment(req, res) {
   try {
     const { tanggal_bayar, jumlah_bayar, catatan_bayar } = req.body;
@@ -728,5 +758,6 @@ async function getDraft(req, res) {
 module.exports = {
   getRevisions, requestRevision, editRevision, submitRevision,
   verifyRevision, approveRevision, rejectRevision,
-  uploadNota, listNota, deleteNota, recordPayment, closeSubmission, getDraft,
+  uploadNota, listNota, deleteNota, recordPayment,
+  recordDP, closeSubmission, getDraft,
 };
