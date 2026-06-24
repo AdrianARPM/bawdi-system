@@ -862,7 +862,7 @@ export default function DetailPage() {
             <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-slate-100 text-slate-500">{sub.type}</span>
             {sub.is_umum && <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-violet-100 text-violet-600">UMUM</span>}
             <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${statusCls}`}>{sub.status}</span>
-            {sub.jumlah_dp > 0 && !isSelesai && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">DP</span>}
+            {sub.jumlah_dp > 0 && sub.status !== 'Selesai' && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">DP</span>}
             {isAlert && (
               <span className="text-[10px] font-bold text-orange-500 bg-orange-50 px-2 py-0.5 rounded-full">
                 ⚠ {daysSince(sub.tanggal)}h
