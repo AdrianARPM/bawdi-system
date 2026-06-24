@@ -242,25 +242,27 @@ try {                                                               // ✅ try a
   const tableBody = items.map((item, i) => {
     const qty    = parseFloat(item.satuan) || 1;   // satuan sebagai qty jika angka
     const harga  = parseFloat(item.harga)  || 0;
-    const total  = parseFloat(item.total)  || (qty * harga);
+    const diskon = parseFloat(item.diskon) || 0;   // v22-PDF: diskon nominal per item
+    const total  = parseFloat(item.total)  || Math.max(0, qty * harga - diskon);
     return [
       i + 1,
       item.penjelasan || '',
-      item.satuan     || '1',           // Satuan (dulu: Vendor)
-      fmtCurrencyExport(harga),         // Harga (Rp) (dulu: Satuan)
-      fmtCurrencyExport(total),         // Total Harga = qty × harga (kolom baru)
+      item.satuan     || '1',           // Satuan
+      fmtCurrencyExport(harga),         // Harga (Rp) — harga normal
+      diskon > 0 ? '- ' + fmtCurrencyExport(diskon) : '—',  // Diskon
+      fmtCurrencyExport(total),         // Total Harga = (qty × harga) − diskon
     ];
   });
 
-  // Baris Total — colSpan 4 kolom kiri
+  // Baris Total — colSpan 5 kolom kiri
   tableBody.push([
-    { content: 'TOTAL', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold' } },
+    { content: 'TOTAL', colSpan: 5, styles: { halign: 'right', fontStyle: 'bold' } },
     { content: fmtCurrencyExport(sub.total_harga), styles: { fontStyle: 'bold', halign: 'right' } }
   ]);
 
   autoTable(doc, {
     startY: currentY,
-    head: [['No', 'Penjelasan Item', 'Satuan', 'Harga (Rp)', 'Total Harga']],
+    head: [['No', 'Penjelasan Item', 'Satuan', 'Harga (Rp)', 'Diskon', 'Total Harga']],
     body: tableBody,
     theme: 'grid',
     styles: {
@@ -279,9 +281,10 @@ try {                                                               // ✅ try a
     columnStyles: {
       0: { cellWidth: 10,   halign: 'center' },   // No
       1: { cellWidth: 'auto' },                    // Penjelasan Item
-      2: { cellWidth: 20,   halign: 'center' },    // Satuan
-      3: { cellWidth: 32,   halign: 'right'  },    // Harga (Rp)
-      4: { cellWidth: 32,   halign: 'right'  },    // Total Harga
+      2: { cellWidth: 18,   halign: 'center' },    // Satuan
+      3: { cellWidth: 28,   halign: 'right'  },    // Harga (Rp)
+      4: { cellWidth: 26,   halign: 'right'  },    // Diskon
+      5: { cellWidth: 30,   halign: 'right'  },    // Total Harga
     },
     margin: { left: margin, right: margin }
   });
@@ -301,37 +304,32 @@ try {                                                               // ✅ try a
     currentY = margin;
   }
 
+  // ── Box Keterangan — 2 KOLOM: Alasan (kiri) | Riwayat (kanan) ──
   doc.setFontSize(8);
-  // Lebar teks untuk wrap (dikurangi lebar label "Alasan Pengajuan :")
-  const labelColW  = 38;   // lebar kolom label
-  const textColW   = pageW - margin * 2 - labelColW - 10; // lebar kolom value
-  const lineH      = 3.2;  // mm per baris — kompak tanpa spasi antar paragraf
   const boxPadding = 3;
+  const gap        = 6;
+  const innerW     = pageW - margin * 2 - boxPadding * 2;
+  const colW       = (innerW - gap) / 2;
+  const lineH      = 3.2;
+  const colHeaderH = 5;     // jarak sub-judul kolom ke isi
+  const titleH     = 8;     // judul KETERANGAN
+  const footerSafeY = pageH - 15;
 
-  // Wrap alasan & riwayat ke multi-line
-  const alasanLines  = doc.splitTextToSize(sub.alasan  || '—', textColW);
-  const riwayatLines = doc.splitTextToSize(
-    (sub.riwayat || '—').replace(/\n\s*\n/g, '\n'), // hapus baris kosong ganda
-    textColW
-  );
+  // Wrap teks ke lebar kolom (separuh halaman)
+  const alasanLines = doc.splitTextToSize(sub.alasan || '—', colW);
+  const riwayatAll  = doc.splitTextToSize(
+    (sub.riwayat || '—').replace(/\n\s*\n/g, '\n'), colW);
 
-  // Hitung total tinggi box terlebih dahulu (agar tidak overflow)
-  const titleH    = 8;   // KETERANGAN title
-  const alasanH   = alasanLines.length  * lineH + 1;
-  const riwayatH  = riwayatLines.length * lineH + 1;
-  const labelRowH = 5.5; // tinggi baris label
-  const totalBoxH = titleH + labelRowH + alasanH + labelRowH + riwayatH + boxPadding * 2;
-
-  // Page break jika box tidak muat di halaman ini
-  if (currentY + totalBoxH > pageH - 15) {
+  // Page-break sebelum mulai box bila ruang minim
+  if (currentY + titleH + colHeaderH + lineH * 4 > footerSafeY) {
     doc.addPage();
     currentY = margin;
   }
 
-  let boxY   = currentY;
-  let innerY = boxY + boxPadding + 3;
+  let boxY        = currentY;
+  let innerY      = boxY + boxPadding + 3;
 
-  // ── Header KETERANGAN ──
+  // Judul KETERANGAN
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 0, 0);
   doc.text('KETERANGAN', margin + boxPadding, innerY);
@@ -340,60 +338,61 @@ try {                                                               // ✅ try a
            margin + boxPadding + doc.getTextWidth('KETERANGAN'), innerY + 1);
   innerY += titleH - boxPadding;
 
-  const labelX  = margin + boxPadding;
-  const colonX  = labelX + labelColW - 6;
-  const valueX  = labelX + labelColW;
+  const leftX  = margin + boxPadding;
+  const rightX = margin + boxPadding + colW + gap;
+  let   contentTopY = innerY;
 
-  // ── Alasan Pengajuan (multi-line) ──
+  // ── Kolom kiri: Alasan Pengajuan (hanya di halaman pertama) ──
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(80, 80, 80);
-  doc.text('Alasan Pengajuan', labelX, innerY);
-  doc.text(':', colonX, innerY);
+  doc.text('Alasan Pengajuan', leftX, contentTopY);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(0, 0, 0);
-  doc.text(alasanLines, valueX, innerY);          // ← wrap otomatis
-  innerY += alasanLines.length * lineH + 1;       // tinggi sesuai konten
+  doc.text(alasanLines, leftX, contentTopY + colHeaderH);
+  let leftBottomY = contentTopY + colHeaderH + alasanLines.length * lineH;
 
-  // ── Riwayat Sebelumnya (multi-line) ──
+  // ── Kolom kanan: Riwayat Sebelumnya (dgn page-break bila panjang) ──
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(80, 80, 80);
-  doc.text('Riwayat Sebelumnya', labelX, innerY);
-  doc.text(':', colonX, innerY);
+  doc.text('Riwayat Sebelumnya', rightX, contentTopY);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(0, 0, 0);
 
-  // Render riwayat dengan page-break jika kepanjangan
-  const footerSafeY  = pageH - 15;
-  let remainingLines = [...riwayatLines];
+  let rY        = contentTopY + colHeaderH;
+  let remaining = [...riwayatAll];
 
-  while (remainingLines.length > 0) {
-    const availableH   = footerSafeY - innerY;
-    const fitsOnPage   = Math.max(1, Math.floor(availableH / lineH));
-    const chunk        = remainingLines.slice(0, fitsOnPage);
-    remainingLines     = remainingLines.slice(fitsOnPage);
+  while (remaining.length > 0) {
+    const availH = footerSafeY - rY;
+    const fits   = Math.max(1, Math.floor(availH / lineH));
+    const chunk  = remaining.slice(0, fits);
+    remaining    = remaining.slice(fits);
+    doc.text(chunk, rightX, rY);
+    const rightBottomY = rY + chunk.length * lineH;
 
-    doc.text(chunk, valueX, innerY);
-
-    // Tutup box outline halaman ini
-    const boxHeight = (innerY - boxY) + (chunk.length * lineH) + boxPadding;
+    // Tinggi box halaman ini = max(kiri, kanan)
+    const boxBottom = Math.max(leftBottomY, rightBottomY) + boxPadding;
     doc.setDrawColor(180, 180, 180);
     doc.setLineWidth(0.3);
-    doc.rect(margin, boxY, pageW - margin * 2, boxHeight, 'S');
+    doc.rect(margin, boxY, pageW - margin * 2, boxBottom - boxY, 'S');
+    // Garis pemisah dua kolom
+    doc.setDrawColor(220, 220, 220);
+    const divX = margin + boxPadding + colW + gap / 2;
+    doc.line(divX, contentTopY - 2, divX, boxBottom - 1);
 
-    currentY = boxY + boxHeight + 6;
+    currentY = boxBottom + 6;
 
-    if (remainingLines.length > 0) {
+    if (remaining.length > 0) {
       doc.addPage();
-      currentY = margin;
-      boxY     = currentY;
-      innerY   = boxY + boxPadding + 3;
+      boxY        = margin;
+      const cont  = boxY + boxPadding + 3;
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(80, 80, 80);
-      doc.text('Riwayat (lanjutan)', labelX, innerY);
-      doc.text(':', colonX, innerY);
+      doc.text('Riwayat (lanjutan)', margin + boxPadding, cont);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(0, 0, 0);
-      innerY += labelRowH;
+      contentTopY = cont;
+      leftBottomY = cont;          // tak ada alasan di halaman lanjutan
+      rY          = cont + colHeaderH;
     }
   }
 
