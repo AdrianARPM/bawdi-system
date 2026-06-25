@@ -192,20 +192,18 @@ function ReportView({ plat, year, onBack, onExport, exporting }) {
       {loading ? <div className="py-16 flex justify-center"><Spinner size={28}/></div> : !data ? null : (
         <>
           <Card padding={false} className="overflow-x-auto">
-            <table className="w-full text-[11px]">
-              <thead>
-  <tr className="bg-slate-50 text-slate-500">
-    {['No','No PR','Nama Pemohon','Tanggal','Sewa','Service','Ban','Izin','Lainnya','KM Pengajuan','Selisih','Keterangan']
-      .map(h => (
-        <th
-          key={h}
-          className="px-2 py-2 font-bold text-left whitespace-nowrap border-r border-slate-200"
-        >
-          {h}
-        </th>
-      ))}
-  </tr>
-</thead>
+            <table className="w-full text-[11px] border-collapse">
+              <thead className="border border-slate-200">
+                <tr className="bg-slate-50 text-slate-500">
+                {['No','No PR','Nama Pemohon','Tanggal','Sewa','Service','Ban','Izin','Lainnya','KM Pengajuan','Selisih','Keterangan']
+              .map(h => (
+              <th
+                key={h}
+                className="px-2 py-2 font-bold text-left whitespace-nowrap border border-slate-200">
+                    {h}
+              </th>))}
+              </tr>
+            </thead>
               <tbody>
                 {data.rows.map((r, i) => (
                   <tr key={i} className="border-t border-slate-100">
