@@ -209,18 +209,18 @@ function ReportView({ plat, year, onBack, onExport, exporting }) {
                   <tr key={i} className="border-t border-slate-100">
                     <td className="px-2 py-1.5 text-slate-400 border-r border-slate-200">{i + 1}</td>
                     <td className="px-2 py-1.5 font-semibold whitespace-nowrap border-r border-slate-200">{r.no_pr || '—'}</td>
-                    <td className="px-2 py-1.5 whitespace-nowrap">{r.nama_pemohon || '—'}</td>
-                    <td className="px-2 py-1.5 whitespace-nowrap">{fmtDate(r.tanggal)}</td>
+                    <td className="px-2 py-1.5 whitespace-nowrap border-r border-slate-200">{r.nama_pemohon || '—'}</td>
+                    <td className="px-2 py-1.5 whitespace-nowrap border-r border-slate-200">{fmtDate(r.tanggal)}</td>
                     {KATEGORI.map(k => (
-                      <td key={k} className="px-2 py-1.5 text-right tabular-nums">
+                      <td key={k} className="px-2 py-1.5 text-right tabular-nums border-r border-slate-200">
                         {r.kategori === k ? fmtCurrency(r.biaya) : ''}
                       </td>
                     ))}
-                    <td className="px-2 py-1.5 text-right tabular-nums">{r.km != null ? r.km.toLocaleString('id-ID') : ''}</td>
-                    <td className={`px-2 py-1.5 text-right tabular-nums ${r.selisih_km > 0 ? 'text-emerald-600' : ''}`}>
+                    <td className="px-2 py-1.5 text-right tabular-nums border-r border-slate-200">{r.km != null ? r.km.toLocaleString('id-ID') : ''}</td>
+                    <td className={`px-2 py-1.5 text-right tabular-nums border-r border-slate-200 ${r.selisih_km > 0 ? 'text-emerald-600' : ''}`}>
                       {r.selisih_km != null ? `+${r.selisih_km.toLocaleString('id-ID')}` : ''}
                     </td>
-                    <td className="px-2 py-1.5">{r.keterangan}</td>
+                    <td className="px-2 py-1.5" border-r border-slate-200>{r.keterangan}</td>
                   </tr>
                 ))}
                 {!data.rows.length && (
