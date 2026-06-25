@@ -1,6 +1,4 @@
 // src/pages/NewFormPage.jsx  — v18
-// v20: KM Terakhir manual (km_manual/tgl_manual) ikut dikirim & disimpan → jadi
-//      acuan awal Super Track utk item/plat yg belum punya riwayat KM digital.
 // v18: diskon nominal per item (opsional). Total item = (qty × harga) − diskon.
 // v17: penjelasan item jadi COMBOBOX autocomplete dari item yg pernah diajukan
 //      untuk kendaraan terpilih (tiap saran tampil dgn nomor pengajuan). Tetap
@@ -187,6 +185,28 @@ function ItemKMSection({ item, kmCache, onItemUpdate }) {
 /* ═══════════════════════════════════════════════════════════════
    ItemRow & ItemsSection — DI LUAR main component
    ═══════════════════════════════════════════════════════════════ */
+// v23: daftar Jenis Pembelian tetap
+const JENIS_KENDARAAN = [
+  'Beban Suku Cadang',
+  'Beban Perbaikan',
+  'Beban Perawatan',
+  'Beban Perbaikan dan Suku Cadang',
+  'Beban Perawatan dan Suku Cadang',
+  'Beban Perlengkapan Kendaraan',
+  'Beban Perbaikan dan Perlengkapan Kendaraan',
+  'Beban BBM',
+];
+const JENIS_UMUM = [
+  'Beban Izin Kendaraan',
+  'Beban Dana Sosial',
+  'Beban Sewa Kendaraan',
+  'Beban Entertain',
+  'Beban ATK',
+  'Beban Pengiriman Barang',
+  'Beban Bongkar',
+  'Beban Parkir',
+];
+
 function ItemRow({ item, idx, totalItems, vendorNum, onUpdate, onRemove, onBlurPenjelasan, kmCache, errors, isUmum, suggestions = [] }) {
   const eb = `item${vendorNum}_${idx}`;
   const handlePenjelasan = useCallback(e => onUpdate(item.id, 'penjelasan', e.target.value), [item.id, onUpdate]);
@@ -531,16 +551,12 @@ export default function NewFormPage() {
           penjelasan:i.penjelasan, satuan:i.satuan, vendor_num:1,
           harga:parseFloat(i.harga)||0, diskon:parseFloat(i.diskon)||0, total:calcItemTotal(i),
           km_pengajuan: parseInt(i.km_pengajuan) || null,
-          km_manual: parseInt(i.km_manual) || null,
-          tgl_manual: i.tgl_manual || null,
           kategori_biaya: i.kategori_biaya || 'Lainnya',
         })),
         ...(form.useVendor2?form.items2.map(i=>({
           penjelasan:i.penjelasan, satuan:i.satuan, vendor_num:2,
           harga:parseFloat(i.harga)||0, diskon:parseFloat(i.diskon)||0, total:calcItemTotal(i),
           km_pengajuan: parseInt(i.km_pengajuan) || null,
-          km_manual: parseInt(i.km_manual) || null,
-          tgl_manual: i.tgl_manual || null,
           kategori_biaya: i.kategori_biaya || 'Lainnya',
         })):[]),
       ];
@@ -613,7 +629,7 @@ export default function NewFormPage() {
               <p className="text-xs font-bold text-slate-700 mb-2">Isi pengajuan untuk</p>
               <div className="grid grid-cols-2 gap-3">
                 {[[false,'Perawatan Kendaraan','Dengan plat & riwayat KM'],[true,'Barang Kantor / Umum','ATK, aset — tanpa kendaraan']].map(([val,title,desc])=>(
-                  <button key={String(val)} type="button" onClick={()=>set('is_umum',val)}
+                  <button key={String(val)} type="button" onClick={()=>{set('is_umum',val); set('jenis_pembelian','');}}
                     className={`p-3 rounded-2xl border-2 text-left transition-all ${form.is_umum===val?'border-amber-500 bg-amber-50':'border-slate-200 hover:border-slate-300'}`}>
                     <p className={`text-sm font-black mb-0.5 ${form.is_umum===val?'text-amber-600':'text-slate-500'}`}>{title}</p>
                     <p className="text-[10px] text-slate-400">{desc}</p>
@@ -677,7 +693,12 @@ export default function NewFormPage() {
             </Field>
             )}
             <Field label="Jenis Pembelian" required error={errors.jenis_pembelian}>
-              <input value={form.jenis_pembelian} onChange={e=>set('jenis_pembelian',e.target.value)} placeholder="Penggantian Ban" className={ic('jenis_pembelian')}/>
+              <select value={form.jenis_pembelian} onChange={e=>set('jenis_pembelian',e.target.value)} className={ic('jenis_pembelian')}>
+                <option value="">— Pilih Jenis Pembelian —</option>
+                {(form.is_umum ? JENIS_UMUM : JENIS_KENDARAAN).map(j => (
+                  <option key={j} value={j}>{j}</option>
+                ))}
+              </select>
             </Field>
             <Field label="Alasan Pengajuan" required error={errors.alasan}>
               <textarea value={form.alasan} onChange={e=>set('alasan',e.target.value)} rows={3} placeholder="Jelaskan alasan pengajuan..."
