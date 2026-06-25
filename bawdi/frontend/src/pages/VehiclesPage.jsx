@@ -194,16 +194,23 @@ function ReportView({ plat, year, onBack, onExport, exporting }) {
           <Card padding={false} className="overflow-x-auto">
             <table className="w-full text-[11px]">
               <thead>
-                <tr className="bg-slate-50 text-slate-500">
-                  {['No','No PR','Nama Pemohon','Tanggal','Sewa','Service','Ban','Izin','Lainnya','KM Pengajuan','Selisih','Keterangan']
-                    .map(h => <th key={h} className="px-2 py-2 font-bold text-left whitespace-nowrap">{h}</th>)}
-                </tr>
-              </thead>
+  <tr className="bg-slate-50 text-slate-500">
+    {['No','No PR','Nama Pemohon','Tanggal','Sewa','Service','Ban','Izin','Lainnya','KM Pengajuan','Selisih','Keterangan']
+      .map(h => (
+        <th
+          key={h}
+          className="px-2 py-2 font-bold text-left whitespace-nowrap border-r border-slate-200"
+        >
+          {h}
+        </th>
+      ))}
+  </tr>
+</thead>
               <tbody>
                 {data.rows.map((r, i) => (
                   <tr key={i} className="border-t border-slate-100">
-                    <td className="px-2 py-1.5 text-slate-400">{i + 1}</td>
-                    <td className="px-2 py-1.5 font-semibold whitespace-nowrap">{r.no_pr || '—'}</td>
+                    <td className="px-2 py-1.5 text-slate-400 border-r border-slate-200">{i + 1}</td>
+                    <td className="px-2 py-1.5 font-semibold whitespace-nowrap border-r border-slate-200">{r.no_pr || '—'}</td>
                     <td className="px-2 py-1.5 whitespace-nowrap">{r.nama_pemohon || '—'}</td>
                     <td className="px-2 py-1.5 whitespace-nowrap">{fmtDate(r.tanggal)}</td>
                     {KATEGORI.map(k => (
@@ -240,9 +247,7 @@ function ReportView({ plat, year, onBack, onExport, exporting }) {
             </table>
           </Card>
           <p className="text-[10px] text-slate-400 italic">
-            Format mengikuti FORM LAPORAN perusahaan. File Excel berisi header
-            (No. Polisi, Pemilik, Periode, STNK, Pajak), tabel ini, total per kategori,
-            ringkasan biaya, dan blok tanda tangan.
+            Format mengikuti FORM LAPORAN super track perusahaan.
           </p>
         </>
       )}
