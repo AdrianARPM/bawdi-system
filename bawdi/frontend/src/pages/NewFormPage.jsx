@@ -551,12 +551,16 @@ export default function NewFormPage() {
           penjelasan:i.penjelasan, satuan:i.satuan, vendor_num:1,
           harga:parseFloat(i.harga)||0, diskon:parseFloat(i.diskon)||0, total:calcItemTotal(i),
           km_pengajuan: parseInt(i.km_pengajuan) || null,
+          km_manual: parseInt(i.km_manual) || null,
+          tgl_manual: i.tgl_manual || null,
           kategori_biaya: i.kategori_biaya || 'Lainnya',
         })),
         ...(form.useVendor2?form.items2.map(i=>({
           penjelasan:i.penjelasan, satuan:i.satuan, vendor_num:2,
           harga:parseFloat(i.harga)||0, diskon:parseFloat(i.diskon)||0, total:calcItemTotal(i),
           km_pengajuan: parseInt(i.km_pengajuan) || null,
+          km_manual: parseInt(i.km_manual) || null,
+          tgl_manual: i.tgl_manual || null,
           kategori_biaya: i.kategori_biaya || 'Lainnya',
         })):[]),
       ];
