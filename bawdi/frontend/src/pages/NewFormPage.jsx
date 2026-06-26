@@ -346,7 +346,7 @@ function ItemsSection({ items, total, vendorNum, errors, onUpdate, onAdd, onRemo
   );
 }
 
-const KATEGORI_BIAYA = ['Sewa', 'Service', 'Ban', 'Izin Kendaraan', 'Lainnya'];
+const KATEGORI_BIAYA = ['Sewa', 'Service', 'Ban', 'Izin Kendaraan', 'Jasa', 'Lainnya'];
 
 // Tebak kategori awal dari penjelasan (pemohon tetap bisa mengubah)
 function guessKategori(text) {
@@ -355,6 +355,7 @@ function guessKategori(text) {
   if (/izin|\bkir\b|keur|retribusi/.test(t)) return 'Izin Kendaraan';
   if (/sewa|rental|\brent\b/.test(t)) return 'Sewa';
   if (/servis|service|oli|\brem\b|kampas|aki|filter|lahar|bearing|gigi|gear|kopling|radiator|busi|seal|shock/.test(t)) return 'Service';
+  if (/\bjasa\b|ongkos|upah|tukang/.test(t)) return 'Jasa';
   return '';
 }
 
