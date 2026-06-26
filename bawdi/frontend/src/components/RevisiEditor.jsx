@@ -14,7 +14,7 @@ import { Button, fmtCurrency } from './ui';
    2. key menggunakan _idx dari filter → tidak stabil saat list berubah
    Fix: gunakan item.id sebagai key, hapus onInput, pakai min-h tetap
 ─────────────────────────────────────────────────────────────── */
-const KATEGORI_BIAYA = ['Sewa', 'Service', 'Ban', 'Izin Kendaraan', 'Lainnya'];
+const KATEGORI_BIAYA = ['Sewa', 'Service', 'Ban', 'Izin Kendaraan', 'Jasa', 'Lainnya'];
 
 function ItemRow({ item, onUpdate, onRemove, canRemove, vendorLabel, vendorColor }) {
   return (
