@@ -1,377 +1,319 @@
-// src/components/RevisiEditor.jsx  — BUGFIX item form focus loss
-// v11: form revisi kini membawa km_pengajuan & kategori_biaya per item
-//      agar tidak hilang saat pengajuan direvisi.
-// Fix: stable key untuk item rows, hapus onInput auto-resize yang menyebabkan re-render
-import { useState, useCallback } from 'react';
-import { Plus, Trash2, X } from 'lucide-react';
+// src/pages/VehiclesPage.jsx — v19 (Super Track)
+// v19: laporan menampilkan No PR LENGKAP + kolom Nama Pemohon (setelah No PR).
+// v14: akses lihat dibuka utk semua user login (edit tetap Admin).
+// Daftar master kendaraan + preview laporan per plat + export Excel
+// Akses: Admin, Verifikator, Approval, Kepala Operasional (Operasional biasa: ditolak)
+import { useState, useEffect, useCallback } from 'react';
+import {
+  Truck, Search, Download, Plus, Pencil, X, Loader,
+  FileSpreadsheet, ChevronLeft, RefreshCw,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
-import { revisionAPI } from '../utils/api';
-import { Button, fmtCurrency } from './ui';
+import { vehicleAPI } from '../utils/api';
+import { Card, Spinner, Button, fmtCurrency, fmtDate } from '../components/ui';
+import useAuthStore from '../context/authStore';
 
-/* ── Item Row — FIXED: tidak kehilangan fokus saat mengetik ─────
-   Root cause sebelumnya:
-   1. onInput auto-resize memicu style change → re-render → focus loss
-   2. key menggunakan _idx dari filter → tidak stabil saat list berubah
-   Fix: gunakan item.id sebagai key, hapus onInput, pakai min-h tetap
-─────────────────────────────────────────────────────────────── */
-const KATEGORI_BIAYA = ['Sewa', 'Service', 'Ban', 'Izin Kendaraan', 'Jasa', 'Lainnya'];
+const KATEGORI = ['Sewa', 'Service', 'Ban', 'Izin Kendaraan', 'Jasa', 'Lainnya'];
+const thisYear = new Date().getFullYear();
+const YEARS = [thisYear, thisYear - 1, thisYear - 2];
 
-function ItemRow({ item, onUpdate, onRemove, canRemove, vendorLabel, vendorColor }) {
+export default function VehiclesPage() {
+  const { user } = useAuthStore();
+  // v14: Master Kendaraan dapat DILIHAT semua user login.
+  //      Tambah/Edit kendaraan tetap khusus Admin (dicek per-tombol di bawah).
+  const allowed = !!user;
+
+  const [vehicles, setVehicles]   = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [year, setYear]           = useState(thisYear);
+  const [q, setQ]                 = useState('');
+  const [exporting, setExporting] = useState('');     // '' | 'all' | plat
+  const [detail, setDetail]       = useState(null);   // { plat } → mode laporan
+  const [editing, setEditing]     = useState(null);   // vehicle obj → modal edit
+  const [adding, setAdding]       = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data } = await vehicleAPI.list(year);
+      setVehicles(data.data || []);
+    } catch { toast.error('Gagal memuat super track'); }
+    finally { setLoading(false); }
+  }, [year]);
+
+  useEffect(() => { if (allowed) load(); }, [allowed, load]);
+
+  const filtered = vehicles.filter(v =>
+    !q.trim() || v.plat.toLowerCase().includes(q.trim().toLowerCase())
+    || (v.cabang || '').toLowerCase().includes(q.trim().toLowerCase()));
+
+  const doExport = async (plat = '') => {
+    setExporting(plat || 'all');
+    try {
+      await vehicleAPI.exportExcel(year, plat);
+      toast.success('Excel berhasil diunduh');
+    } catch (err) {
+      toast.error(err?.response?.status === 404
+        ? `Tidak ada transaksi pada ${year}`
+        : 'Gagal export Excel');
+    } finally { setExporting(''); }
+  };
+
+  if (detail) return (
+    <ReportView plat={detail.plat} year={year}
+      onBack={() => setDetail(null)}
+      onExport={() => doExport(detail.plat)}
+      exporting={exporting === detail.plat}/>
+  );
+
   return (
-    <div className="border border-slate-200 rounded-xl p-3 space-y-2 bg-white">
-      <div className="flex justify-between items-center">
-        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${vendorColor}`}>
-          {vendorLabel}
-        </span>
-        {canRemove && (
-          <button
-            type="button"
-            onMouseDown={e => e.preventDefault()} // ← mencegah blur sebelum klik
-            onClick={onRemove}
-            className="text-red-400 hover:text-red-600 p-1">
-            <Trash2 size={13}/>
-          </button>
-        )}
-      </div>
-
-      {/* Penjelasan — textarea dengan min-height tetap, TANPA onInput */}
-      <textarea
-        value={item.penjelasan}
-        onChange={e => onUpdate('penjelasan', e.target.value)}
-        rows={2}
-        placeholder="Penjelasan item: nama barang, merek, ukuran, kondisi..."
-        className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800
-                   outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100
-                   resize-none placeholder:text-slate-300 leading-relaxed transition-colors"
-      />
-
-      {/* Satuan + Harga dalam satu baris */}
-      <div className="grid grid-cols-5 gap-2">
-        <input
-          value={item.satuan}
-          onChange={e => onUpdate('satuan', e.target.value)}
-          placeholder="Satuan"
-          className="col-span-2 px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800
-                     outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100
-                     placeholder:text-slate-300 transition-colors"
-        />
-        <div className="col-span-3 relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">Rp</span>
-          <input
-            type="number"
-            value={item.harga}
-            onChange={e => onUpdate('harga', e.target.value)}
-            placeholder="0"
-            className="w-full pl-8 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800
-                       outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100
-                       placeholder:text-slate-300 transition-colors"
-          />
+    <div className="max-w-5xl mx-auto space-y-4">
+      {/* Header */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2">
+          <Truck size={20} className="text-amber-500"/>
+          <h1 className="text-lg font-black text-slate-800">Super Track</h1>
+        </div>
+        <span className="text-xs text-slate-400">{filtered.length} kendaraan</span>
+        <div className="ml-auto flex items-center gap-2">
+          <select value={year} onChange={e => setYear(Number(e.target.value))}
+            className="px-3 py-2 rounded-xl border border-slate-200 text-sm outline-none focus:border-amber-400 bg-white">
+            {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
+          {user.role === 'Admin' && (
+            <Button variant="secondary" onClick={() => setAdding(true)}>
+              <Plus size={14}/> Tambah
+            </Button>
+          )}
+          <Button onClick={() => doExport('')} loading={exporting === 'all'}>
+            <FileSpreadsheet size={14}/> Export Semua
+          </Button>
         </div>
       </div>
 
-      {/* v11: Kategori biaya + KM saat pengajuan (per item) */}
-      <div className="grid grid-cols-5 gap-2">
-        <select
-          value={item.kategori_biaya || ''}
-          onChange={e => onUpdate('kategori_biaya', e.target.value)}
-          className={`col-span-3 px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 ${item.kategori_biaya ? 'text-slate-800' : 'text-slate-400'}`}>
-          <option value="">— Kategori biaya —</option>
-          {KATEGORI_BIAYA.map(k => <option key={k} value={k}>{k}</option>)}
-        </select>
-        <input
-          type="number"
-          value={item.km_pengajuan || ''}
-          onChange={e => onUpdate('km_pengajuan', e.target.value)}
-          placeholder="KM"
-          className="col-span-2 px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 placeholder:text-slate-300"
-        />
+      {/* Search */}
+      <div className="relative">
+        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300"/>
+        <input value={q} onChange={e => setQ(e.target.value)} placeholder="Cari plat atau cabang..."
+          className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-amber-400 placeholder:text-slate-300"/>
       </div>
 
-      {item.harga > 0 && (
-        <p className="text-xs text-amber-500 font-semibold text-right">
-          {fmtCurrency(parseFloat(item.harga) || 0)}
-        </p>
+      <p className="text-[11px] text-slate-400 italic">
+        Plat baru otomatis terdaftar saat pengajuan dibuat. Laporan & export hanya menghitung
+        pengajuan berstatus <b>Disetujui / Selesai</b> pada tahun terpilih.
+      </p>
+
+      {/* List */}
+      {loading ? <div className="py-16 flex justify-center"><Spinner size={28}/></div> : (
+        <div className="grid sm:grid-cols-2 gap-3">
+          {filtered.map(v => (
+            <Card key={v.id || v.plat} className="hover:border-amber-300 transition-colors border border-transparent">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="font-black text-slate-800">{v.plat}</p>
+                  <p className="text-[11px] text-slate-400">
+                    {v.jenis || '—'} {v.cabang ? `• ${v.cabang}` : ''}
+                    {!v.is_active && <span className="text-red-400 font-semibold"> • NONAKTIF</span>}
+                  </p>
+                </div>
+                {user.role === 'Admin' && (
+                  <button onClick={() => setEditing(v)} className="text-slate-300 hover:text-amber-500">
+                    <Pencil size={14}/>
+                  </button>
+                )}
+              </div>
+              <div className="flex items-end justify-between mt-3">
+                <div className="text-[11px] text-slate-400">
+                  <span className="font-bold text-slate-600">{v.pengajuan_count}</span> pengajuan • {year}
+                  <p className="font-bold text-amber-500 text-sm">{fmtCurrency(v.total_biaya)}</p>
+                </div>
+                <div className="flex gap-1.5">
+                  <button onClick={() => setDetail({ plat: v.plat })}
+                    className="text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200">
+                    Laporan
+                  </button>
+                  <button onClick={() => doExport(v.plat)} disabled={exporting === v.plat}
+                    className="text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 flex items-center gap-1 disabled:opacity-50">
+                    {exporting === v.plat ? <Loader size={11} className="animate-spin"/> : <Download size={11}/>}
+                    Excel
+                  </button>
+                </div>
+              </div>
+            </Card>
+          ))}
+          {!filtered.length && (
+            <p className="col-span-2 text-center text-sm text-slate-400 py-10">
+              Belum ada kendaraan {q ? 'yang cocok dengan pencarian' : 'terdaftar'}.
+            </p>
+          )}
+        </div>
+      )}
+
+      {(adding || editing) && (
+        <VehicleModal vehicle={editing}
+          onClose={() => { setAdding(false); setEditing(null); }}
+          onSaved={() => { setAdding(false); setEditing(null); load(); }}/>
       )}
     </div>
   );
 }
 
-/* ── Items Section per vendor ────────────────────────────────── */
-function ItemsSection({ items, vendorNum, vendorLabel, vendorColor, onUpdate, onAdd, onRemove }) {
-  const vendorItems = items
-    .map((it, i) => ({ ...it, _globalIdx: i }))
-    .filter(it => it.vendor_num === vendorNum);
+/* ── Preview laporan satu plat (mengikuti kolom Excel perusahaan) ── */
+function ReportView({ plat, year, onBack, onExport, exporting }) {
+  const [data, setData]       = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const total = vendorItems.reduce((s, it) => s + (parseFloat(it.harga) || 0), 0);
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      try {
+        const res = await vehicleAPI.report(plat, year);
+        setData(res.data.data);
+      } catch { toast.error('Gagal memuat laporan'); }
+      finally { setLoading(false); }
+    })();
+  }, [plat, year]);
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-bold text-slate-600">{vendorLabel}</p>
-        <button
-          type="button"
-          onMouseDown={e => e.preventDefault()}
-          onClick={() => onAdd(vendorNum)}
-          className="flex items-center gap-1 text-[10px] font-bold text-amber-500 hover:text-amber-600 transition-colors">
-          <Plus size={11}/> Tambah Item
-        </button>
+    <div className="max-w-5xl mx-auto space-y-4">
+      <div className="flex items-center gap-3">
+        <button onClick={onBack} className="text-slate-400 hover:text-slate-600"><ChevronLeft size={20}/></button>
+        <div>
+          <h1 className="text-lg font-black text-slate-800">Laporan {plat}</h1>
+          <p className="text-[11px] text-slate-400">Periode Januari – Desember {year}</p>
+        </div>
+        <div className="ml-auto">
+          <Button onClick={onExport} loading={exporting}>
+            <FileSpreadsheet size={14}/> Export Excel
+          </Button>
+        </div>
       </div>
 
-      {vendorItems.map(it => (
-        <ItemRow
-          key={it.id || `item-${it._globalIdx}`}  /* ← stable key */
-          item={it}
-          vendorLabel={vendorLabel}
-          vendorColor={vendorColor}
-          canRemove={vendorItems.length > 1 || vendorNum === 2}
-          onUpdate={(field, val) => onUpdate(it._globalIdx, field, val)}
-          onRemove={() => onRemove(it._globalIdx)}
-        />
-      ))}
-
-      <div className="flex justify-between items-center bg-amber-50 rounded-xl px-3 py-2 mt-1">
-        <span className="text-xs font-bold text-amber-800">Total {vendorLabel}</span>
-        <span className="text-sm font-black text-amber-500">{fmtCurrency(total)}</span>
-      </div>
+      {loading ? <div className="py-16 flex justify-center"><Spinner size={28}/></div> : !data ? null : (
+        <>
+          <Card padding={false} className="overflow-x-auto">
+            <table className="w-full text-[11px] border-collapse">
+              <thead className="border border-slate-200">
+                <tr className="bg-slate-50 text-slate-500">
+                {['No','No PR','Nama Pemohon','Tanggal','Sewa','Service','Ban','Izin','Jasa','Lainnya','KM Pengajuan','Selisih','Keterangan']
+              .map(h => (
+              <th
+                key={h}
+                className="px-2 py-2 font-bold text-left whitespace-nowrap border border-slate-200">
+                    {h}
+              </th>))}
+              </tr>
+            </thead>
+              <tbody>
+                {data.rows.map((r, i) => (
+                  <tr key={i} className="border-t border-slate-100">
+                    <td className="px-2 py-1.5 text-slate-400 border-r border-slate-200">{i + 1}</td>
+                    <td className="px-2 py-1.5 font-semibold whitespace-nowrap border-r border-slate-200">{r.no_pr || '—'}</td>
+                    <td className="px-2 py-1.5 whitespace-nowrap border-r border-slate-200">{r.nama_pemohon || '—'}</td>
+                    <td className="px-2 py-1.5 whitespace-nowrap border-r border-slate-200">{fmtDate(r.tanggal)}</td>
+                    {KATEGORI.map(k => (
+                      <td key={k} className="px-2 py-1.5 text-right tabular-nums border-r border-slate-200">
+                        {r.kategori === k ? fmtCurrency(r.biaya) : ''}
+                      </td>
+                    ))}
+                    <td className="px-2 py-1.5 text-right tabular-nums border-r border-slate-200">{r.km != null ? r.km.toLocaleString('id-ID') : ''}</td>
+                    <td className={`px-2 py-1.5 text-right tabular-nums border-r border-slate-200 ${r.selisih_km > 0 ? 'text-emerald-600' : ''}`}>
+                      {r.selisih_km != null ? `+${r.selisih_km.toLocaleString('id-ID')}` : ''}
+                    </td>
+                    <td className="px-2 py-1.5" border-r border-slate-200>{r.keterangan}</td>
+                  </tr>
+                ))}
+                {!data.rows.length && (
+                  <tr><td colSpan={13} className="text-center text-slate-400 py-8">
+                    Tidak ada transaksi Disetujui/Selesai pada {year}.
+                  </td></tr>
+                )}
+              </tbody>
+              {data.rows.length > 0 && (
+                <tfoot>
+                  <tr className="border-t-2 border-slate-200 font-black bg-amber-50/50">
+                    <td colSpan={4} className="px-2 py-2">TOTAL</td>
+                    {KATEGORI.map(k => (
+                      <td key={k} className="px-2 py-2 text-right tabular-nums text-amber-600">
+                        {data.totals[k] ? fmtCurrency(data.totals[k]) : '—'}
+                      </td>
+                    ))}
+                    <td colSpan={3}/>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </Card>
+          <p className="text-[10px] text-slate-400 italic">
+            Format mengikuti FORM LAPORAN super track perusahaan.
+          </p>
+        </>
+      )}
     </div>
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   MAIN COMPONENT
-═══════════════════════════════════════════════════════════════ */
-export default function RevisiEditor({ snapshot, onClose, onSubmitted }) {
-  const [form, setForm] = useState({
-    alasan:          snapshot.alasan          || '',
-    riwayat:         snapshot.riwayat         || '',
-    vendor:          snapshot.vendor          || '',
-    npwp:            snapshot.npwp            || '',
-    vendor2:         snapshot.vendor2         || '',
-    npwp2:           snapshot.npwp2           || '',
-    rekening_tujuan: snapshot.rekening_tujuan || '',
-    // Gunakan id asli dari database sebagai key yang stabil
-    items: (snapshot.items || []).map(i => ({
-      id:            i.id || `new-${Date.now()}-${Math.random()}`,
-      penjelasan:    i.penjelasan || '',
-      satuan:        i.satuan     || '',
-      harga:         String(i.harga || ''),
-      vendor_num:    i.vendor_num || 1,
-      km_pengajuan:  i.km_pengajuan != null ? String(i.km_pengajuan) : '',
-      kategori_biaya: i.kategori_biaya || 'Lainnya',
-    })),
+/* ── Modal tambah/edit kendaraan (Admin) ── */
+function VehicleModal({ vehicle, onClose, onSaved }) {
+  const isEdit = !!vehicle;
+  const [f, setF] = useState({
+    plat: vehicle?.plat || '', pemilik: vehicle?.pemilik || '',
+    stnk: vehicle?.stnk || '', pajak: vehicle?.pajak || '',
+    jenis: vehicle?.jenis || '', cabang: vehicle?.cabang || '',
+    keterangan: vehicle?.keterangan || '', is_active: vehicle?.is_active ?? true,
   });
+  const [saving, setSaving] = useState(false);
+  const set = (k, v) => setF(s => ({ ...s, [k]: v }));
 
-  const [saving,     setSaving]     = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-
-  const setField = useCallback((k, v) => setForm(f => ({ ...f, [k]: v })), []);
-
-  // Update item by global index — menggunakan functional update untuk stabilitas
-  const updateItem = useCallback((globalIdx, field, value) => {
-    setForm(f => ({
-      ...f,
-      items: f.items.map((it, i) => i === globalIdx ? { ...it, [field]: value } : it),
-    }));
-  }, []);
-
-  const addItem = useCallback((vendorNum) => {
-    setForm(f => ({
-      ...f,
-      items: [...f.items, {
-        id:            `new-${Date.now()}-${Math.random()}`,
-        penjelasan:    '',
-        satuan:        '',
-        harga:         '',
-        vendor_num:    vendorNum,
-        km_pengajuan:  '',
-        kategori_biaya: 'Lainnya',
-      }],
-    }));
-  }, []);
-
-  const removeItem = useCallback((globalIdx) => {
-    setForm(f => ({ ...f, items: f.items.filter((_, i) => i !== globalIdx) }));
-  }, []);
-
-  const hasVendor2 = form.items.some(i => i.vendor_num === 2);
-
-  const handleSave = async () => {
+  const save = async () => {
+    if (!isEdit && !f.plat.trim()) { toast.error('Plat wajib diisi'); return; }
     setSaving(true);
     try {
-      await revisionAPI.editSnapshot(snapshot.id, form);
-      toast.success('Draft revisi tersimpan');
+      if (isEdit) await vehicleAPI.update(vehicle.id, f);
+      else        await vehicleAPI.create(f);
+      toast.success(isEdit ? 'Kendaraan diperbarui' : 'Kendaraan ditambahkan');
+      onSaved();
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Gagal menyimpan');
-    }
-    setSaving(false);
+      toast.error(err?.response?.data?.error || 'Gagal menyimpan');
+    } finally { setSaving(false); }
   };
 
-  const handleSubmit = async () => {
-    if (!form.alasan.trim()) { toast.error('Alasan wajib diisi'); return; }
-    if (!form.vendor.trim()) { toast.error('Vendor wajib diisi'); return; }
-    const items1 = form.items.filter(i => i.vendor_num !== 2);
-    if (items1.length === 0) { toast.error('Minimal 1 item vendor 1 wajib ada'); return; }
-    const emptyItem = form.items.find(i => !i.penjelasan.trim() || !i.harga);
-    if (emptyItem) { toast.error('Semua item harus diisi lengkap (penjelasan & harga)'); return; }
-
-    setSubmitting(true);
-    try {
-      await revisionAPI.editSnapshot(snapshot.id, form);
-      await revisionAPI.submitSnapshot(snapshot.id);
-      toast.success('Revisi berhasil dikirim!');
-      onSubmitted();
-    } catch (err) {
-      toast.error(err.response?.data?.error || 'Gagal mengirim revisi');
-    }
-    setSubmitting(false);
-  };
-
-  const inputCls = `w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800
-                    outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100
-                    transition-colors placeholder:text-slate-300`;
+  const Field = ({ label, k, ph }) => (
+    <div>
+      <label className="text-[11px] font-bold text-slate-500">{label}</label>
+      <input value={f[k]} onChange={e => set(k, e.target.value)} placeholder={ph || ''}
+        className="w-full mt-1 px-3 py-2 rounded-xl border border-slate-200 text-sm outline-none focus:border-amber-400 placeholder:text-slate-300"/>
+    </div>
+  );
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 overflow-y-auto">
-      <div className="min-h-screen p-4 flex items-start justify-center">
-        <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl my-4">
-
-          {/* Header */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 sticky top-0 bg-white rounded-t-2xl z-10">
-            <div>
-              <h3 className="text-base font-black text-slate-800">
-                Edit Revisi ke-{snapshot.revision_number}
-              </h3>
-              {snapshot.alasan_revisi && (
-                <p className="text-xs text-purple-600 mt-0.5 font-medium">
-                  📋 {snapshot.alasan_revisi}
-                </p>
-              )}
-            </div>
-            <button
-              onMouseDown={e => e.preventDefault()}
-              onClick={onClose}
-              className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50">
-              <X size={16} className="text-slate-500"/>
-            </button>
-          </div>
-
-          {/* Body */}
-          <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
-
-            {/* Alasan */}
-            <div>
-              <label className="block text-xs font-bold text-slate-600 mb-1.5">
-                Alasan Pengajuan <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                value={form.alasan}
-                onChange={e => setField('alasan', e.target.value)}
-                rows={3}
-                className={inputCls + ' resize-none'}
-                placeholder="Jelaskan alasan pengajuan..."/>
-            </div>
-
-            {/* Riwayat */}
-            <div>
-              <label className="block text-xs font-bold text-slate-600 mb-1.5">Riwayat</label>
-              <textarea
-                value={form.riwayat}
-                onChange={e => setField('riwayat', e.target.value)}
-                rows={4}
-                className={inputCls + ' resize-none leading-relaxed'}
-                placeholder="Riwayat service/penggantian sebelumnya..."/>
-              <p className="text-[10px] text-slate-400 mt-1">💡 Tekan Enter untuk baris baru</p>
-            </div>
-
-            {/* Vendor 1 */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1.5">
-                  Vendor 1 <span className="text-red-500">*</span>
-                </label>
-                <input
-                  value={form.vendor}
-                  onChange={e => setField('vendor', e.target.value)}
-                  className={inputCls}
-                  placeholder="Nama vendor/bengkel"/>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1.5">NPWP Vendor 1</label>
-                <input
-                  value={form.npwp}
-                  onChange={e => setField('npwp', e.target.value)}
-                  className={inputCls}
-                  placeholder="Opsional"/>
-              </div>
-            </div>
-
-            {/* Rekening */}
-            <div>
-              <label className="block text-xs font-bold text-slate-600 mb-1.5">Rekening Tujuan Pembayaran</label>
-              <textarea
-                value={form.rekening_tujuan}
-                onChange={e => setField('rekening_tujuan', e.target.value)}
-                rows={2}
-                className={inputCls + ' resize-none'}
-                placeholder="Bank — Nomor Rekening a/n Nama Pemilik"/>
-            </div>
-
-            {/* Items Vendor 1 */}
-            <ItemsSection
-              items={form.items}
-              vendorNum={1}
-              vendorLabel="Vendor 1"
-              vendorColor="bg-blue-100 text-blue-600"
-              onUpdate={updateItem}
-              onAdd={addItem}
-              onRemove={removeItem}
-            />
-
-            {/* Vendor 2 jika ada */}
-            {hasVendor2 && (
-              <>
-                <div className="border-t border-slate-100 pt-3">
-                  <div className="grid grid-cols-2 gap-3 mb-3">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-600 mb-1.5">Vendor 2</label>
-                      <input
-                        value={form.vendor2}
-                        onChange={e => setField('vendor2', e.target.value)}
-                        className={inputCls}
-                        placeholder="Nama vendor 2"/>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-600 mb-1.5">NPWP Vendor 2</label>
-                      <input
-                        value={form.npwp2}
-                        onChange={e => setField('npwp2', e.target.value)}
-                        className={inputCls}
-                        placeholder="Opsional"/>
-                    </div>
-                  </div>
-                  <ItemsSection
-                    items={form.items}
-                    vendorNum={2}
-                    vendorLabel="Vendor 2"
-                    vendorColor="bg-orange-100 text-orange-600"
-                    onUpdate={updateItem}
-                    onAdd={addItem}
-                    onRemove={removeItem}
-                  />
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Footer actions */}
-          <div className="px-5 py-4 border-t border-slate-100 flex gap-2.5 sticky bottom-0 bg-white rounded-b-2xl">
-            <Button variant="secondary" className="flex-1" onClick={handleSave} loading={saving}>
-              💾 Simpan Draft
-            </Button>
-            <Button variant="success" className="flex-1" onClick={handleSubmit} loading={submitting}>
-              ✓ Kirim Revisi
-            </Button>
-          </div>
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl w-full max-w-md p-5 space-y-3" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h3 className="font-black text-slate-800">{isEdit ? `Edit ${vehicle.plat}` : 'Tambah Kendaraan'}</h3>
+          <button onClick={onClose} className="text-slate-300 hover:text-slate-500"><X size={18}/></button>
+        </div>
+        {!isEdit && <Field label="Plat Nomor *" k="plat" ph="BM 1234 AA"/>}
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Jenis" k="jenis" ph="Supertruck"/>
+          <Field label="Cabang" k="cabang" ph="APL PKU"/>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <Field label="Pemilik" k="pemilik"/>
+          <Field label="STNK" k="stnk"/>
+          <Field label="Pajak" k="pajak"/>
+        </div>
+        <Field label="Keterangan" k="keterangan"/>
+        {isEdit && (
+          <label className="flex items-center gap-2 text-sm text-slate-600">
+            <input type="checkbox" checked={f.is_active} onChange={e => set('is_active', e.target.checked)}
+              className="accent-amber-500"/>
+            Kendaraan aktif (ikut dalam Export Semua)
+          </label>
+        )}
+        <div className="flex gap-2 pt-1">
+          <Button variant="secondary" className="flex-1" onClick={onClose}>Batal</Button>
+          <Button className="flex-1" onClick={save} loading={saving}>Simpan</Button>
         </div>
       </div>
     </div>
