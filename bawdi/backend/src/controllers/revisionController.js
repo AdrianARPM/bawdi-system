@@ -744,7 +744,7 @@ const NAMA_BULAN = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
 async function fetchArsipRows({ kendaraan, tahun } = {}) {
   let query = supabase.from('submissions')
     .select(`id, nomor_pengajuan, type, status, tanggal, approval_at, tanggal_bayar,
-             jumlah_bayar, total_harga, jenis_pembelian, kendaraan, cabang, cabang_manual,
+             jumlah_bayar, jumlah_dp, total_harga, jenis_pembelian, kendaraan, cabang, cabang_manual,
              nota_url, ditutup_at, vendor, vendor2, vendor_pilihan,
              pemohon:users!submissions_pemohon_id_fkey(name, cabang)`)
     .in('status', ['Disetujui', 'Selesai'])
@@ -758,13 +758,16 @@ async function fetchArsipRows({ kendaraan, tahun } = {}) {
     const cabang = (s.cabang_manual && s.cabang_manual.trim()) ? s.cabang_manual.trim()
                  : (s.cabang && s.cabang.trim())             ? s.cabang.trim()
                  : (s.pemohon?.cabang?.trim() || 'Tanpa Cabang');
+    const jb  = Number(s.jumlah_bayar) || 0;   // pelunasan (total settle)
+    const jdp = Number(s.jumlah_dp) || 0;      // uang muka / DP
+    const dibayar = jb > 0 ? jb : jdp;         // pelunasan menggantikan DP; bila belum lunas pakai DP
     return {
       id: s.id, nomor_pengajuan: s.nomor_pengajuan, type: s.type, status: s.status,
       tanggal: s.tanggal, approval_at: s.approval_at, tanggal_bayar: s.tanggal_bayar,
       ditutup_at: s.ditutup_at, kendaraan: s.kendaraan, cabang,
       jenis_pembelian: s.jenis_pembelian || '',
       total_harga: Number(s.total_harga) || 0,
-      jumlah_bayar: Number(s.jumlah_bayar) || 0,
+      jumlah_bayar: jb, jumlah_dp: jdp, dibayar,
       nota_url: s.nota_url || '',
       vendor: s.vendor, vendor2: s.vendor2, vendor_pilihan: s.vendor_pilihan,
       pemohon_name: s.pemohon?.name || '',
@@ -803,8 +806,10 @@ const allB  = { top: thinB, bottom: thinB, left: thinB, right: thinB };
 const fontT = (bold = false) => ({ name: 'Tahoma', size: 9, bold });
 
 function writeArsipSheet(wb, cabang, year, rows) {
-  const safe = (cabang || 'Tanpa Cabang').replace(/[\[\]\*\?\/\\:]/g, ' ').slice(0, 31) || 'Cabang';
-  const ws = wb.addWorksheet(safe, { views: [{ showGridLines: false }] });
+  let base = (cabang || 'Tanpa Cabang').replace(/[\[\]\*\?\/\\:]/g, ' ').trim().slice(0, 31) || 'Cabang';
+  let name = base, k = 2;
+  while (wb.getWorksheet(name)) name = `${base.slice(0, 27)} (${k++})`;
+  const ws = wb.addWorksheet(name, { views: [{ showGridLines: false }] });
   [1.2, 4.6, 14.2, 17, 18.2, 15.6, 24.1, 36.2, 15.8, 15.6, 16.8, 13.6]
     .forEach((w, i) => ws.getColumn(i + 1).width = w);
 
@@ -840,7 +845,7 @@ function writeArsipSheet(wb, cabang, year, rows) {
     row.getCell(7).value = r.nomor_pengajuan || '';
     row.getCell(8).value = r.jenis_pembelian || '';
     row.getCell(9).value  = Number(r.total_harga) || 0;
-    row.getCell(10).value = Number(r.jumlah_bayar) || 0;
+    row.getCell(10).value = Number(r.dibayar) || 0;
     row.getCell(11).value = { formula: `IF(J${rr}="",I${rr},MAX(0,I${rr}-J${rr}))` };
     row.getCell(12).value = { formula: `IF(J${rr}<=0,"Belum Lunas",IF(J${rr}>=I${rr},"Lunas","DP"))` };
     for (let c = 2; c <= 12; c++) {
@@ -899,6 +904,7 @@ async function exportArsipExcel(req, res) {
     await wb.xlsx.write(res);
     res.end();
   } catch (err) {
+    console.error('[revisions/exportArsip]', err);
     res.status(500).json({ error: 'Gagal export arsip: ' + err.message });
   }
 }
