@@ -87,7 +87,7 @@ export default function DraftPage() {
   filtered.forEach(d => { (groups[d.cabang] = groups[d.cabang] || []).push(d); });
   const cabangNames = Object.keys(groups).sort();
 
-  const totalBayar = filtered.reduce((s, d) => s + (Number(d.jumlah_bayar) || 0), 0);
+  const totalBayar = filtered.reduce((s, d) => s + (Number(d.dibayar) || 0), 0);
 
   const handleExportExcel = async () => {
     setExporting(true);
@@ -99,8 +99,7 @@ export default function DraftPage() {
       await revisionAPI.exportArsip(params);
       toast.success('Excel berhasil diunduh!', { id: 'export' });
     } catch (err) {
-      const msg = err?.response?.status === 404 ? 'Tidak ada arsip pada tahun tsb.' : 'Gagal export Excel';
-      toast.error(msg, { id: 'export' });
+      toast.error(err?.message || 'Gagal export Excel', { id: 'export' });
     }
     setExporting(false);
   };
@@ -217,8 +216,8 @@ export default function DraftPage() {
           {cabangNames.map(cabang => {
             const rows = groups[cabang];
             const tTagihan = rows.reduce((s, d) => s + (Number(d.total_harga) || 0), 0);
-            const tBayar   = rows.reduce((s, d) => s + (Number(d.jumlah_bayar) || 0), 0);
-            const tSisa    = rows.reduce((s, d) => s + statusTagihan(d.total_harga, d.jumlah_bayar).sisa, 0);
+            const tBayar   = rows.reduce((s, d) => s + (Number(d.dibayar) || 0), 0);
+            const tSisa    = rows.reduce((s, d) => s + statusTagihan(d.total_harga, d.dibayar).sisa, 0);
             return (
               <Card key={cabang} className="!p-0 overflow-hidden">
                 <div className="flex items-center gap-2 px-4 py-3 bg-slate-50 border-b border-slate-100">
@@ -238,7 +237,7 @@ export default function DraftPage() {
                     </thead>
                     <tbody>
                       {rows.map((d, i) => {
-                        const st = statusTagihan(d.total_harga, d.jumlah_bayar);
+                        const st = statusTagihan(d.total_harga, d.dibayar);
                         return (
                           <tr key={d.id} className="border-b border-slate-50 hover:bg-slate-50/60">
                             <td className="px-2.5 py-2 text-center text-slate-400">{i+1}</td>
@@ -251,7 +250,7 @@ export default function DraftPage() {
                             </td>
                             <td className="px-2.5 py-2 text-slate-600 whitespace-normal min-w-[180px]">{d.jenis_pembelian || '—'}</td>
                             <td className="px-2.5 py-2 text-right tabular-nums">{fmtCurrency(d.total_harga)}</td>
-                            <td className="px-2.5 py-2 text-right tabular-nums">{fmtCurrency(d.jumlah_bayar)}</td>
+                            <td className="px-2.5 py-2 text-right tabular-nums">{fmtCurrency(d.dibayar)}</td>
                             <td className="px-2.5 py-2 text-right tabular-nums">{st.sisa ? fmtCurrency(st.sisa) : '—'}</td>
                             <td className="px-2.5 py-2">
                               <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${st.cls}`}>{st.label}</span>
