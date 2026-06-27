@@ -1,4 +1,4 @@
-// src/utils/api.js  — v7
+// src/utils/api.js  — v8 (tambah revisionAPI.exportArsip — export Excel arsip per cabang)
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
@@ -69,6 +69,24 @@ export const revisionAPI = {
   recordPayment: (sid,d)=> api.put(`/revisions/${sid}/payment`, d),
   close:         (sid,d)=> api.put(`/revisions/${sid}/close`, d),
   getDraft:      p      => api.get('/revisions/draft', { params: p }),
+  // Export Excel arsip per cabang — responseType blob lalu unduh di browser
+  async exportArsip(params = {}) {
+    try {
+      const res = await api.get('/revisions/draft/export', { params, responseType: 'blob' });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `BAWDI - Rekap Arsip ${params.tahun || new Date().getFullYear()}.xlsx`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      // Respons error datang sebagai Blob — baca pesan asli dari server
+      if (err?.response?.data instanceof Blob) {
+        try { const j = JSON.parse(await err.response.data.text()); if (j.error) err.message = j.error; } catch {}
+      }
+      throw err;
+    }
+  },
   editSnapshot:    (snapId,d)=> api.put(`/revisions/snapshot/${snapId}`, d),
   submitSnapshot:  snapId    => api.put(`/revisions/snapshot/${snapId}/submit`),
   verifySnapshot:  snapId    => api.put(`/revisions/snapshot/${snapId}/verify`),
