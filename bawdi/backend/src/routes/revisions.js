@@ -7,6 +7,7 @@ router.use(authenticate);
 
 // Draft list
 router.get('/draft', ctrl.getDraft);
+router.get('/draft/export', authorize('Admin', 'Verifikator', 'Approval'), ctrl.exportArsipExcel);
 
 // Per submission
 router.get('/:submissionId',           ctrl.getRevisions);
