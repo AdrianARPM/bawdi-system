@@ -9,6 +9,7 @@
 // Fix: query submission disederhanakan, tidak pakai join active_snap yang bermasalah
 const supabase = require('../../config/supabase');
 const { v4: uuidv4 } = require('uuid');
+const ExcelJS = require('exceljs');
 
 // Helper: cek apakah user adalah Kepala Operasional
 const isKepalaOp = (user) => user?.jabatan === 'Kepala Operasional';
@@ -732,26 +733,173 @@ async function closeSubmission(req, res) {
   }
 }
 
+// ════════════ ARSIP (v26): pengajuan Disetujui + Selesai ════════════
+// Sumber langsung dari `submissions` (bukan view draft_submissions lama),
+// dikelompokkan per CABANG. Format mengikuti Form Rekap PR perusahaan.
+
+const NAMA_BULAN = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+                    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+// Ambil baris arsip langsung dari submissions (status Disetujui/Selesai).
+async function fetchArsipRows({ kendaraan, tahun } = {}) {
+  let query = supabase.from('submissions')
+    .select(`id, nomor_pengajuan, type, status, tanggal, approval_at, tanggal_bayar,
+             jumlah_bayar, total_harga, jenis_pembelian, kendaraan, cabang, cabang_manual,
+             nota_url, ditutup_at, vendor, vendor2, vendor_pilihan,
+             pemohon:users!submissions_pemohon_id_fkey(name, cabang)`)
+    .in('status', ['Disetujui', 'Selesai'])
+    .order('tanggal', { ascending: true });
+  if (kendaraan) query = query.ilike('kendaraan', `%${kendaraan}%`);
+  if (tahun)     query = query.gte('tanggal', `${tahun}-01-01`).lt('tanggal', `${Number(tahun) + 1}-01-01`);
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data || []).map(s => {
+    const d = new Date(s.tanggal);
+    const cabang = (s.cabang_manual && s.cabang_manual.trim()) ? s.cabang_manual.trim()
+                 : (s.cabang && s.cabang.trim())             ? s.cabang.trim()
+                 : (s.pemohon?.cabang?.trim() || 'Tanpa Cabang');
+    return {
+      id: s.id, nomor_pengajuan: s.nomor_pengajuan, type: s.type, status: s.status,
+      tanggal: s.tanggal, approval_at: s.approval_at, tanggal_bayar: s.tanggal_bayar,
+      ditutup_at: s.ditutup_at, kendaraan: s.kendaraan, cabang,
+      jenis_pembelian: s.jenis_pembelian || '',
+      total_harga: Number(s.total_harga) || 0,
+      jumlah_bayar: Number(s.jumlah_bayar) || 0,
+      nota_url: s.nota_url || '',
+      vendor: s.vendor, vendor2: s.vendor2, vendor_pilihan: s.vendor_pilihan,
+      pemohon_name: s.pemohon?.name || '',
+      bulan: d.getMonth() + 1, tahun: d.getFullYear(),
+    };
+  });
+}
+
 async function getDraft(req, res) {
   try {
-    const { kendaraan, bulan, tahun, page = 1, limit = 20 } = req.query;
-    const offset = (page - 1) * limit;
-    let query = supabase.from('draft_submissions').select('*', { count: 'exact' })
-      .order('ditutup_at', { ascending: false }).range(offset, offset + Number(limit) - 1);
-    if (kendaraan) query = query.ilike('kendaraan', `%${kendaraan}%`);
-    if (bulan)     query = query.eq('bulan', Number(bulan));
-    if (tahun)     query = query.eq('tahun', Number(tahun));
-    const { data, error, count } = await query;
-    if (error) throw error;
-    const { data: allDraft } = await supabase.from('draft_submissions').select('kendaraan, bulan, tahun, label_bulan');
-    const kendaraanList = [...new Set((allDraft || []).map(d => d.kendaraan))].sort();
-    const bulanList = [...new Map((allDraft || []).map(d => [
-      `${d.bulan}-${d.tahun}`,
-      { bulan: d.bulan, tahun: d.tahun, label: d.label_bulan?.trim() }
+    const { kendaraan, bulan, tahun } = req.query;
+    const all = await fetchArsipRows({});   // semua, untuk membangun daftar filter
+    const kendaraanList = [...new Set(all.map(r => r.kendaraan))].sort();
+    const cabangList    = [...new Set(all.map(r => r.cabang))].sort();
+    const bulanList = [...new Map(all.map(r => [
+      `${r.bulan}-${r.tahun}`,
+      { bulan: r.bulan, tahun: r.tahun, label: `${NAMA_BULAN[r.bulan]} ${r.tahun}` }
     ])).values()].sort((a, b) => (b.tahun * 12 + b.bulan) - (a.tahun * 12 + a.bulan));
-    res.json({ data, total: count, kendaraanList, bulanList, page: Number(page), limit: Number(limit) });
+
+    let rows = all;
+    if (kendaraan) rows = rows.filter(r => r.kendaraan.toLowerCase().includes(kendaraan.toLowerCase()));
+    if (tahun)     rows = rows.filter(r => r.tahun === Number(tahun));
+    if (bulan)     rows = rows.filter(r => r.bulan === Number(bulan));
+
+    res.json({ data: rows, total: rows.length, kendaraanList, bulanList, cabangList });
   } catch (err) {
-    res.status(500).json({ error: 'Gagal mengambil draft: ' + err.message });
+    res.status(500).json({ error: 'Gagal mengambil arsip: ' + err.message });
+  }
+}
+
+// ── Excel arsip: satu sheet per cabang (mengikuti Form_Rekap_PR.xlsx) ──
+const MONEY_FMT = '_(* #,##0_);_(* (#,##0);_(* "-"??_);_(@_)';
+const DATE_FMT  = 'd/mmm/yyyy';
+const thinB = { style: 'thin' };
+const allB  = { top: thinB, bottom: thinB, left: thinB, right: thinB };
+const fontT = (bold = false) => ({ name: 'Tahoma', size: 9, bold });
+
+function writeArsipSheet(wb, cabang, year, rows) {
+  const safe = (cabang || 'Tanpa Cabang').replace(/[\[\]\*\?\/\\:]/g, ' ').slice(0, 31) || 'Cabang';
+  const ws = wb.addWorksheet(safe, { views: [{ showGridLines: false }] });
+  [1.2, 4.6, 14.2, 17, 18.2, 15.6, 24.1, 36.2, 15.8, 15.6, 16.8, 13.6]
+    .forEach((w, i) => ws.getColumn(i + 1).width = w);
+
+  ws.mergeCells('B3:D3');
+  const t = ws.getCell('B3');
+  t.value = `PERIODE TAHUN ${year}`;
+  t.font = fontT(true);
+  t.border = { bottom: thinB };
+
+  const HEAD = ['No.', 'Nopol', 'Tanggal Pengajuan', 'Tanggal App', 'Tanggal Bayar',
+                'Nomor PR/PAR', 'Rincian/Jenis Pembelian', 'Total tagihan', 'Total dibayar', 'Status Tagihan'];
+  ws.getRow(4).height = 14.55;
+  HEAD.forEach((h, i) => {
+    const cell = ws.getCell(4, i + 2);
+    cell.value = h;
+    cell.font = fontT(true);
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF92D050' } };
+    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+    cell.border = allB;
+  });
+  ws.mergeCells('K4:L4');
+  ws.getCell('L4').border = allB;
+
+  const start = 5;
+  rows.forEach((r, i) => {
+    const rr = start + i;
+    const row = ws.getRow(rr);
+    row.getCell(2).value = i + 1;
+    row.getCell(3).value = r.kendaraan || '';
+    if (r.tanggal)       row.getCell(4).value = new Date(r.tanggal);
+    if (r.approval_at)   row.getCell(5).value = new Date(r.approval_at);
+    if (r.tanggal_bayar) row.getCell(6).value = new Date(r.tanggal_bayar);
+    row.getCell(7).value = r.nomor_pengajuan || '';
+    row.getCell(8).value = r.jenis_pembelian || '';
+    row.getCell(9).value  = Number(r.total_harga) || 0;
+    row.getCell(10).value = Number(r.jumlah_bayar) || 0;
+    row.getCell(11).value = { formula: `IF(J${rr}="",I${rr},MAX(0,I${rr}-J${rr}))` };
+    row.getCell(12).value = { formula: `IF(J${rr}<=0,"Belum Lunas",IF(J${rr}>=I${rr},"Lunas","DP"))` };
+    for (let c = 2; c <= 12; c++) {
+      const cell = row.getCell(c);
+      cell.font = fontT(false);
+      cell.border = allB;
+      if (c >= 9 && c <= 11) cell.numFmt = MONEY_FMT;
+      if (c >= 4 && c <= 6)  { cell.numFmt = DATE_FMT; cell.alignment = { horizontal: 'center' }; }
+      if (c === 2 || c === 3) cell.alignment = { horizontal: 'center' };
+    }
+  });
+
+  const totalRow = start + rows.length;
+  ['I', 'J', 'K'].forEach(L => {
+    const cell = ws.getCell(`${L}${totalRow}`);
+    cell.value = { formula: `SUM(${L}${start}:${L}${totalRow - 1})` };
+    cell.font = fontT(true); cell.numFmt = MONEY_FMT; cell.border = allB;
+  });
+  for (let c = 2; c <= 8; c++) ws.getCell(totalRow, c).border = allB;
+
+  // Ringkasan (label cocok rumus)
+  const s = totalRow + 3;
+  [
+    ['Total Tagihan',               `I${totalRow}`],
+    ['Total Tagihan Sudah Dibayar', `J${totalRow}`],
+    ['Total Tagihan Belum Dibayar', `I${s}-I${s + 1}`],
+  ].forEach(([label, formula], i) => {
+    ws.getCell(`H${s + i}`).value = label;
+    ws.getCell(`H${s + i}`).font = fontT(false);
+    const v = ws.getCell(`I${s + i}`);
+    v.value = { formula };
+    v.font = fontT(false); v.numFmt = MONEY_FMT;
+  });
+  return ws;
+}
+
+async function exportArsipExcel(req, res) {
+  try {
+    const year = Number(req.query.tahun) || new Date().getFullYear();
+    const kendaraan = req.query.kendaraan || '';
+    const rows = await fetchArsipRows({ kendaraan, tahun: year });
+
+    const byCabang = {};
+    for (const r of rows) (byCabang[r.cabang] = byCabang[r.cabang] || []).push(r);
+    const cabangs = Object.keys(byCabang).sort();
+    if (!cabangs.length) return res.status(404).json({ error: `Tidak ada arsip pada tahun ${year}` });
+
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'BAWDI Maintenance System';
+    wb.created = new Date();
+    for (const c of cabangs) writeArsipSheet(wb, c, year, byCabang[c]);
+
+    const fname = `BAWDI - Rekap Arsip ${year}.xlsx`;
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fname)}"`);
+    await wb.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    res.status(500).json({ error: 'Gagal export arsip: ' + err.message });
   }
 }
 
@@ -759,5 +907,5 @@ module.exports = {
   getRevisions, requestRevision, editRevision, submitRevision,
   verifyRevision, approveRevision, rejectRevision,
   uploadNota, listNota, deleteNota, recordPayment,
-  recordDP, closeSubmission, getDraft,
+  recordDP, closeSubmission, getDraft, exportArsipExcel,
 };
