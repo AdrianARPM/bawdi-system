@@ -56,6 +56,22 @@ async function list(req, res) {
       agg[key].total += Number(s.total_harga) || 0;
     }
 
+    // v25: kas kecil ikut menambah TOTAL biaya (tidak menambah jumlah pengajuan).
+    // Fault-tolerant: bila tabel belum dibuat (migration belum jalan), abaikan.
+    try {
+      const { data: kk } = await supabase
+        .from('kas_kecil')
+        .select('plat, harga, tanggal')
+        .gte('tanggal', from).lt('tanggal', to);
+      for (const k of kk || []) {
+        const key = normPlat(k.plat);
+        if (!agg[key]) agg[key] = { count: 0, total: 0 };
+        agg[key].total += Number(k.harga) || 0;
+      }
+    } catch (e) {
+      console.warn('[vehicles/list] kas_kecil dilewati:', e.message);
+    }
+
     res.json({
       data: (vehicles || []).map(v => ({
         ...v,
@@ -115,6 +131,78 @@ async function update(req, res) {
   } catch (err) {
     console.error('[vehicles/update]', err);
     res.status(500).json({ error: 'Gagal memperbarui kendaraan' });
+  }
+}
+
+// ════════════ KAS KECIL (v25) — input manual Super Track ════════════
+// Perawatan kecil di luar alur pengajuan. Nama OTOMATIS dari akun login.
+// Akses (dijaga di routes): Admin / Verifikator / Operasional.
+
+// ── POST /api/vehicles/kas-kecil ────────────────────────────────
+async function createKasKecil(req, res) {
+  try {
+    const { plat, tanggal, keterangan, kategori_biaya, harga, km, selisih_manual } = req.body;
+    const clean = normPlat(plat);
+    if (!clean) return res.status(400).json({ error: 'Plat wajib diisi' });
+    if (!String(keterangan || '').trim())
+      return res.status(400).json({ error: 'Rincian/keterangan wajib diisi' });
+
+    const row = {
+      id: uuidv4(),
+      plat: clean,
+      tanggal: tanggal ? new Date(tanggal).toISOString() : new Date().toISOString(),
+      nama: req.user?.name || '',            // OTOMATIS dari akun login
+      created_by: req.user?.id || null,
+      keterangan: String(keterangan).trim(),
+      kategori_biaya: KATEGORI.includes(kategori_biaya) ? kategori_biaya : 'Lainnya',
+      harga: Number(harga) || 0,
+      km: (km === '' || km == null) ? null : Number(km),
+      selisih_manual: (selisih_manual === '' || selisih_manual == null) ? null : Number(selisih_manual),
+    };
+
+    // Daftarkan plat ke master bila belum terdaftar (sama spt alur pengajuan).
+    await autoRegisterVehicle(clean);
+
+    const { data, error } = await supabase.from('kas_kecil').insert(row).select().single();
+    if (error) throw error;
+    res.status(201).json({ message: 'Kas kecil ditambahkan', data });
+  } catch (err) {
+    console.error('[vehicles/createKasKecil]', err);
+    res.status(500).json({ error: 'Gagal menambah kas kecil: ' + err.message });
+  }
+}
+
+// ── PUT /api/vehicles/kas-kecil/:id ─────────────────────────────
+async function updateKasKecil(req, res) {
+  try {
+    const { tanggal, keterangan, kategori_biaya, harga, km, selisih_manual } = req.body;
+    const patch = { updated_at: new Date().toISOString() };
+    if (tanggal        !== undefined) patch.tanggal        = tanggal ? new Date(tanggal).toISOString() : null;
+    if (keterangan     !== undefined) patch.keterangan     = String(keterangan).trim();
+    if (kategori_biaya !== undefined) patch.kategori_biaya = KATEGORI.includes(kategori_biaya) ? kategori_biaya : 'Lainnya';
+    if (harga          !== undefined) patch.harga          = Number(harga) || 0;
+    if (km             !== undefined) patch.km             = (km === '' || km == null) ? null : Number(km);
+    if (selisih_manual !== undefined) patch.selisih_manual = (selisih_manual === '' || selisih_manual == null) ? null : Number(selisih_manual);
+
+    const { data, error } = await supabase.from('kas_kecil')
+      .update(patch).eq('id', req.params.id).select().single();
+    if (error) throw error;
+    res.json({ message: 'Kas kecil diperbarui', data });
+  } catch (err) {
+    console.error('[vehicles/updateKasKecil]', err);
+    res.status(500).json({ error: 'Gagal memperbarui kas kecil: ' + err.message });
+  }
+}
+
+// ── DELETE /api/vehicles/kas-kecil/:id ──────────────────────────
+async function deleteKasKecil(req, res) {
+  try {
+    const { error } = await supabase.from('kas_kecil').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ message: 'Kas kecil dihapus' });
+  } catch (err) {
+    console.error('[vehicles/deleteKasKecil]', err);
+    res.status(500).json({ error: 'Gagal menghapus kas kecil: ' + err.message });
   }
 }
 
@@ -187,6 +275,39 @@ async function buildReportRows(plat, year) {
     }
   }
 
+  // ── Kas kecil (v25): perawatan kecil di luar alur pengajuan ──────
+  // Digabung sebagai baris biasa → ikut perhitungan selisih per-item & total.
+  // Fault-tolerant: bila tabel belum ada (migration belum jalan), dilewati.
+  try {
+    const { data: kk, error: kkErr } = await supabase
+      .from('kas_kecil')
+      .select('id, plat, tanggal, nama, keterangan, kategori_biaya, harga, km, selisih_manual')
+      .gte('tanggal', from).lt('tanggal', to)
+      .order('tanggal', { ascending: true });
+    if (kkErr) throw kkErr;
+    for (const k of (kk || []).filter(x => normPlat(x.plat) === target)) {
+      rows.push({
+        is_kas_kecil:     true,
+        kas_id:           k.id,
+        no_pr:            'Kas Kecil',                 // penanda (bukan No PR sungguhan)
+        nama_pemohon:     k.nama || '',
+        tanggal:          k.tanggal,
+        kategori:         KATEGORI.includes(k.kategori_biaya) ? k.kategori_biaya : 'Lainnya',
+        biaya:            Number(k.harga) || 0,
+        km:               k.km != null ? Number(k.km) : null,
+        km_manual:        null,
+        keterangan:       k.keterangan || '',
+        selisih_override: k.selisih_manual != null ? Number(k.selisih_manual) : null,
+      });
+    }
+  } catch (e) {
+    console.warn('[vehicles/report] kas_kecil dilewati:', e.message);
+  }
+
+  // Urutkan SEMUA baris (pengajuan + kas kecil) kronologis. Array.sort STABIL
+  // → item dalam satu pengajuan tetap urut; kas kecil menyisip sesuai tanggalnya.
+  rows.sort((a, b) => new Date(a.tanggal) - new Date(b.tanggal));
+
   // Selisih KM PER-ITEM (v21): tiap item dibandingkan dgn KM item yg SAMA pada
   // pengajuan sebelumnya (urut kronologis). Saat item muncul PERTAMA kali & belum
   // ada riwayat digital, pakai KM Terakhir manual (km_manual) sbg acuan awal item
@@ -197,10 +318,12 @@ async function buildReportRows(plat, year) {
       const key  = normTxt(r.keterangan);
       let   base = lastKMByItem[key];
       if (base == null && r.km_manual != null) base = r.km_manual;  // acuan awal item
-      r.selisih_km = base != null ? r.km - base : null;
+      const auto = base != null ? r.km - base : null;
+      // v25: kas kecil boleh override selisih manual (menang bila diisi).
+      r.selisih_km = (r.selisih_override != null) ? r.selisih_override : auto;
       lastKMByItem[key] = r.km;
     } else {
-      r.selisih_km = null;
+      r.selisih_km = (r.selisih_override != null) ? r.selisih_override : null;
     }
   }
   return rows;
@@ -400,4 +523,5 @@ async function exportExcel(req, res) {
   }
 }
 
-module.exports = { list, create, update, report, exportExcel, autoRegisterVehicle, KATEGORI };
+module.exports = { list, create, update, report, exportExcel, autoRegisterVehicle, KATEGORI,
+                   createKasKecil, updateKasKecil, deleteKasKecil };
