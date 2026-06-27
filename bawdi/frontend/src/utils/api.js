@@ -80,6 +80,10 @@ export const vehicleAPI = {
   create: (d)           => api.post('/vehicles', d),
   update: (id, d)       => api.put(`/vehicles/${id}`, d),
   report: (plat, year)  => api.get('/vehicles/report', { params: { plat, year } }),
+  // Kas kecil (v25) — input manual Super Track
+  createKasKecil: (d)     => api.post('/vehicles/kas-kecil', d),
+  updateKasKecil: (id, d) => api.put(`/vehicles/kas-kecil/${id}`, d),
+  deleteKasKecil: (id)    => api.delete(`/vehicles/kas-kecil/${id}`),
   // Export Excel — responseType blob lalu trigger unduhan di browser
   async exportExcel(year, plat = '') {
     const res = await api.get('/vehicles/export', {
