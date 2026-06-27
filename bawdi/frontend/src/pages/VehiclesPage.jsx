@@ -5,12 +5,12 @@
 // Akses: Admin, Verifikator, Approval, Kepala Operasional (Operasional biasa: ditolak)
 import { useState, useEffect, useCallback } from 'react';
 import {
-  Truck, Search, Download, Plus, Pencil, X, Loader,
+  Truck, Search, Download, Plus, Pencil, X, Loader, Trash2,
   FileSpreadsheet, ChevronLeft, RefreshCw,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { vehicleAPI } from '../utils/api';
-import { Card, Spinner, Button, fmtCurrency, fmtDate } from '../components/ui';
+import { Card, Spinner, Button, Input, Textarea, fmtCurrency, fmtDate } from '../components/ui';
 import useAuthStore from '../context/authStore';
 
 const KATEGORI = ['Sewa', 'Service', 'Ban', 'Izin Kendaraan', 'Jasa', 'Lainnya'];
@@ -60,7 +60,7 @@ export default function VehiclesPage() {
   };
 
   if (detail) return (
-    <ReportView plat={detail.plat} year={year}
+    <ReportView plat={detail.plat} year={year} user={user}
       onBack={() => setDetail(null)}
       onExport={() => doExport(detail.plat)}
       exporting={exporting === detail.plat}/>
@@ -159,20 +159,34 @@ export default function VehiclesPage() {
 }
 
 /* ── Preview laporan satu plat (mengikuti kolom Excel perusahaan) ── */
-function ReportView({ plat, year, onBack, onExport, exporting }) {
+function ReportView({ plat, year, onBack, onExport, exporting, user }) {
   const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);
+  const [kkModal, setKkModal] = useState(null);   // null | {} (tambah) | row (edit)
 
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      try {
-        const res = await vehicleAPI.report(plat, year);
-        setData(res.data.data);
-      } catch { toast.error('Gagal memuat laporan'); }
-      finally { setLoading(false); }
-    })();
+  const canInput = ['Admin', 'Verifikator', 'Operasional'].includes(user?.role);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await vehicleAPI.report(plat, year);
+      setData(res.data.data);
+    } catch { toast.error('Gagal memuat laporan'); }
+    finally { setLoading(false); }
   }, [plat, year]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const delKasKecil = async (row) => {
+    if (!window.confirm('Hapus entri kas kecil ini?')) return;
+    try {
+      await vehicleAPI.deleteKasKecil(row.kas_id);
+      toast.success('Kas kecil dihapus');
+      load();
+    } catch (err) {
+      toast.error(err?.response?.data?.error || 'Gagal menghapus');
+    }
+  };
 
   return (
     <div className="max-w-5xl mx-auto space-y-4">
@@ -182,7 +196,12 @@ function ReportView({ plat, year, onBack, onExport, exporting }) {
           <h1 className="text-lg font-black text-slate-800">Laporan {plat}</h1>
           <p className="text-[11px] text-slate-400">Periode Januari – Desember {year}</p>
         </div>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          {canInput && (
+            <Button variant="secondary" onClick={() => setKkModal({})}>
+              <Plus size={14}/> Input Kas Kecil
+            </Button>
+          )}
           <Button onClick={onExport} loading={exporting}>
             <FileSpreadsheet size={14}/> Export Excel
           </Button>
@@ -206,9 +225,13 @@ function ReportView({ plat, year, onBack, onExport, exporting }) {
             </thead>
               <tbody>
                 {data.rows.map((r, i) => (
-                  <tr key={i} className="border-t border-slate-100">
+                  <tr key={r.kas_id || i} className={`border-t border-slate-100 ${r.is_kas_kecil ? 'bg-amber-50/40' : ''}`}>
                     <td className="px-2 py-1.5 text-slate-400 border-r border-slate-200">{i + 1}</td>
-                    <td className="px-2 py-1.5 font-semibold whitespace-nowrap border-r border-slate-200">{r.no_pr || '—'}</td>
+                    <td className="px-2 py-1.5 font-semibold whitespace-nowrap border-r border-slate-200">
+                      {r.is_kas_kecil
+                        ? <span className="inline-block px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 text-[10px] font-bold">Kas Kecil</span>
+                        : (r.no_pr || '—')}
+                    </td>
                     <td className="px-2 py-1.5 whitespace-nowrap border-r border-slate-200">{r.nama_pemohon || '—'}</td>
                     <td className="px-2 py-1.5 whitespace-nowrap border-r border-slate-200">{fmtDate(r.tanggal)}</td>
                     {KATEGORI.map(k => (
@@ -218,9 +241,23 @@ function ReportView({ plat, year, onBack, onExport, exporting }) {
                     ))}
                     <td className="px-2 py-1.5 text-right tabular-nums border-r border-slate-200">{r.km != null ? r.km.toLocaleString('id-ID') : ''}</td>
                     <td className={`px-2 py-1.5 text-right tabular-nums border-r border-slate-200 ${r.selisih_km > 0 ? 'text-emerald-600' : ''}`}>
-                      {r.selisih_km != null ? `+${r.selisih_km.toLocaleString('id-ID')}` : ''}
+                      {r.selisih_km != null ? `${r.selisih_km > 0 ? '+' : ''}${r.selisih_km.toLocaleString('id-ID')}` : ''}
                     </td>
-                    <td className="px-2 py-1.5" border-r border-slate-200>{r.keterangan}</td>
+                    <td className="px-2 py-1.5 border-r border-slate-200">
+                      <div className="flex items-center justify-between gap-2">
+                        <span>{r.keterangan}</span>
+                        {r.is_kas_kecil && canInput && (
+                          <span className="flex items-center gap-1 flex-shrink-0">
+                            <button onClick={() => setKkModal(r)} className="text-slate-400 hover:text-amber-500" title="Edit">
+                              <Pencil size={12}/>
+                            </button>
+                            <button onClick={() => delKasKecil(r)} className="text-slate-400 hover:text-red-500" title="Hapus">
+                              <Trash2 size={12}/>
+                            </button>
+                          </span>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 ))}
                 {!data.rows.length && (
@@ -248,6 +285,15 @@ function ReportView({ plat, year, onBack, onExport, exporting }) {
             Format mengikuti FORM LAPORAN super track perusahaan.
           </p>
         </>
+      )}
+
+      {kkModal && (
+        <KasKecilModal
+          plat={plat}
+          user={user}
+          editRow={kkModal.kas_id ? kkModal : null}
+          onClose={() => setKkModal(null)}
+          onSaved={() => { setKkModal(null); load(); }}/>
       )}
     </div>
   );
@@ -311,6 +357,98 @@ function VehicleModal({ vehicle, onClose, onSaved }) {
             Kendaraan aktif (ikut dalam Export Semua)
           </label>
         )}
+        <div className="flex gap-2 pt-1">
+          <Button variant="secondary" className="flex-1" onClick={onClose}>Batal</Button>
+          <Button className="flex-1" onClick={save} loading={saving}>Simpan</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Modal input/edit Kas Kecil (Admin/Verifikator/Operasional) ── */
+function KasKecilModal({ plat, user, editRow, onClose, onSaved }) {
+  const isEdit = !!editRow;
+  const toDateInput = (iso) => {
+    const d = iso ? new Date(iso) : new Date();
+    return isNaN(d) ? new Date().toISOString().slice(0, 10) : d.toISOString().slice(0, 10);
+  };
+  const [f, setF] = useState({
+    tanggal:        toDateInput(editRow?.tanggal),
+    kategori_biaya: editRow?.kategori || 'Lainnya',
+    keterangan:     editRow?.keterangan || '',
+    harga:          editRow?.biaya != null ? String(editRow.biaya) : '',
+    km:             editRow?.km != null ? String(editRow.km) : '',
+    selisih_manual: editRow?.selisih_override != null ? String(editRow.selisih_override) : '',
+  });
+  const [saving, setSaving] = useState(false);
+  const set = (k, v) => setF(s => ({ ...s, [k]: v }));
+
+  const save = async () => {
+    if (!f.keterangan.trim()) { toast.error('Rincian/keterangan wajib diisi'); return; }
+    setSaving(true);
+    const payload = {
+      plat,
+      tanggal: f.tanggal,
+      keterangan: f.keterangan.trim(),
+      kategori_biaya: f.kategori_biaya,
+      harga: Number(f.harga) || 0,
+      km: f.km === '' ? null : Number(f.km),
+      selisih_manual: f.selisih_manual === '' ? null : Number(f.selisih_manual),
+    };
+    try {
+      if (isEdit) await vehicleAPI.updateKasKecil(editRow.kas_id, payload);
+      else        await vehicleAPI.createKasKecil(payload);
+      toast.success(isEdit ? 'Kas kecil diperbarui' : 'Kas kecil ditambahkan');
+      onSaved();
+    } catch (err) {
+      toast.error(err?.response?.data?.error || 'Gagal menyimpan');
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl w-full max-w-md p-5 space-y-3 max-h-[90vh] overflow-y-auto"
+        onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h3 className="font-black text-slate-800">{isEdit ? 'Edit Kas Kecil' : 'Input Kas Kecil'}</h3>
+          <button onClick={onClose} className="text-slate-300 hover:text-slate-500"><X size={18}/></button>
+        </div>
+
+        <div className="text-[11px] bg-slate-50 rounded-lg px-3 py-2 text-slate-500">
+          Plat <b className="text-slate-700">{plat}</b> • Dicatat atas nama <b className="text-slate-700">{user?.name || '—'}</b>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Tanggal</label>
+            <input type="date" value={f.tanggal} onChange={e => set('tanggal', e.target.value)}
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"/>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Kategori</label>
+            <select value={f.kategori_biaya} onChange={e => set('kategori_biaya', e.target.value)}
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 bg-white">
+              {KATEGORI.map(k => <option key={k} value={k}>{k}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <Textarea label="Rincian / Keterangan *" rows={2} value={f.keterangan}
+          onChange={e => set('keterangan', e.target.value)} placeholder="mis. Jasa perbaikan lampu depan"/>
+
+        <div className="grid grid-cols-3 gap-3">
+          <Input label="Harga (Rp)" type="number" inputMode="numeric" value={f.harga}
+            onChange={e => set('harga', e.target.value)} placeholder="0"/>
+          <Input label="KM" type="number" inputMode="numeric" value={f.km}
+            onChange={e => set('km', e.target.value)} placeholder="opsional"/>
+          <Input label="Selisih KM" type="number" inputMode="numeric" value={f.selisih_manual}
+            onChange={e => set('selisih_manual', e.target.value)} placeholder="otomatis"/>
+        </div>
+        <p className="text-[10px] text-slate-400 -mt-1">
+          Selisih KM kosong = dihitung otomatis dari riwayat item yang sama. Isi hanya bila ingin menimpa manual.
+        </p>
+
         <div className="flex gap-2 pt-1">
           <Button variant="secondary" className="flex-1" onClick={onClose}>Batal</Button>
           <Button className="flex-1" onClick={save} loading={saving}>Simpan</Button>
