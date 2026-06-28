@@ -794,6 +794,39 @@ export default function NewFormPage() {
             ))}
           </Card>
           <Card>
+            {/* Rincian item — tampil untuk semua pengajuan (termasuk umum) */}
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Rincian Item</p>
+            <div className="space-y-1.5 mb-4">
+              {form.items1.map((it, i) => (
+                <div key={`rv1-${i}`} className="flex justify-between gap-3 py-1.5 border-b border-slate-50 text-xs">
+                  <span className="text-slate-700 min-w-0">
+                    {it.penjelasan || '(tanpa nama)'}
+                    <span className="text-slate-400"> · {parseFloat(it.satuan) || 1} × {fmtCurrency(parseFloat(it.harga) || 0)}{(parseFloat(it.diskon) || 0) > 0 ? ` − ${fmtCurrency(parseFloat(it.diskon))}` : ''}</span>
+                  </span>
+                  <span className="font-bold text-slate-700 whitespace-nowrap">{fmtCurrency(calcItemTotal(it))}</span>
+                </div>
+              ))}
+              {form.useVendor2 && (
+                <>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pt-2">Vendor 2 — {form.vendor2 || '-'}</p>
+                  {form.items2.map((it, i) => (
+                    <div key={`rv2-${i}`} className="flex justify-between gap-3 py-1.5 border-b border-slate-50 text-xs">
+                      <span className="text-slate-700 min-w-0">
+                        {it.penjelasan || '(tanpa nama)'}
+                        <span className="text-slate-400"> · {parseFloat(it.satuan) || 1} × {fmtCurrency(parseFloat(it.harga) || 0)}{(parseFloat(it.diskon) || 0) > 0 ? ` − ${fmtCurrency(parseFloat(it.diskon))}` : ''}</span>
+                      </span>
+                      <span className="font-bold text-slate-700 whitespace-nowrap">{fmtCurrency(calcItemTotal(it))}</span>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+
+            {/* Alasan pengajuan — tampil untuk semua */}
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Alasan Pengajuan</p>
+            <div className="text-xs text-slate-700 leading-relaxed whitespace-pre-line bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-200 mb-4">{form.alasan?.trim() || '—'}</div>
+
+            {/* Riwayat KM — hanya pengajuan kendaraan */}
             {!form.is_umum && (<>
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Preview Riwayat KM:</p>
             <div className="text-xs text-slate-700 leading-relaxed whitespace-pre-line bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-200 font-mono">{buildRiwayat()}</div>
