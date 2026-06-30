@@ -97,10 +97,24 @@ async function getLastKM(req, res) {
       return normTxt(it.penjelasan) === kwN;
     });
 
+    // v25: sertakan kas kecil sebagai sumber KM — acuan item bisa dari kas kecil.
+    try {
+      const { data: kk } = await supabase
+        .from('kas_kecil').select('plat, tanggal, keterangan, km').not('km', 'is', null);
+      for (const k of kk || []) {
+        if (normTxt(k.plat) === platN && normTxt(k.keterangan) === kwN) {
+          matched.push({
+            km_pengajuan: k.km, penjelasan: k.keterangan,
+            submission: { tanggal: k.tanggal, nomor_pengajuan: 'Kas Kecil' },
+          });
+        }
+      }
+    } catch (e) { console.warn('[history/last-km] kas_kecil dilewati:', e.message); }
+
     if (!matched.length)
       return res.json({ data: null, message: 'Belum ada riwayat KM untuk item serupa di kendaraan ini' });
 
-    // Urutkan tanggal terbaru
+    // Urutkan tanggal terbaru (termasuk kas kecil)
     matched.sort((a, b) => new Date(b.submission.tanggal) - new Date(a.submission.tanggal));
     const best = matched[0];
 
@@ -165,6 +179,31 @@ async function getVehicleItems(req, res) {
         });
       }
     }
+
+    // v25: gabungkan kas kecil — KM terbaru per item bisa berasal dari kas kecil.
+    try {
+      const { data: kk } = await supabase
+        .from('kas_kecil')
+        .select('plat, tanggal, keterangan, km, kategori_biaya, harga')
+        .not('keterangan', 'is', null);
+      for (const k of kk || []) {
+        if (normTxt(k.plat) !== platN) continue;
+        const key = normTxt(k.keterangan);
+        if (!key) continue;
+        const prev = byPenj.get(key);
+        if (!prev || new Date(k.tanggal) > new Date(prev.tanggal)) {
+          byPenj.set(key, {
+            penjelasan:      k.keterangan.trim(),
+            km_pengajuan:    k.km,
+            satuan:          prev?.satuan || '',
+            harga:           prev?.harga ?? k.harga,
+            kategori_biaya:  prev?.kategori_biaya || k.kategori_biaya,
+            nomor_pengajuan: 'Kas Kecil',
+            tanggal:         k.tanggal,
+          });
+        }
+      }
+    } catch (e) { console.warn('[history/items] kas_kecil dilewati:', e.message); }
 
     const list = [...byPenj.values()].sort((a, b) => a.penjelasan.localeCompare(b.penjelasan));
     res.json({ data: list });
