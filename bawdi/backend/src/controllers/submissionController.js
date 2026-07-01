@@ -144,7 +144,7 @@ async function create(req, res) {
     const {
       nomor_pengajuan, nomor_urut, cabang_manual,
       type, kendaraan, vendor, npwp, rekening_tujuan,
-      vendor2, npwp2, jenis_pembelian, alasan, riwayat,
+      vendor2, npwp2, jenis_pembelian, alasan, alasan_type, riwayat,
       batas_waktu_dana, batas_akhir_pembayaran, items, km_pengajuan,
       is_umum,
     } = req.body;
@@ -192,7 +192,7 @@ async function create(req, res) {
       rekening_tujuan: rekening_tujuan || '',
       vendor2: vendor2 || '', npwp2: npwp2 || '',
       vendor2_selected: !!(vendor2?.trim()),
-      jenis_pembelian, alasan, riwayat,
+      jenis_pembelian, alasan, alasan_type: alasan_type || '', riwayat,
       km_pengajuan: km_pengajuan != null ? Number(km_pengajuan) : null,
       batas_waktu_dana, batas_akhir_pembayaran,
       total_harga: total1,
