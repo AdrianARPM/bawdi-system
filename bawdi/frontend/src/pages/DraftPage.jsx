@@ -256,9 +256,9 @@ export default function DraftPage() {
                             <td className="px-2.5 py-2">
                               <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${st.cls}`}>{st.label}</span>
                             </td>
-                            <td className="px-2.5 py-2">
+                           <td className="px-2.5 py-2">
                               {d.nota_url
-                                ? <span className="text-[10px] font-bold text-emerald-600">✓ Ada</span>
+                                ? <span className="text-[10px] font-bold text-emerald-600">✓ {d.nota_uploaded_at ? fmtDate(d.nota_uploaded_at) : 'Ada'}</span>
                                 : <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-600">Belum ada</span>}
                             </td>
                           </tr>
