@@ -218,6 +218,7 @@ export default function DraftPage() {
             const tTagihan = rows.reduce((s, d) => s + (Number(d.total_harga) || 0), 0);
             const tBayar   = rows.reduce((s, d) => s + (Number(d.dibayar) || 0), 0);
             const tSisa    = rows.reduce((s, d) => s + statusTagihan(d.total_harga, d.dibayar).sisa, 0);
+            const noNota   = rows.filter(d => !d.nota_url).length;
             return (
               <Card key={cabang} className="!p-0 overflow-hidden">
                 <div className="flex items-center gap-2 px-4 py-3 bg-slate-50 border-b border-slate-100">
@@ -229,7 +230,7 @@ export default function DraftPage() {
                   <table className="w-full text-xs whitespace-nowrap">
                     <thead>
                       <tr className="bg-emerald-50 text-slate-600 text-left">
-                        {['No.','Nopol','Tgl Pengajuan','Tgl App','Tgl Bayar','Nomor PR/PAR','Rincian/Jenis Pembelian','Total Tagihan','Total Dibayar','Sisa','Status']
+                        {['No.','Nopol','Tgl Pengajuan','Tgl App','Tgl Bayar','Nomor PR/PAR','Rincian/Jenis Pembelian','Total Tagihan','Total Dibayar','Sisa','Status','Nota']
                           .map((h,i) => (
                             <th key={i} className={`px-2.5 py-2 font-bold border-b border-slate-200 ${i>=7&&i<=9?'text-right':''}`}>{h}</th>
                           ))}
@@ -255,6 +256,11 @@ export default function DraftPage() {
                             <td className="px-2.5 py-2">
                               <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${st.cls}`}>{st.label}</span>
                             </td>
+                            <td className="px-2.5 py-2">
+                              {d.nota_url
+                                ? <span className="text-[10px] font-bold text-emerald-600">✓ Ada</span>
+                                : <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-600">Belum ada</span>}
+                            </td>
                           </tr>
                         );
                       })}
@@ -266,6 +272,7 @@ export default function DraftPage() {
                         <td className="px-2.5 py-2.5 text-right tabular-nums">{fmtCurrency(tBayar)}</td>
                         <td className="px-2.5 py-2.5 text-right tabular-nums">{fmtCurrency(tSisa)}</td>
                         <td></td>
+                        <td></td>
                       </tr>
                     </tfoot>
                   </table>
@@ -275,6 +282,7 @@ export default function DraftPage() {
                   <span className="text-slate-500">Total Tagihan: <strong className="text-slate-800">{fmtCurrency(tTagihan)}</strong></span>
                   <span className="text-slate-500">Sudah Dibayar: <strong className="text-emerald-600">{fmtCurrency(tBayar)}</strong></span>
                   <span className="text-slate-500">Belum Dibayar: <strong className="text-red-500">{fmtCurrency(tTagihan - tBayar)}</strong></span>
+                  {noNota > 0 && <span className="text-slate-500">Belum ada nota: <strong className="text-red-500">{noNota} pengajuan</strong></span>}
                 </div>
               </Card>
             );
