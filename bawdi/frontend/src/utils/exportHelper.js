@@ -349,14 +349,25 @@ try {                                                               // ✅ try a
   const rightX = margin + boxPadding + colW + gap;
   let   contentTopY = innerY;
 
-  // ── Kolom kiri: Alasan Pengajuan (hanya di halaman pertama) ──
+// ── Kolom kiri: Alasan Pengajuan (hanya di halaman pertama) ──
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(80, 80, 80);
   doc.text('Alasan Pengajuan', leftX, contentTopY);
+
+  let alasanY = contentTopY + colHeaderH;
+  // Type di atas teks alasan (bila diisi)
+  if (sub.alasan_type && String(sub.alasan_type).trim()) {
+    const typeLines = doc.splitTextToSize(`Type: ${sub.alasan_type}`, colW);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 0, 0);
+    doc.text(typeLines, leftX, alasanY);
+    alasanY += typeLines.length * lineH + 1.5;
+  }
+
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(0, 0, 0);
-  doc.text(alasanLines, leftX, contentTopY + colHeaderH);
-  let leftBottomY = contentTopY + colHeaderH + alasanLines.length * lineH;
+  doc.text(alasanLines, leftX, alasanY);
+  let leftBottomY = alasanY + alasanLines.length * lineH;
 
   // ── Kolom kanan: Riwayat Sebelumnya (dgn page-break bila panjang) ──
   doc.setFont('helvetica', 'bold');
