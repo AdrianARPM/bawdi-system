@@ -400,7 +400,7 @@ export default function NewFormPage() {
     vendor:'', npwp:'', rekening_tujuan:'',
     items1:[newItem()],
     useVendor2:false, vendor2:'', npwp2:'', items2:[newItem()],
-    alasan:'', batas_waktu_dana:'', batas_akhir_pembayaran:'',
+    alasan:'', alasan_type:'', batas_waktu_dana:'', batas_akhir_pembayaran:'',
   });
 
   const set = useCallback((k, v) => { setForm(f=>({...f,[k]:v})); setErrors(e=>({...e,[k]:''})); }, []);
@@ -575,7 +575,7 @@ export default function NewFormPage() {
         kendaraan:form.is_umum?'':form.kendaraan, jenis_pembelian:form.jenis_pembelian,
         vendor:form.vendor, npwp:form.npwp, rekening_tujuan:form.rekening_tujuan,
         vendor2:form.useVendor2?form.vendor2:'', npwp2:form.useVendor2?form.npwp2:'',
-        alasan:form.alasan, riwayat, km_pengajuan: firstKM,
+        alasan:form.alasan, alasan_type:form.alasan_type, riwayat, km_pengajuan: firstKM,
         batas_waktu_dana:form.batas_waktu_dana, batas_akhir_pembayaran:form.batas_akhir_pembayaran, items,
       };
       if (navigator.onLine) {
@@ -705,6 +705,10 @@ export default function NewFormPage() {
                 ))}
               </select>
             </Field>
+            <Field label="Type" error={errors.alasan_type}>
+              <input value={form.alasan_type} onChange={e=>set('alasan_type',e.target.value)} placeholder="Contoh: Perbaikan / Pembelian rutin..."
+                className={ic('alasan_type')}/>
+            </Field>
             <Field label="Alasan Pengajuan" required error={errors.alasan}>
               <textarea value={form.alasan} onChange={e=>set('alasan',e.target.value)} rows={3} placeholder="Jelaskan alasan pengajuan..."
                 className={`w-full px-3 py-2.5 rounded-xl border text-sm text-slate-800 outline-none resize-none placeholder:text-slate-300 transition-colors leading-relaxed focus:ring-2 ${errors.alasan?'border-red-300 focus:border-red-400 focus:ring-red-50':'border-slate-200 focus:border-amber-400 focus:ring-amber-100'}`}/>
@@ -823,6 +827,10 @@ export default function NewFormPage() {
             </div>
 
             {/* Alasan pengajuan — tampil untuk semua */}
+            {form.alasan_type?.trim() && (<>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Type</p>
+            <div className="text-xs text-slate-700 leading-relaxed bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-200 mb-3">{form.alasan_type}</div>
+            </>)}
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Alasan Pengajuan</p>
             <div className="text-xs text-slate-700 leading-relaxed whitespace-pre-line bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-200 mb-4">{form.alasan?.trim() || '—'}</div>
 
