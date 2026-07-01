@@ -745,7 +745,7 @@ async function fetchArsipRows({ kendaraan, tahun } = {}) {
   let query = supabase.from('submissions')
     .select(`id, nomor_pengajuan, type, status, tanggal, approval_at, tanggal_bayar,
              jumlah_bayar, jumlah_dp, total_harga, jenis_pembelian, kendaraan, cabang, cabang_manual,
-             nota_url, ditutup_at, vendor, vendor2, vendor_pilihan,
+             nota_url, nota_uploaded_at, ditutup_at, vendor, vendor2, vendor_pilihan,
              pemohon:users!submissions_pemohon_id_fkey(name, cabang)`)
     .in('status', ['Disetujui', 'Selesai'])
     .order('tanggal', { ascending: true });
@@ -769,6 +769,7 @@ async function fetchArsipRows({ kendaraan, tahun } = {}) {
       total_harga: Number(s.total_harga) || 0,
       jumlah_bayar: jb, jumlah_dp: jdp, dibayar,
       nota_url: s.nota_url || '',
+      nota_uploaded_at: s.nota_uploaded_at || null,
       vendor: s.vendor, vendor2: s.vendor2, vendor_pilihan: s.vendor_pilihan,
       pemohon_name: s.pemohon?.name || '',
       bulan: d.getMonth() + 1, tahun: d.getFullYear(),
