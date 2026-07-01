@@ -706,7 +706,7 @@ export default function NewFormPage() {
               </select>
             </Field>
             <Field label="Type" error={errors.alasan_type}>
-              <input value={form.alasan_type} onChange={e=>set('alasan_type',e.target.value)} placeholder="Contoh: Perbaikan / Pembelian rutin..."
+              <input value={form.alasan_type} onChange={e=>set('alasan_type',e.target.value)} placeholder="Contoh: Revo Tahun 2010"
                 className={ic('alasan_type')}/>
             </Field>
             <Field label="Alasan Pengajuan" required error={errors.alasan}>
