@@ -811,7 +811,7 @@ function writeArsipSheet(wb, cabang, year, rows) {
   let name = base, k = 2;
   while (wb.getWorksheet(name)) name = `${base.slice(0, 27)} (${k++})`;
   const ws = wb.addWorksheet(name, { views: [{ showGridLines: false }] });
-  [1.2, 4.6, 14.2, 17, 18.2, 15.6, 24.1, 36.2, 15.8, 15.6, 16.8, 13.6]
+  [1.2, 4.6, 14.2, 17, 18.2, 15.6, 24.1, 36.2, 15.8, 15.6, 16.8, 13.6, 16]
     .forEach((w, i) => ws.getColumn(i + 1).width = w);
 
   ws.mergeCells('B3:D3');
@@ -833,6 +833,13 @@ function writeArsipSheet(wb, cabang, year, rows) {
   });
   ws.mergeCells('K4:L4');
   ws.getCell('L4').border = allB;
+  // Kolom Nota (M) — di luar template asli, atas permintaan
+  const notaHead = ws.getCell(4, 13);
+  notaHead.value = 'Nota';
+  notaHead.font = fontT(true);
+  notaHead.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF92D050' } };
+  notaHead.alignment = { horizontal: 'center', vertical: 'middle' };
+  notaHead.border = allB;
 
   const start = 5;
   rows.forEach((r, i) => {
@@ -857,6 +864,17 @@ function writeArsipSheet(wb, cabang, year, rows) {
       if (c >= 4 && c <= 6)  { cell.numFmt = DATE_FMT; cell.alignment = { horizontal: 'center' }; }
       if (c === 2 || c === 3) cell.alignment = { horizontal: 'center' };
     }
+    // M: Nota — tanggal upload bila ada, jika belum "Belum"
+    const mCell = row.getCell(13);
+    if (r.nota_url) {
+      if (r.nota_uploaded_at) { mCell.value = new Date(r.nota_uploaded_at); mCell.numFmt = DATE_FMT; }
+      else { mCell.value = 'Ada'; }
+    } else {
+      mCell.value = 'Belum';
+    }
+    mCell.font = fontT(false);
+    mCell.border = allB;
+    mCell.alignment = { horizontal: 'center' };
   });
 
   const totalRow = start + rows.length;
