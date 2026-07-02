@@ -201,7 +201,7 @@ try {                                                               // ✅ try a
       { label: 'Rekening Tujuan', val: sub.rekening_tujuan || '—' }
     ],
     [
-      { label: 'Cabang/Project', val: sub.cabang || sub.pemohon_cabang || '—' },
+      { label: 'Cabang/Project', val: sub.cabang_manual || sub.cabang || sub.pemohon_cabang || '—' },
       { label: 'Jenis Pembelian', val: sub.jenis_pembelian || '—' }
     ],
     [
