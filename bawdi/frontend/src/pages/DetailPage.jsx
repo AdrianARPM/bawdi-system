@@ -1025,7 +1025,7 @@ export default function DetailPage() {
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-4 pt-3 pb-2">Informasi Pengajuan</p>
             {[
               ['Pemohon',          sub.pemohon?.name],
-              ['Cabang',           sub.cabang],
+              ['Cabang',           sub.cabang_manual || sub.cabang],
               ...(sub.is_umum ? [] : [['Kendaraan', sub.kendaraan]]),
               ['Jenis Pembelian',  sub.jenis_pembelian],
               ['Vendor 1',         sub.vendor],
