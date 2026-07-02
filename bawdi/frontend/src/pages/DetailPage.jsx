@@ -11,7 +11,7 @@ import {
 import toast from 'react-hot-toast';
 import { submissionAPI, messageAPI, revisionAPI } from '../utils/api';
 import { exportSinglePDF } from '../utils/exportHelper';
-import { Card, Button, Spinner, fmtDate, fmtDateTime, fmtCurrency, daysSince } from '../components/ui';
+import { Card, Button, Spinner, fmtDate, fmtDateTime, fmtCurrency, daysSince, RevisiBadge } from '../components/ui';
 import RevisiEditor from '../components/RevisiEditor';  // ← import dari file terpisah
 import useAuthStore from '../context/authStore';
 
