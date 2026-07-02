@@ -194,6 +194,8 @@ const JENIS_KENDARAAN = [
   'Beban Perawatan dan Suku Cadang',
   'Beban Perlengkapan Kendaraan',
   'Beban Perbaikan dan Perlengkapan Kendaraan',
+  'Beban Izin Kendaraan',
+  'Beban Parkir',
   'Beban BBM',
 ];
 const JENIS_UMUM = [
