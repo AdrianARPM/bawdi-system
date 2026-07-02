@@ -2,6 +2,23 @@
 const supabase = require('../../config/supabase');
 const { v4: uuidv4 } = require('uuid');
 
+// Buat notifikasi (muncul di bell) untuk satu user
+async function notifyUser(userId, submissionId, type, message) {
+  if (!userId) return;
+  await supabase.from('notifications').insert({
+    id: uuidv4(), user_id: userId, submission_id: submissionId, type, message, is_read: false,
+  });
+}
+// Buat notifikasi untuk semua user aktif dengan role tertentu
+async function notifyRole(role, submissionId, type, message) {
+  const { data: users } = await supabase.from('users')
+    .select('id').eq('role', role).eq('is_active', true);
+  if (!users?.length) return;
+  await supabase.from('notifications').insert(
+    users.map(u => ({ id: uuidv4(), user_id: u.id, submission_id: submissionId, type, message, is_read: false }))
+  );
+}
+
 // GET /api/messages/:submissionId
 async function list(req, res) {
   try {
@@ -26,7 +43,7 @@ async function send(req, res) {
 
     // Pastikan user punya akses ke submission ini
     const { data: sub } = await supabase.from('submissions')
-      .select('pemohon_id, verifikator_id, approver_id, status')
+      .select('pemohon_id, verifikator_id, approver_id, status, nomor_pengajuan')
       .eq('id', req.params.submissionId).single();
 
     if (!sub) return res.status(404).json({ error: 'Pengajuan tidak ditemukan' });
@@ -40,6 +57,24 @@ async function send(req, res) {
     }).select('id, message, is_system, created_at, user:users(id, name, avatar_initials, role)').single();
 
     if (error) throw error;
+
+    // Notifikasi chat ke peserta lain — muncul di bell (unread). Non-blocking.
+    try {
+      const senderId   = req.user.id;
+      const senderName = data.user?.name || 'Seseorang';
+      const nomor      = sub.nomor_pengajuan || 'pengajuan';
+      const msg        = `💬 Pesan baru dari ${senderName} · ${nomor}`;
+      const recipients = [...new Set([sub.pemohon_id, sub.verifikator_id, sub.approver_id])]
+        .filter(uid => uid && uid !== senderId);
+      if (recipients.length) {
+        await Promise.all(recipients.map(uid =>
+          notifyUser(uid, req.params.submissionId, 'new_message', msg)));
+      } else if (senderId === sub.pemohon_id) {
+        // Belum ada verifikator/approver ditetapkan → beri tahu Verifikator
+        await notifyRole('Verifikator', req.params.submissionId, 'new_message', msg);
+      }
+    } catch (e) { console.warn('[messages/send] notif dilewati:', e.message); }
+
     res.status(201).json({ data });
   } catch (err) {
     console.error('[messages/send]', err);
