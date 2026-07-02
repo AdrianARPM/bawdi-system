@@ -9,7 +9,7 @@ import {
   RefreshCw, Loader, Trash2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { submissionAPI, messageAPI, revisionAPI } from '../utils/api';
+import { submissionAPI, messageAPI, revisionAPI, photoAPI } from '../utils/api';
 import { exportSinglePDF } from '../utils/exportHelper';
 import { Card, Button, Spinner, fmtDate, fmtDateTime, fmtCurrency, daysSince, RevisiBadge } from '../components/ui';
 import RevisiEditor from '../components/RevisiEditor';  // ← import dari file terpisah
@@ -654,6 +654,8 @@ export default function DetailPage() {
   const [exporting,     setExporting]     = useState(false);
 
   const chatRef = useRef(null);
+  const fotoRef = useRef(null);
+  const [savingFoto, setSavingFoto] = useState(false);
 
   const load = async () => {
     try {
@@ -669,6 +671,28 @@ export default function DetailPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Tambah lampiran ke pengajuan yang sudah tersubmit (foto/PDF)
+  const handleUploadFoto = async e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) { toast.error('Ukuran file maksimal 10MB'); e.target.value = ''; return; }
+    setSavingFoto(true);
+    try {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      await new Promise(res => { reader.onload = res; });
+      await photoAPI.upload(sub.id, {
+        fileName: file.name, fileData: reader.result, fileType: file.type,
+      });
+      await load();
+      toast.success('Lampiran berhasil ditambahkan!');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Gagal upload lampiran');
+    }
+    setSavingFoto(false);
+    e.target.value = '';
   };
 
   useEffect(() => { load(); }, [id]);
@@ -1102,11 +1126,24 @@ export default function DetailPage() {
           </Card>
 
           {/* Foto */}
-          {photos.length > 0 && (
-            <Card padding={false}>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-4 pt-3 pb-2">
+          <Card padding={false}>
+            <div className="flex items-center justify-between px-4 pt-3 pb-2">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                 Foto Lampiran ({photos.length})
               </p>
+              {(user && (sub.pemohon_id === user.id || ['Admin', 'Verifikator', 'Approval'].includes(user.role))) && (
+                <>
+                  <input ref={fotoRef} type="file" accept="image/*,.pdf" className="hidden" onChange={handleUploadFoto}/>
+                  <button onClick={() => fotoRef.current?.click()} disabled={savingFoto}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white text-[10px] font-bold">
+                    <Upload size={10}/> {savingFoto ? 'Mengunggah…' : 'Tambah'}
+                  </button>
+                </>
+              )}
+            </div>
+            {photos.length === 0 ? (
+              <p className="px-4 pb-4 text-xs text-slate-400">Belum ada lampiran. Klik "Tambah" untuk mengunggah foto atau PDF.</p>
+            ) : (
               <div className="p-3 grid grid-cols-2 gap-3">
                 {photos.map(p => {
                   const isImg = p.file_url?.match(/\.(jpg|jpeg|png|webp)/i);
@@ -1138,8 +1175,8 @@ export default function DetailPage() {
                   );
                 })}
               </div>
-            </Card>
-          )}
+            )}
+          </Card>
 
           {/* Tanda tangan */}
           <Card>
