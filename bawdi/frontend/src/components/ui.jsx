@@ -17,6 +17,15 @@ export function Pill({ status }) {
     </span>
   );
 }
+// Penanda pengajuan yang sedang/pernah direvisi — supaya beda jelas dari pengajuan baru.
+export function RevisiBadge({ count }) {
+  if (!count || count < 1) return null;
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-200 whitespace-nowrap">
+      🔄 Revisi ke-{count}
+    </span>
+  );
+}
 
 export function Card({ children, className = '', padding = true }) {
   return (
