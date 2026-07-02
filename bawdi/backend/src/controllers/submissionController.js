@@ -93,7 +93,7 @@ async function list(req, res) {
       .from('submissions')
       .select(`
         id, nomor_pengajuan, type, status, tanggal, kendaraan, vendor, vendor2,
-        vendor_pilihan, jenis_pembelian, total_harga, batas_akhir_pembayaran,
+        vendor_pilihan, jenis_pembelian, total_harga, batas_akhir_pembayaran, revisi_count,
         pemohon:users!submissions_pemohon_id_fkey(name, cabang),
         verifikator:users!submissions_verifikator_id_fkey(name),
         approver:users!submissions_approver_id_fkey(name)
