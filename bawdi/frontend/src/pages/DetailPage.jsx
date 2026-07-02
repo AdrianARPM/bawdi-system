@@ -11,7 +11,7 @@ import {
 import toast from 'react-hot-toast';
 import { submissionAPI, messageAPI, revisionAPI } from '../utils/api';
 import { exportSinglePDF } from '../utils/exportHelper';
-import { Card, Button, Spinner, fmtDate, fmtDateTime, fmtCurrency, daysSince } from '../components/ui';
+import { Card, Button, Spinner, fmtDate, fmtDateTime, fmtCurrency, daysSince, RevisiBadge } from '../components/ui';
 import RevisiEditor from '../components/RevisiEditor';  // ← import dari file terpisah
 import useAuthStore from '../context/authStore';
 
@@ -862,6 +862,7 @@ export default function DetailPage() {
             <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-slate-100 text-slate-500">{sub.type}</span>
             {sub.is_umum && <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-violet-100 text-violet-600">UMUM</span>}
             <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${statusCls}`}>{sub.status}</span>
+            {sub.revisi_count > 0 && <RevisiBadge count={sub.revisi_count} />}
             {sub.jumlah_dp > 0 && sub.status !== 'Selesai' && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">DP</span>}
             {isAlert && (
               <span className="text-[10px] font-bold text-orange-500 bg-orange-50 px-2 py-0.5 rounded-full">
@@ -1045,27 +1046,6 @@ export default function DetailPage() {
             ))}
           </Card>
 
-          {/* Keterangan */}
-          <Card>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Keterangan</p>
-            <div className="space-y-3">
-              <div>
-                <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Alasan</p>
-                <p className="text-sm text-slate-700 leading-relaxed">{sub.alasan || '—'}</p>
-              </div>
-              <div>
-                <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Riwayat</p>
-                <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{sub.riwayat || '—'}</p>
-              </div>
-              {sub.alasan_tolak && (
-                <div className="bg-red-50 border border-red-100 rounded-xl p-3">
-                  <p className="text-[10px] font-bold text-red-500 uppercase mb-1">Alasan Penolakan</p>
-                  <p className="text-sm text-red-700">{sub.alasan_tolak}</p>
-                </div>
-              )}
-            </div>
-          </Card>
-
           {/* Items */}
           <Card padding={false}>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-4 pt-3 pb-2">Rincian Item</p>
@@ -1097,6 +1077,27 @@ export default function DetailPage() {
             <div className="flex justify-between px-4 py-3 bg-amber-50 border-t border-amber-100">
               <span className="text-sm font-extrabold text-amber-800">TOTAL</span>
               <span className="text-base font-black text-amber-500">{fmtCurrency(sub.total_harga)}</span>
+            </div>
+          </Card>
+
+          {/* Keterangan */}
+          <Card>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Keterangan</p>
+            <div className="space-y-3">
+              <div>
+                <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Alasan</p>
+                <p className="text-sm text-slate-700 leading-relaxed">{sub.alasan || '—'}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Riwayat</p>
+                <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{sub.riwayat || '—'}</p>
+              </div>
+              {sub.alasan_tolak && (
+                <div className="bg-red-50 border border-red-100 rounded-xl p-3">
+                  <p className="text-[10px] font-bold text-red-500 uppercase mb-1">Alasan Penolakan</p>
+                  <p className="text-sm text-red-700">{sub.alasan_tolak}</p>
+                </div>
+              )}
             </div>
           </Card>
 
