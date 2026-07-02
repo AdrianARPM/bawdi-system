@@ -200,6 +200,7 @@ const JENIS_UMUM = [
   'Beban Izin Kendaraan',
   'Beban Dana Sosial',
   'Beban Sewa Kendaraan',
+  'Beban Perlengkapan Kendaraan',
   'Beban Entertain',
   'Beban ATK',
   'Beban Pengiriman Barang',
