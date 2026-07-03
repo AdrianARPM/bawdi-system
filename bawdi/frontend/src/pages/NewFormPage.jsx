@@ -278,7 +278,7 @@ function ItemRow({ item, idx, totalItems, vendorNum, onUpdate, onRemove, onBlurP
         )}
       </div>
       <div className="grid grid-cols-5 gap-2">
-        <input value={item.satuan} onChange={handleSatuan} placeholder="Satuan"
+        <input value={item.satuan} onChange={handleSatuan} placeholder="Jumlah"
           className={`col-span-2 px-3 py-2.5 rounded-xl border text-sm text-slate-800 outline-none placeholder:text-slate-300 focus:ring-2 focus:ring-amber-100 ${errors[`${eb}_sat`]?'border-red-300':'border-slate-200 focus:border-amber-400'}`}/>
         <div className="col-span-3 relative">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">Rp</span>
