@@ -9,8 +9,8 @@
 // Fix: query submission disederhanakan, tidak pakai join active_snap yang bermasalah
 const supabase = require('../../config/supabase');
 const { v4: uuidv4 } = require('uuid');
-const { sendEmailToUser, emailTemplates } = require('../utils/emailService');
 const ExcelJS = require('exceljs');
+const { sendEmailToUser, emailTemplates } = require('../utils/emailService');
 
 // Helper: cek apakah user adalah Kepala Operasional
 const isKepalaOp = (user) => user?.jabatan === 'Kepala Operasional';
@@ -72,7 +72,7 @@ async function requestRevision(req, res) {
     // ── FIX: query sederhana tanpa join yang bermasalah ──────────
     const { data: sub, error: subErr } = await supabase
       .from('submissions')
-      .select('id, type, nomor_pengajuan, status, pemohon_id, total_harga, alasan, riwayat, vendor, npwp, vendor2, npwp2, rekening_tujuan, revisi_diminta_oleh')
+      .select('id, type, nomor_pengajuan, status, pemohon_id, total_harga, alasan, riwayat, vendor, npwp, vendor2, npwp2, rekening_tujuan, revisi_diminta_oleh, ppn, pph23')
       .eq('id', submissionId)
       .single();
 
@@ -137,6 +137,8 @@ async function requestRevision(req, res) {
       npwp2:            sourceData.npwp2             || '',
       rekening_tujuan:  sourceData.rekening_tujuan   || '',
       total_harga:      sourceData.total_harga       || 0,
+      ppn:              Number(sourceData.ppn) || 0,
+      pph23:            sourceData.pph23             || '',
       diminta_oleh:     req.user.id,
       alasan_revisi:    alasan_revisi.trim(),
       diminta_at:       now,
@@ -204,11 +206,11 @@ async function requestRevision(req, res) {
 // ── PUT /api/revisions/snapshot/:snapshotId — edit draft revisi ───
 async function editRevision(req, res) {
   try {
-    const { alasan, riwayat, vendor, npwp, vendor2, npwp2, rekening_tujuan, items } = req.body;
+    const { alasan, riwayat, vendor, npwp, vendor2, npwp2, rekening_tujuan, items, ppn, pph23 } = req.body;
 
     const { data: snap, error: snapErr } = await supabase
       .from('revision_snapshots')
-      .select('id, status, submission_id, revision_number')
+      .select('id, status, submission_id, revision_number, ppn, pph23')
       .eq('id', req.params.snapshotId)
       .single();
 
@@ -230,14 +232,17 @@ async function editRevision(req, res) {
       const gross = (parseFloat(i.satuan) || 1) * (Number(i.harga) || 0);
       return Number(i.total) || Math.max(0, gross - (Number(i.diskon) || 0));
     };
-    // total_harga revisi hanya menghitung item vendor 1 (konsisten dgn create)
-    const total_harga = items.filter(i => (i.vendor_num || 1) !== 2).reduce((s, i) => s + calcRow(i), 0);
+    // total_harga revisi hanya menghitung item vendor 1 (konsisten dgn create), lalu + ppn
+    const ppnVal   = ppn   != null ? (Number(ppn) || 0) : (Number(snap.ppn) || 0);
+    const pph23Val = pph23 != null ? pph23             : (snap.pph23 || '');
+    const total_harga = items.filter(i => (i.vendor_num || 1) !== 2).reduce((s, i) => s + calcRow(i), 0) + ppnVal;
 
     await supabase.from('revision_snapshots').update({
       alasan: alasan || '', riwayat: riwayat || '',
       vendor: vendor || '', npwp: npwp || '',
       vendor2: vendor2 || '', npwp2: npwp2 || '',
       rekening_tujuan: rekening_tujuan || '',
+      ppn: ppnVal, pph23: pph23Val,
       total_harga,
     }).eq('id', req.params.snapshotId);
 
@@ -691,6 +696,7 @@ async function recordPayment(req, res) {
 
     await notifyUser(sub.pemohon_id, req.params.submissionId, 'payment_recorded',
       `💰 Pembayaran ${sub.nomor_pengajuan} sebesar ${fmt} telah dicatat.`);
+
     // Email ke pemohon bahwa pengajuannya sudah dibayar (non-blocking)
     sendEmailToUser(sub.pemohon_id, {
       ...emailTemplates.payment_recorded(sub.nomor_pengajuan, fmt),
