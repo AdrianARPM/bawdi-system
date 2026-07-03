@@ -246,30 +246,42 @@ try {                                                               // ✅ try a
   // ── Tabel Item ────────────────────────────────────────────────
   // Kolom: No | Penjelasan Item | Satuan | Harga (Rp) | Total Harga
   const items = sub.items || [];
+  let sumGross = 0, sumDiskon = 0;
   const tableBody = items.map((item, i) => {
-    const qty    = parseFloat(item.satuan) || 1;   // satuan sebagai qty jika angka
+    const diskon = parseFloat(item.diskon) || 0;   // diskon nominal per item
     const harga  = parseFloat(item.harga)  || 0;
-    const diskon = parseFloat(item.diskon) || 0;   // v22-PDF: diskon nominal per item
-    const total  = parseFloat(item.total)  || Math.max(0, qty * harga - diskon);
+    const net    = parseFloat(item.total)  || Math.max(0, (parseFloat(item.satuan) || 1) * harga - diskon);
+    const gross  = net + diskon;                    // Total Harga per baris = kotor (sebelum diskon)
+    sumGross  += gross;
+    sumDiskon += diskon;
     return [
       i + 1,
       item.penjelasan || '',
       item.satuan     || '1',           // Satuan
-      fmtCurrencyExport(harga),         // Harga (Rp) — harga normal
-      diskon > 0 ? '- ' + fmtCurrencyExport(diskon) : '—',  // Diskon
-      fmtCurrencyExport(total),         // Total Harga = (qty × harga) − diskon
+      fmtCurrencyExport(harga),         // Harga(Rp)
+      fmtCurrencyExport(gross),         // Total Harga = qty × harga (kotor)
     ];
   });
 
-  // Baris Total — colSpan 5 kolom kiri
-  tableBody.push([
-    { content: 'TOTAL', colSpan: 5, styles: { halign: 'right', fontStyle: 'bold' } },
-    { content: fmtCurrencyExport(sub.total_harga), styles: { fontStyle: 'bold', halign: 'right' } }
-  ]);
+  // ── Baris ringkasan: TOTAL → DISKON → Ppn → TOTAL HARGA ──
+  const ppnVal     = Number(sub.ppn) || 0;
+  const grandTotal = sumGross - sumDiskon + ppnVal;
+  const LIGHT = [253, 243, 231], BRAND = [240, 138, 36], WHITE = [255, 255, 255];
+  const sLabel = (txt, o = {}) => ({ content: txt, colSpan: 4, styles: { halign: 'right', fontStyle: o.bold ? 'bold' : 'normal', fillColor: o.fill, textColor: o.color } });
+  const sVal   = (txt, o = {}) => ({ content: txt,             styles: { halign: 'right', fontStyle: o.bold ? 'bold' : 'normal', fillColor: o.fill, textColor: o.color } });
+
+  if (sumDiskon > 0 || ppnVal > 0) {
+    tableBody.push([sLabel('TOTAL', { bold: true, fill: LIGHT }), sVal(fmtCurrencyExport(sumGross), { bold: true, fill: LIGHT })]);
+    if (sumDiskon > 0) tableBody.push([sLabel('DISKON', { fill: LIGHT }), sVal('- ' + fmtCurrencyExport(sumDiskon), { fill: LIGHT })]);
+    if (ppnVal   > 0)  tableBody.push([sLabel('Ppn',    { fill: LIGHT }), sVal('+ ' + fmtCurrencyExport(ppnVal),    { fill: LIGHT })]);
+    tableBody.push([sLabel('TOTAL HARGA', { bold: true, fill: BRAND, color: WHITE }), sVal(fmtCurrencyExport(grandTotal), { bold: true, fill: BRAND, color: WHITE })]);
+  } else {
+    tableBody.push([sLabel('TOTAL HARGA', { bold: true, fill: BRAND, color: WHITE }), sVal(fmtCurrencyExport(grandTotal), { bold: true, fill: BRAND, color: WHITE })]);
+  }
 
   autoTable(doc, {
     startY: currentY,
-    head: [['No', 'Penjelasan Item', 'Satuan', 'Harga (Rp)', 'Diskon', 'Total Harga']],
+    head: [['No', 'Rincian Item', 'Satuan', 'Harga(Rp)', 'Total Harga']],
     body: tableBody,
     theme: 'grid',
     styles: {
@@ -280,27 +292,20 @@ try {                                                               // ✅ try a
       cellPadding: 1.5
     },
     headStyles: {
-      fillColor: [243, 244, 246],
-      textColor: [50, 50, 50],
+      fillColor: [240, 138, 36],
+      textColor: [255, 255, 255],
       fontStyle: 'bold',
       halign: 'center'
     },
     columnStyles: {
       0: { cellWidth: 10,   halign: 'center' },   // No
-      1: { cellWidth: 'auto' },                    // Penjelasan Item
-      2: { cellWidth: 18,   halign: 'center' },    // Satuan
-      3: { cellWidth: 28,   halign: 'right'  },    // Harga (Rp)
-      4: { cellWidth: 26,   halign: 'right'  },    // Diskon
-      5: { cellWidth: 30,   halign: 'right'  },    // Total Harga
+      1: { cellWidth: 'auto' },                    // Rincian Item
+      2: { cellWidth: 20,   halign: 'center' },    // Satuan
+      3: { cellWidth: 32,   halign: 'right'  },    // Harga(Rp)
+      4: { cellWidth: 34,   halign: 'right'  },    // Total Harga
     },
     margin: { left: margin, right: margin }
   });
-
-  // ── Note PPh Pasal 23 ─────────────────────────────────────────
-  doc.setFontSize(7.5);
-  doc.setFont('helvetica', 'italic');
-  doc.setTextColor(120, 120, 120);
-  doc.text('* PPh Pasal 23 = 2%', margin, doc.lastAutoTable.finalY + 5);
 
   currentY = doc.lastAutoTable.finalY + 12;
 
@@ -412,6 +417,21 @@ try {                                                               // ✅ try a
       leftBottomY = cont;          // tak ada alasan di halaman lanjutan
       rY          = cont + colHeaderH;
     }
+  }
+
+  // ── Pph23 (teks bebas, di bawah keterangan) ───────────────────
+  if (sub.pph23 && String(sub.pph23).trim()) {
+    if (currentY + 14 > pageH - 15) { doc.addPage(); currentY = margin; }
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(80, 80, 80);
+    doc.text('Pph23', margin, currentY);
+    currentY += 5;
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(0, 0, 0);
+    const pphLines = doc.splitTextToSize(String(sub.pph23), pageW - margin * 2);
+    doc.text(pphLines, margin, currentY);
+    currentY += pphLines.length * 4 + 6;
   }
 
   // ── Info Pembayaran / Batas Waktu ─────────────────────────────
