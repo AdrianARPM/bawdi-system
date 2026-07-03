@@ -266,17 +266,16 @@ try {                                                               // ✅ try a
   // ── Baris ringkasan: TOTAL → DISKON → Ppn → TOTAL HARGA ──
   const ppnVal     = Number(sub.ppn) || 0;
   const grandTotal = sumGross - sumDiskon + ppnVal;
-  const LIGHT = [253, 243, 231], BRAND = [240, 138, 36], WHITE = [255, 255, 255];
-  const sLabel = (txt, o = {}) => ({ content: txt, colSpan: 4, styles: { halign: 'right', fontStyle: o.bold ? 'bold' : 'normal', fillColor: o.fill, textColor: o.color } });
-  const sVal   = (txt, o = {}) => ({ content: txt,             styles: { halign: 'right', fontStyle: o.bold ? 'bold' : 'normal', fillColor: o.fill, textColor: o.color } });
+  const sLabel = (txt, bold = false) => ({ content: txt, colSpan: 4, styles: { halign: 'right', fontStyle: bold ? 'bold' : 'normal' } });
+  const sVal   = (txt, bold = false) => ({ content: txt,             styles: { halign: 'right', fontStyle: bold ? 'bold' : 'normal' } });
 
   if (sumDiskon > 0 || ppnVal > 0) {
-    tableBody.push([sLabel('TOTAL', { bold: true, fill: LIGHT }), sVal(fmtCurrencyExport(sumGross), { bold: true, fill: LIGHT })]);
-    if (sumDiskon > 0) tableBody.push([sLabel('DISKON', { fill: LIGHT }), sVal('- ' + fmtCurrencyExport(sumDiskon), { fill: LIGHT })]);
-    if (ppnVal   > 0)  tableBody.push([sLabel('Ppn',    { fill: LIGHT }), sVal('+ ' + fmtCurrencyExport(ppnVal),    { fill: LIGHT })]);
-    tableBody.push([sLabel('TOTAL HARGA', { bold: true, fill: BRAND, color: WHITE }), sVal(fmtCurrencyExport(grandTotal), { bold: true, fill: BRAND, color: WHITE })]);
+    tableBody.push([sLabel('TOTAL', true), sVal(fmtCurrencyExport(sumGross), true)]);
+    if (sumDiskon > 0) tableBody.push([sLabel('DISKON'), sVal('- ' + fmtCurrencyExport(sumDiskon))]);
+    if (ppnVal   > 0)  tableBody.push([sLabel('Ppn'),    sVal('+ ' + fmtCurrencyExport(ppnVal))]);
+    tableBody.push([sLabel('TOTAL HARGA', true), sVal(fmtCurrencyExport(grandTotal), true)]);
   } else {
-    tableBody.push([sLabel('TOTAL HARGA', { bold: true, fill: BRAND, color: WHITE }), sVal(fmtCurrencyExport(grandTotal), { bold: true, fill: BRAND, color: WHITE })]);
+    tableBody.push([sLabel('TOTAL HARGA', true), sVal(fmtCurrencyExport(grandTotal), true)]);
   }
 
   autoTable(doc, {
@@ -292,8 +291,8 @@ try {                                                               // ✅ try a
       cellPadding: 1.5
     },
     headStyles: {
-      fillColor: [240, 138, 36],
-      textColor: [255, 255, 255],
+      fillColor: [243, 244, 246],
+      textColor: [50, 50, 50],
       fontStyle: 'bold',
       halign: 'center'
     },
