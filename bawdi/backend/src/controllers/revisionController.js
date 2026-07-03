@@ -651,7 +651,7 @@ async function recordDP(req, res) {
 
     await supabase.from('messages').insert({
       id: uuidv4(), submission_id: req.params.submissionId, user_id: req.user.id,
-      message: `\u{1F4B5} DP ${fmt} dicatat oleh ${req.user.name} pada ${new Date(tanggal_dp).toLocaleString('id-ID')}`,
+      message: `\u{1F4B5} DP ${fmt} dicatat oleh ${req.user.name} pada ${new Date(tanggal_dp).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}`,
       is_system: true,
     });
 
@@ -685,7 +685,7 @@ async function recordPayment(req, res) {
 
     await supabase.from('messages').insert({
       id: uuidv4(), submission_id: req.params.submissionId, user_id: req.user.id,
-      message: `💰 Pembayaran ${fmt} dicatat oleh ${req.user.name} pada ${new Date(tanggal_bayar).toLocaleString('id-ID')}`,
+      message: `💰 Pembayaran ${fmt} dicatat oleh ${req.user.name} pada ${new Date(tanggal_bayar).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}`,
       is_system: true,
     });
 
