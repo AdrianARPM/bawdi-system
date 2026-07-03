@@ -191,6 +191,7 @@ function RevisiPanel({ snapshot, sub, user, onAction }) {
         </p>
         {[
           ['Alasan',    snapshot.alasan],
+          ...(snapshot.pph23 ? [['Pph23', snapshot.pph23]] : []),
           ['Vendor 1',  snapshot.vendor],
           ...(snapshot.npwp            ? [['NPWP Vendor 1',  snapshot.npwp]]            : []),
           ...(snapshot.rekening_tujuan ? [['Rekening',        snapshot.rekening_tujuan]] : []),
@@ -243,6 +244,12 @@ function RevisiPanel({ snapshot, sub, user, onAction }) {
               </div>
             </div>
           ))}
+          {Number(snapshot.ppn) > 0 && (
+            <div className="flex justify-between px-4 py-2 border-t border-slate-50">
+              <span className="text-xs text-slate-500">Ppn</span>
+              <span className="text-xs font-bold text-emerald-600">+ {fmtCurrency(snapshot.ppn)}</span>
+            </div>
+          )}
           <div className="flex justify-between px-4 py-3 bg-amber-50 border-t border-amber-100">
             <span className="text-sm font-extrabold text-amber-800">TOTAL</span>
             <span className="text-base font-black text-amber-500">{fmtCurrency(snapshot.total_harga)}</span>
@@ -1098,6 +1105,12 @@ export default function DetailPage() {
                 </div>
               </div>
             ))}
+            {Number(sub.ppn) > 0 && (
+              <div className="flex justify-between px-4 py-2 border-t border-slate-50">
+                <span className="text-xs text-slate-500">Ppn</span>
+                <span className="text-xs font-bold text-emerald-600">+ {fmtCurrency(sub.ppn)}</span>
+              </div>
+            )}
             <div className="flex justify-between px-4 py-3 bg-amber-50 border-t border-amber-100">
               <span className="text-sm font-extrabold text-amber-800">TOTAL</span>
               <span className="text-base font-black text-amber-500">{fmtCurrency(sub.total_harga)}</span>
@@ -1112,6 +1125,12 @@ export default function DetailPage() {
                 <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Alasan</p>
                 <p className="text-sm text-slate-700 leading-relaxed">{sub.alasan || '—'}</p>
               </div>
+              {sub.pph23?.trim() && (
+                <div>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Pph23</p>
+                  <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{sub.pph23}</p>
+                </div>
+              )}
               <div>
                 <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Riwayat</p>
                 <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{sub.riwayat || '—'}</p>
