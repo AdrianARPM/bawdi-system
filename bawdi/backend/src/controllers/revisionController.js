@@ -9,6 +9,7 @@
 // Fix: query submission disederhanakan, tidak pakai join active_snap yang bermasalah
 const supabase = require('../../config/supabase');
 const { v4: uuidv4 } = require('uuid');
+const { sendEmailToUser, emailTemplates } = require('../utils/emailService');
 const ExcelJS = require('exceljs');
 
 // Helper: cek apakah user adalah Kepala Operasional
@@ -690,6 +691,11 @@ async function recordPayment(req, res) {
 
     await notifyUser(sub.pemohon_id, req.params.submissionId, 'payment_recorded',
       `💰 Pembayaran ${sub.nomor_pengajuan} sebesar ${fmt} telah dicatat.`);
+    // Email ke pemohon bahwa pengajuannya sudah dibayar (non-blocking)
+    sendEmailToUser(sub.pemohon_id, {
+      ...emailTemplates.payment_recorded(sub.nomor_pengajuan, fmt),
+      nomor: sub.nomor_pengajuan, submissionId: req.params.submissionId, type: 'payment_recorded',
+    }).catch(() => {});
 
     // Ingatkan pemohon untuk upload nota bila belum ada (non-blocking)
     if (!sub.nota_url) {
