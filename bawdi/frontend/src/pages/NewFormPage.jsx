@@ -404,6 +404,7 @@ export default function NewFormPage() {
     items1:[newItem()],
     useVendor2:false, vendor2:'', npwp2:'', items2:[newItem()],
     alasan:'', alasan_type:'', batas_waktu_dana:'', batas_akhir_pembayaran:'',
+    ppn:'', pph23:'',
   });
 
   const set = useCallback((k, v) => { setForm(f=>({...f,[k]:v})); setErrors(e=>({...e,[k]:''})); }, []);
@@ -579,6 +580,7 @@ export default function NewFormPage() {
         vendor:form.vendor, npwp:form.npwp, rekening_tujuan:form.rekening_tujuan,
         vendor2:form.useVendor2?form.vendor2:'', npwp2:form.useVendor2?form.npwp2:'',
         alasan:form.alasan, alasan_type:form.alasan_type, riwayat, km_pengajuan: firstKM,
+        ppn: parseFloat(form.ppn)||0, pph23: form.pph23||'',
         batas_waktu_dana:form.batas_waktu_dana, batas_akhir_pembayaran:form.batas_akhir_pembayaran, items,
       };
       if (navigator.onLine) {
@@ -716,6 +718,10 @@ export default function NewFormPage() {
               <textarea value={form.alasan} onChange={e=>set('alasan',e.target.value)} rows={3} placeholder="Jelaskan alasan pengajuan..."
                 className={`w-full px-3 py-2.5 rounded-xl border text-sm text-slate-800 outline-none resize-none placeholder:text-slate-300 transition-colors leading-relaxed focus:ring-2 ${errors.alasan?'border-red-300 focus:border-red-400 focus:ring-red-50':'border-slate-200 focus:border-amber-400 focus:ring-amber-100'}`}/>
             </Field>
+            <Field label="Pph23 (opsional)" hint="Teks bebas — tampil di detail & PDF, di bawah alasan">
+              <textarea value={form.pph23} onChange={e=>set('pph23',e.target.value)} rows={2} placeholder="Contoh: Pph23 2% ditanggung vendor..."
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none resize-none placeholder:text-slate-300 focus:border-amber-400 focus:ring-2 focus:ring-amber-100 leading-relaxed"/>
+            </Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Batas Waktu Dana" required error={errors.batas_waktu_dana}><input value={form.batas_waktu_dana} onChange={e=>set('batas_waktu_dana',e.target.value)} placeholder="30 Hari" className={ic('batas_waktu_dana')}/></Field>
               <Field label="Batas Akhir Pembayaran" required error={errors.batas_akhir_pembayaran}><input type="date" value={form.batas_akhir_pembayaran} onChange={e=>set('batas_akhir_pembayaran',e.target.value)} className={ic('batas_akhir_pembayaran')}/></Field>
@@ -743,6 +749,24 @@ export default function NewFormPage() {
                 onUpdate={updateItem1} onAdd={addItem1} onRemove={removeItem1}
                 onBlurPenjelasan={handleBlurPenjelasan1} itemKMCache={itemKMCache} isUmum={form.is_umum}
                 suggestions={itemSuggestions}/>
+              {/* Ppn — satu nilai untuk seluruh pengajuan (opsional, menambah total) */}
+              <div className="pt-3 mt-1 border-t border-slate-100 space-y-2.5">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold text-slate-600">Ppn (opsional)</p>
+                    <p className="text-[10px] text-slate-400">Nominal rupiah, menambah total</p>
+                  </div>
+                  <div className="relative w-40">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">Rp</span>
+                    <input type="number" value={form.ppn||''} onChange={e=>set('ppn',e.target.value)} placeholder="0"
+                      className="w-full pl-8 pr-3 py-2 rounded-xl border border-slate-200 text-sm text-right text-slate-800 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100"/>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-xs font-bold text-slate-500">Total Akhir (Vendor 1 + Ppn)</span>
+                  <span className="text-base font-black text-amber-500">{fmtCurrency(total1 + (parseFloat(form.ppn)||0))}</span>
+                </div>
+              </div>
             </div>
           </Card>
           {!form.is_umum&&form.kendaraan?.trim()&&<VehicleHistoryPanel kendaraan={form.kendaraan}/>}
@@ -794,7 +818,7 @@ export default function NewFormPage() {
               <p className="text-[10px] text-slate-400 mb-1">Nomor Pengajuan</p>
               <p className="text-base font-black text-amber-400">{buildNomor(form.nomorUrut,form.type,form.cabangManual)}</p>
             </div>
-            {[['Jenis',form.type],...(form.is_umum?[['Mode','Barang Kantor / Umum']]:[]),['Pemohon',user?.name],...(form.is_umum?[]:[['Kendaraan',form.kendaraan]]),['Jenis Pembelian',form.jenis_pembelian],['Vendor 1',form.vendor],...(form.rekening_tujuan?[['Rekening',form.rekening_tujuan]]:[]),['Total Vendor 1',fmtCurrency(total1)],...(form.useVendor2?[['Vendor 2',form.vendor2],['Total Vendor 2',fmtCurrency(total2)]]:[]),['Batas Waktu',form.batas_waktu_dana],['Batas Bayar',form.batas_akhir_pembayaran],['Foto',`${photos.length} foto`]].map(([k,v],i,arr)=>(
+            {[['Jenis',form.type],...(form.is_umum?[['Mode','Barang Kantor / Umum']]:[]),['Pemohon',user?.name],...(form.is_umum?[]:[['Kendaraan',form.kendaraan]]),['Jenis Pembelian',form.jenis_pembelian],['Vendor 1',form.vendor],...(form.rekening_tujuan?[['Rekening',form.rekening_tujuan]]:[]),['Total Vendor 1',fmtCurrency(total1)],...((parseFloat(form.ppn)||0)>0?[['Ppn',fmtCurrency(parseFloat(form.ppn)||0)],['Total Akhir',fmtCurrency(total1+(parseFloat(form.ppn)||0))]]:[]),...(form.useVendor2?[['Vendor 2',form.vendor2],['Total Vendor 2',fmtCurrency(total2)]]:[]),['Batas Waktu',form.batas_waktu_dana],['Batas Bayar',form.batas_akhir_pembayaran],['Foto',`${photos.length} foto`]].map(([k,v],i,arr)=>(
               <div key={k} className={`flex justify-between gap-4 py-2 ${i<arr.length-1?'border-b border-slate-50':''}`}>
                 <span className="text-xs text-slate-400">{k}</span><span className="text-xs font-bold text-slate-700 text-right">{v}</span>
               </div>
@@ -836,6 +860,11 @@ export default function NewFormPage() {
             </>)}
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Alasan Pengajuan</p>
             <div className="text-xs text-slate-700 leading-relaxed whitespace-pre-line bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-200 mb-4">{form.alasan?.trim() || '—'}</div>
+
+            {form.pph23?.trim() && (<>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Pph23</p>
+            <div className="text-xs text-slate-700 leading-relaxed whitespace-pre-line bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-200 mb-4">{form.pph23}</div>
+            </>)}
 
             {/* Riwayat KM — hanya pengajuan kendaraan */}
             {!form.is_umum && (<>
