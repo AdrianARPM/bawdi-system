@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Plus, FileText } from 'lucide-react';
 import { submissionAPI } from '../utils/api';
-import { Pill, Card, Spinner, Empty, fmtDate, fmtCurrency, daysSince } from '../components/ui';
+import { Pill, Card, Spinner, Empty, fmtDate, fmtCurrency, daysSince, RevisiBadge } from '../components/ui';
 import useAuthStore from '../context/authStore';
 
 const STATUSES = ['Semua','Menunggu Verifikasi','Terverifikasi','Disetujui','Ditolak'];
@@ -93,6 +93,7 @@ export default function SubmissionsPage() {
                 </div>
                 <div className="text-right flex-shrink-0">
                   <Pill status={s.status} />
+                  {s.revisi_count > 0 && <div className="mt-1 flex justify-end"><RevisiBadge count={s.revisi_count} /></div>}
                   <p className="text-xs font-black text-brand-500 mt-1.5">{fmtCurrency(s.total_harga)}</p>
                 </div>
               </div>
