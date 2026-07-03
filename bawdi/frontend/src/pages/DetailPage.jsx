@@ -338,7 +338,7 @@ function PaymentPanel({ sub, user, onRefresh }) {
     if (!dpDate || !dpJumlah) { toast.error('Tanggal dan jumlah DP wajib diisi'); return; }
     setSaving('dp');
     try {
-      const tgl = dpDate && dpTime ? `${dpDate}T${dpTime}:00` : dpDate;
+      const tgl = new Date(`${dpDate}T${dpTime || '00:00'}:00+07:00`).toISOString();
       await revisionAPI.recordDP(sub.id, {
         tanggal_dp: tgl, jumlah_dp: dpJumlah, catatan_dp: dpCat,
       });
@@ -354,7 +354,7 @@ function PaymentPanel({ sub, user, onRefresh }) {
     if (!payDate || !payJumlah) { toast.error('Tanggal dan jumlah wajib diisi'); return; }
     setSaving('pay');
     try {
-      const tgl = payDate && payTime ? `${payDate}T${payTime}:00` : payDate;
+     const tgl = new Date(`${payDate}T${payTime || '00:00'}:00+07:00`).toISOString();
       await revisionAPI.recordPayment(sub.id, {
         tanggal_bayar: tgl, jumlah_bayar: payJumlah, catatan_bayar: payCat,
       });
