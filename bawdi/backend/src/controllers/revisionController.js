@@ -691,6 +691,14 @@ async function recordPayment(req, res) {
     await notifyUser(sub.pemohon_id, req.params.submissionId, 'payment_recorded',
       `💰 Pembayaran ${sub.nomor_pengajuan} sebesar ${fmt} telah dicatat.`);
 
+    // Ingatkan pemohon untuk upload nota bila belum ada (non-blocking)
+    if (!sub.nota_url) {
+      try {
+        await notifyUser(sub.pemohon_id, req.params.submissionId, 'nota_reminder',
+          `📄 Pembayaran ${sub.nomor_pengajuan} sudah dicatat — mohon segera upload nota pembayaran.`);
+      } catch (e) { console.warn('[recordPayment] pengingat nota dilewati:', e.message); }
+    }
+
     res.json({ message: 'Pembayaran berhasil dicatat' });
   } catch (err) {
     res.status(500).json({ error: 'Gagal mencatat pembayaran: ' + err.message });
