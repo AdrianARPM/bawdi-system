@@ -146,7 +146,7 @@ async function create(req, res) {
       type, kendaraan, vendor, npwp, rekening_tujuan,
       vendor2, npwp2, jenis_pembelian, alasan, alasan_type, riwayat,
       batas_waktu_dana, batas_akhir_pembayaran, items, km_pengajuan,
-      is_umum,
+      is_umum, ppn, pph23,
     } = req.body;
 
     // Pengajuan umum (barang kantor/GA) tidak punya kendaraan.
@@ -177,6 +177,7 @@ async function create(req, res) {
       return Number(i.total) || Math.max(0, net);
     };
     const total1 = items.filter(i => i.vendor_num !== 2).reduce((s, i) => s + calcRow(i), 0);
+    const ppnVal = Number(ppn) || 0;
     const submissionId = uuidv4();
     const now = new Date().toISOString();
 
@@ -195,7 +196,9 @@ async function create(req, res) {
       jenis_pembelian, alasan, alasan_type: alasan_type || '', riwayat,
       km_pengajuan: km_pengajuan != null ? Number(km_pengajuan) : null,
       batas_waktu_dana, batas_akhir_pembayaran,
-      total_harga: total1,
+      total_harga: total1 + ppnVal,
+      ppn: ppnVal,
+      pph23: pph23 || '',
       tanggal: now,
     });
     if (subErr) throw subErr;
@@ -257,7 +260,7 @@ async function selectVendor(req, res) {
       return res.status(400).json({ error: 'Pilihan vendor harus 1 atau 2' });
 
     const { data: sub } = await supabase.from('submissions')
-      .select('status, nomor_pengajuan, pemohon_id, vendor, vendor2, items:submission_items(*)')
+      .select('status, nomor_pengajuan, pemohon_id, vendor, vendor2, ppn, items:submission_items(*)')
       .eq('id', req.params.id).single();
     if (!sub) return res.status(404).json({ error: 'Pengajuan tidak ditemukan' });
 
@@ -268,7 +271,7 @@ async function selectVendor(req, res) {
     await supabase.from('submissions').update({
       vendor_pilihan: vNum,
       vendor_pilihan_alasan: vendor_pilihan_alasan || '',
-      total_harga: newTotal,
+      total_harga: newTotal + (Number(sub.ppn) || 0),
     }).eq('id', req.params.id);
 
     await supabase.from('messages').insert({
