@@ -37,6 +37,22 @@ async function notifyRole(role, submissionId, type, message) {
   } catch (e) { console.error('[notifyRole]', e.message); }
 }
 
+// Email ke Kepala Operasional (untuk revisi PAR)
+async function sendEmailToKepalaOp({ subject, message, nomor, submissionId, type }) {
+  try {
+    const { data: users } = await supabase
+      .from('users').select('email, email_notif')
+      .eq('jabatan', 'Kepala Operasional').eq('is_active', true).eq('email_notif', true);
+    if (!users?.length) return;
+    const { sendEmail } = require('../utils/emailService');
+    await Promise.allSettled(
+      users.filter(u => u.email).map(u =>
+        sendEmail({ to: u.email, subject, message, nomor, submissionId, type })
+      )
+    );
+  } catch (e) { console.error('[sendEmailToKepalaOp]', e.message); }
+}
+
 // ── GET /api/revisions/:submissionId ─────────────────────────────
 async function getRevisions(req, res) {
   try {
@@ -392,9 +408,17 @@ async function verifyRevision(req, res) {
           is_read: false,
         })));
       }
+      sendEmailToKepalaOp({
+        ...emailTemplates.need_approval(sub?.nomor_pengajuan),
+        nomor: sub?.nomor_pengajuan, submissionId: snap.submission_id, type: 'need_approval',
+      }).catch(() => {});
     } else {
       await notifyRole('Approval', snap.submission_id, 'need_approval',
         `📋 Revisi ke-${snap.revision_number} pengajuan ${sub?.nomor_pengajuan} menunggu persetujuan.`);
+      sendEmailToRole('Approval', {
+        ...emailTemplates.need_approval(sub?.nomor_pengajuan),
+        nomor: sub?.nomor_pengajuan, submissionId: snap.submission_id, type: 'need_approval',
+      }).catch(() => {});
     }
 
     res.json({ message: 'Revisi berhasil diverifikasi' });
