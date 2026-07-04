@@ -209,6 +209,12 @@ async function requestRevision(req, res) {
       `📝 Pengajuan ${sub.nomor_pengajuan} perlu direvisi ke-${revisionNumber}. Catatan: ${alasan_revisi}`
     );
 
+    // Email ke pemohon: pengajuan perlu direvisi (non-blocking)
+    sendEmailToUser(sub.pemohon_id, {
+      ...emailTemplates.revision_request(sub.nomor_pengajuan, revisionNumber, alasan_revisi.trim()),
+      nomor: sub.nomor_pengajuan, submissionId, type: 'revision_request',
+    }).catch(() => {});
+
     res.json({
       message:     `Permintaan revisi ke-${revisionNumber} berhasil dikirim`,
       snapshot_id: snapshotId,
