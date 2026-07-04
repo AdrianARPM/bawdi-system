@@ -481,6 +481,12 @@ async function approveRevision(req, res) {
     await notifyUser(sub?.pemohon_id, snap.submission_id, 'approved',
       `🎉 Revisi ke-${snap.revision_number} pengajuan ${sub?.nomor_pengajuan} telah DISETUJUI.`);
 
+    // Email ke pemohon: revisi disetujui (non-blocking)
+    sendEmailToUser(sub?.pemohon_id, {
+      ...emailTemplates.approved(sub?.nomor_pengajuan),
+      nomor: sub?.nomor_pengajuan, submissionId: snap.submission_id, type: 'approved',
+    }).catch(() => {});
+
     // Jadwalkan notifikasi deadline
     if (sub?.batas_akhir_pembayaran) {
       const deadlineDate = new Date(sub.batas_akhir_pembayaran);
@@ -544,6 +550,12 @@ async function rejectRevision(req, res) {
 
     await notifyUser(sub?.pemohon_id, snap.submission_id, 'rejected',
       `❌ Revisi ke-${snap.revision_number} ditolak. Alasan: ${alasan_tolak}`);
+
+    // Email ke pemohon: revisi ditolak (non-blocking)
+    sendEmailToUser(sub?.pemohon_id, {
+      ...emailTemplates.rejected(sub?.nomor_pengajuan, alasan_tolak),
+      nomor: sub?.nomor_pengajuan, submissionId: snap.submission_id, type: 'rejected',
+    }).catch(() => {});
 
     res.json({ message: `Revisi ke-${snap.revision_number} berhasil ditolak` });
   } catch (err) {
