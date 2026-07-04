@@ -10,7 +10,7 @@
 const supabase = require('../../config/supabase');
 const { v4: uuidv4 } = require('uuid');
 const ExcelJS = require('exceljs');
-const { sendEmailToUser, emailTemplates } = require('../utils/emailService');
+const { sendEmailToUser, sendEmailToRole, emailTemplates } = require('../utils/emailService');
 
 // Helper: cek apakah user adalah Kepala Operasional
 const isKepalaOp = (user) => user?.jabatan === 'Kepala Operasional';
