@@ -1,5 +1,5 @@
 // src/components/NotificationBell.jsx — bell + dropdown daftar notifikasi
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, BellRing, Check, X } from 'lucide-react';
 import { notifAPI, pushAPI } from '../utils/api';
@@ -23,6 +23,30 @@ function urlBase64ToUint8Array(base64String) {
   const base64  = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
   const raw     = window.atob(base64);
   return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+}
+
+// Judul asli tab (di-prefix "(N) " saat ada notifikasi belum dibaca)
+const BASE_TITLE = typeof document !== 'undefined' ? document.title : 'BAWDI Maintenance System';
+
+// Bunyi "ping" singkat via Web Audio (tanpa file audio).
+// Catatan: browser memblokir audio sebelum interaksi pertama user di halaman.
+let audioCtx = null;
+function playPing() {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+    const t    = audioCtx.currentTime;
+    const osc  = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, t);        // A5
+    osc.frequency.setValueAtTime(1318.5, t + 0.09); // E6 — "ping" naik yang khas
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.18, t + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(t); osc.stop(t + 0.4);
+  } catch { /* audio diblokir/tidak didukung — abaikan */ }
 }
 
 const PUSH_SUPPORTED = typeof window !== 'undefined'
@@ -83,6 +107,20 @@ export default function NotificationBell({ variant = 'light' }) {
   }, []);
 
   const unread = items.filter(n => !n.is_read).length;
+  const prevUnread = useRef(null);
+
+  // Badge di judul tab browser: "(3) BAWDI Maintenance System"
+  useEffect(() => {
+    document.title = unread > 0 ? `(${unread > 9 ? '9+' : unread}) ${BASE_TITLE}` : BASE_TITLE;
+  }, [unread]);
+  useEffect(() => () => { document.title = BASE_TITLE; }, []);
+
+  // Bunyi ping saat jumlah belum-dibaca BERTAMBAH (bukan saat muat pertama)
+  useEffect(() => {
+    if (prevUnread.current === null) { prevUnread.current = unread; return; }
+    if (unread > prevUnread.current) playPing();
+    prevUnread.current = unread;
+  }, [unread]);
 
   const openNotif = async (n) => {
     setOpen(false);
