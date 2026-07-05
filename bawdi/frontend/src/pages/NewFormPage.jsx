@@ -194,6 +194,7 @@ const JENIS_KENDARAAN = [
   'Beban Perawatan dan Suku Cadang',
   'Beban Perlengkapan Kendaraan',
   'Beban Perbaikan dan Perlengkapan Kendaraan',
+  'Beban Pengiriman Barang',
   'Beban Izin Kendaraan',
   'Beban Parkir',
   'Beban BBM',
