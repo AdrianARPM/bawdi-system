@@ -68,7 +68,7 @@ export default function SubmissionsPage() {
       <div className="space-y-2.5">
         {filtered.map(s => {
           const isAlert = ['Menunggu Verifikasi','Terverifikasi'].includes(s.status) && daysSince(s.tanggal) > 3;
-          const notaAlert = s.status === 'Disetujui' && !s.nota_url && daysSince(s.approval_at) >= 0;
+          const notaAlert = s.status === 'Disetujui' && !s.nota_url && daysSince(s.approval_at) >= 1;
           return (
             <Link key={s.id} to={`/submissions/${s.id}`}
               className={`block bg-white rounded-2xl p-4 border shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5 ${
