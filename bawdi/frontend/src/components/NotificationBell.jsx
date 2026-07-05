@@ -1,8 +1,8 @@
 // src/components/NotificationBell.jsx — bell + dropdown daftar notifikasi
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, Check, X } from 'lucide-react';
-import { notifAPI } from '../utils/api';
+import { Bell, BellRing, Check, X } from 'lucide-react';
+import { notifAPI, pushAPI } from '../utils/api';
 
 function timeAgo(iso) {
   if (!iso) return '';
@@ -18,11 +18,60 @@ function timeAgo(iso) {
   return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64  = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw     = window.atob(base64);
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+}
+
+const PUSH_SUPPORTED = typeof window !== 'undefined'
+  && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+
 // variant: 'light' (topbar terang) | 'dark' (sidebar gelap)
 export default function NotificationBell({ variant = 'light' }) {
   const navigate = useNavigate();
   const [open,  setOpen]  = useState(false);
   const [items, setItems] = useState([]);
+  const [push,  setPush]  = useState('hidden'); // hidden | off | on | busy
+
+  useEffect(() => {
+    if (!PUSH_SUPPORTED) return;
+    (async () => {
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        setPush(sub ? 'on' : 'off');
+      } catch { /* SW belum siap → sembunyikan */ }
+    })();
+  }, []);
+
+  const togglePush = async () => {
+    if (push === 'busy') return;
+    setPush('busy');
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const existing = await reg.pushManager.getSubscription();
+      if (existing) {
+        await pushAPI.unsubscribe(existing.endpoint).catch(() => {});
+        await existing.unsubscribe();
+        setPush('off'); return;
+      }
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') { setPush('off'); return; }
+      const { data } = await pushAPI.vapidKey();
+      if (!data?.key) { alert('Notifikasi perangkat belum dikonfigurasi di server.'); setPush('off'); return; }
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(data.key),
+      });
+      await pushAPI.subscribe(sub.toJSON());
+      setPush('on');
+    } catch (e) {
+      console.error('[push]', e);
+      setPush('off');
+    }
+  };
 
   const load = async () => {
     try { const { data } = await notifAPI.list(); setItems(data.data || []); } catch {}
@@ -100,6 +149,21 @@ export default function NotificationBell({ variant = 'light' }) {
                 </button>
               ))}
             </div>
+            {push !== 'hidden' && (
+              <div className="px-4 py-2.5 border-t border-slate-100 flex-shrink-0 bg-slate-50/60">
+                <button onClick={togglePush} disabled={push === 'busy'}
+                  className={`w-full flex items-center justify-center gap-1.5 text-[11px] font-bold rounded-lg py-2 transition-colors ${
+                    push === 'on'
+                      ? 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100'
+                      : 'text-slate-600 bg-white border border-slate-200 hover:bg-slate-100'
+                  }`}>
+                  <BellRing size={12}/>
+                  {push === 'on' ? 'Notifikasi perangkat aktif — ketuk untuk matikan'
+                    : push === 'busy' ? 'Memproses...'
+                    : 'Aktifkan notifikasi perangkat (HP/desktop)'}
+                </button>
+              </div>
+            )}
           </div>
         </>
       )}
