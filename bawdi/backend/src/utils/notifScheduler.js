@@ -1,4 +1,4 @@
-// src/utils/notifScheduler.js  — v8 (email + Web Push + digest harian 07:00 WIB)
+// src/utils/notifScheduler.js  — v9 (digest nota juga ke pemohon per-orang)
 const supabase = require('../../config/supabase');
 const { v4: uuidv4 } = require('uuid');
 const { sendEmail, sendEmailToUser, sendEmailToRole, emailTemplates } = require('./emailService');
@@ -139,7 +139,7 @@ async function sendDailyDigest() {
       supabase.from('submissions').select('nomor_pengajuan,total_harga,tanggal').eq('type', 'PR').eq('status', 'Menunggu Verifikasi').order('tanggal'),
       supabase.from('submissions').select('nomor_pengajuan,total_harga,tanggal').eq('type', 'PR').eq('status', 'Terverifikasi').order('tanggal'),
       supabase.from('submissions').select('nomor_pengajuan,total_harga,tanggal').eq('type', 'PAR').in('status', ['Menunggu Verifikasi', 'Terverifikasi']).order('tanggal'),
-      supabase.from('submissions').select('nomor_pengajuan').eq('status', 'Disetujui').is('nota_url', null),
+      supabase.from('submissions').select('id,nomor_pengajuan,total_harga,tanggal,pemohon_id').eq('status', 'Disetujui').is('nota_url', null).order('tanggal'),
     ]).then(rs => rs.map(r => r.data || []));
 
     // Verifikator: antrian verifikasi PR
@@ -169,6 +169,24 @@ async function sendDailyDigest() {
         sendEmail({ to: u.email, subject: `📋 Digest Harian — ${parQ.length} PAR menunggu keputusan`, message: msg, type: 'daily_digest' })
       ));
       sendPushToJabatan('Kepala Operasional', { title: 'Digest Harian BAWDI', body: `${parQ.length} pengajuan PAR menunggu keputusan Anda.` }).catch(() => {});
+    }
+
+    // Pemohon: pengajuannya sendiri yang disetujui tapi BELUM ada nota (penekanan utama)
+    if (notaQ.length) {
+      const byPemohon = {};
+      for (const s of notaQ) {
+        if (!s.pemohon_id) continue;
+        (byPemohon[s.pemohon_id] = byPemohon[s.pemohon_id] || []).push(s);
+      }
+      for (const [pid, rows] of Object.entries(byPemohon)) {
+        const msg = `Ringkasan pagi BAWDI (${todayWIB}):\n\n${rows.length} pengajuan Anda sudah disetujui tetapi BELUM ada nota pembayaran:\n${rows.map(line).join('\n')}\n\nMohon segera upload nota di halaman pengajuan (tab Nota & Bayar).`;
+        sendEmailToUser(pid, { subject: `📄 Digest Harian — ${rows.length} nota belum diupload`, message: msg, type: 'daily_digest' }).catch(() => {});
+        sendPushToUser(pid, {
+          title: 'Digest Harian BAWDI',
+          body: `${rows.length} pengajuan Anda belum ada nota — mohon segera upload.`,
+          submissionId: rows.length === 1 ? rows[0].id : null,
+        }).catch(() => {});
+      }
     }
 
     if (verifQ.length || apprQ.length || parQ.length || notaQ.length)
