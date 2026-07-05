@@ -1,4 +1,4 @@
-// src/utils/api.js  — v8 (tambah revisionAPI.exportArsip — export Excel arsip per cabang)
+// src/utils/api.js  — v7
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
@@ -47,6 +47,12 @@ export const notifAPI = {
   list:    () => api.get('/notifications'),
   readAll: () => api.put('/notifications/read-all'),
   readOne: id => api.put(`/notifications/${id}/read`),
+};
+
+export const pushAPI = {
+  vapidKey:    ()       => api.get('/push/vapid-public-key'),
+  subscribe:   sub      => api.post('/push/subscribe', { subscription: sub }),
+  unsubscribe: endpoint => api.post('/push/unsubscribe', { endpoint }),
 };
 export const userAPI = {
   list:          () => api.get('/users'),
