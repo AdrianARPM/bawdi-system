@@ -405,6 +405,7 @@ export default function NewFormPage() {
     useVendor2:false, vendor2:'', npwp2:'', items2:[newItem()],
     alasan:'', alasan_type:'', batas_waktu_dana:'', batas_akhir_pembayaran:'',
     ppn:'', pph23:'',
+    kmMassal:'',
   });
 
   const set = useCallback((k, v) => { setForm(f=>({...f,[k]:v})); setErrors(e=>({...e,[k]:''})); }, []);
@@ -458,8 +459,14 @@ export default function NewFormPage() {
   // Item handlers
   const updateItem1 = useCallback((id,f,v)=>setForm(s=>({...s,items1:s.items1.map(it=>it.id===id?{...it,[f]:v}:it)})),[]);
   const updateItem2 = useCallback((id,f,v)=>setForm(s=>({...s,items2:s.items2.map(it=>it.id===id?{...it,[f]:v}:it)})),[]);
-  const addItem1    = useCallback(()=>setForm(s=>({...s,items1:[...s.items1,newItem()]})),[]);
-  const addItem2    = useCallback(()=>setForm(s=>({...s,items2:[...s.items2,newItem()]})),[]);
+  const addItem1    = useCallback(()=>setForm(s=>({...s,items1:[...s.items1,{...newItem(),km_pengajuan:s.kmMassal||''}]})),[]);
+  const addItem2    = useCallback(()=>setForm(s=>({...s,items2:[...s.items2,{...newItem(),km_pengajuan:s.kmMassal||''}]})),[]);
+  // KM massal: mengetik di field utama menyalin KM ke semua item (Vendor 1 & 2)
+  const setKmMassal = useCallback((v)=>setForm(s=>({
+    ...s, kmMassal:v,
+    items1:s.items1.map(it=>({...it,km_pengajuan:v})),
+    items2:s.items2.map(it=>({...it,km_pengajuan:v})),
+  })),[]);
   const removeItem1 = useCallback((id)=>{
     setForm(s=>({...s,items1:s.items1.filter(it=>it.id!==id)}));
     setItemKMCache(c => { const n = {...c}; delete n[id]; return n; });
@@ -719,7 +726,7 @@ export default function NewFormPage() {
                 className={`w-full px-3 py-2.5 rounded-xl border text-sm text-slate-800 outline-none resize-none placeholder:text-slate-300 transition-colors leading-relaxed focus:ring-2 ${errors.alasan?'border-red-300 focus:border-red-400 focus:ring-red-50':'border-slate-200 focus:border-amber-400 focus:ring-amber-100'}`}/>
             </Field>
             <Field label="Pph23 (opsional)" hint="Teks bebas — tampil di detail & PDF, di bawah alasan">
-              <textarea value={form.pph23} onChange={e=>set('pph23',e.target.value)} rows={2} placeholder="Contoh: Pph23 2% ditanggung vendor..."
+              <textarea value={form.pph23} onChange={e=>set('pph23',e.target.value)} rows={2} placeholder="Contoh: Pph23 Rp.--- x 2% = ..."
                 className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none resize-none placeholder:text-slate-300 focus:border-amber-400 focus:ring-2 focus:ring-amber-100 leading-relaxed"/>
             </Field>
             <div className="grid grid-cols-2 gap-3">
@@ -745,6 +752,19 @@ export default function NewFormPage() {
               <Field label="Rekening Tujuan Pembayaran" hint="Bank — Nomor a/n Nama">
                 <textarea value={form.rekening_tujuan} onChange={e=>set('rekening_tujuan',e.target.value)} rows={2} placeholder="BCA — 1234567890 a/n Nama" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none resize-none placeholder:text-slate-300 focus:border-amber-400 focus:ring-2 focus:ring-amber-100"/>
               </Field>
+              {!form.is_umum && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3.5 space-y-1.5">
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div>
+                      <p className="text-xs font-bold text-amber-800">KM Kendaraan Saat Ini</p>
+                      <p className="text-[10px] text-amber-700/80">Diisi otomatis ke kolom KM semua item — tidak perlu isi berulang</p>
+                    </div>
+                    <input type="number" value={form.kmMassal} onChange={e=>setKmMassal(e.target.value)} placeholder="Contoh: 152400"
+                      className="w-44 px-3 py-2 rounded-xl border border-amber-300 bg-white text-sm text-slate-800 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100"/>
+                  </div>
+                  <p className="text-[10px] text-amber-700/60">KM per item tetap bisa diubah satu-satu bila ada yang berbeda.</p>
+                </div>
+              )}
               <ItemsSection items={form.items1} total={total1} vendorNum={1} errors={errors}
                 onUpdate={updateItem1} onAdd={addItem1} onRemove={removeItem1}
                 onBlurPenjelasan={handleBlurPenjelasan1} itemKMCache={itemKMCache} isUmum={form.is_umum}
@@ -763,7 +783,7 @@ export default function NewFormPage() {
                   </div>
                 </div>
                 <div className="flex items-center justify-between pt-1">
-                  <span className="text-xs font-bold text-slate-500">Total Akhir (Vendor 1 + Ppn)</span>
+                  <span className="text-xs font-bold text-slate-500">Total Akhir (Vendor + Ppn)</span>
                   <span className="text-base font-black text-amber-500">{fmtCurrency(total1 + (parseFloat(form.ppn)||0))}</span>
                 </div>
               </div>
