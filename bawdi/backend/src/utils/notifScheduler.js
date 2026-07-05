@@ -1,13 +1,15 @@
-// src/utils/notifScheduler.js  — v7 (dengan email notifications)
+// src/utils/notifScheduler.js  — v8 (email + Web Push + digest harian 07:00 WIB)
 const supabase = require('../../config/supabase');
 const { v4: uuidv4 } = require('uuid');
-const { sendEmailToUser, sendEmailToRole, emailTemplates } = require('./emailService');
+const { sendEmail, sendEmailToUser, sendEmailToRole, emailTemplates } = require('./emailService');
+const { sendPushToUser, sendPushToRole, sendPushToJabatan } = require('./pushService');
 
 async function notifyUser(userId, submissionId, type, message) {
   if (!userId) return;
   await supabase.from('notifications').insert({
     id: uuidv4(), user_id: userId, submission_id: submissionId, type, message, is_read: false
   });
+  sendPushToUser(userId, { body: message, submissionId }).catch(() => {});
 }
 
 async function notifyRole(role, submissionId, type, message) {
@@ -16,6 +18,7 @@ async function notifyRole(role, submissionId, type, message) {
   await supabase.from('notifications').insert(
     users.map(u => ({ id: uuidv4(), user_id: u.id, submission_id: submissionId, type, message, is_read: false }))
   );
+  sendPushToRole(role, { body: message, submissionId }).catch(() => {});
 }
 
 // ── Cek overdue > 2 hari ─────────────────────────────────────────
@@ -110,7 +113,70 @@ async function checkDeadlines() {
   } catch (err) { console.error('[scheduler/checkDeadlines]', err.message); }
 }
 
-async function runAll() { await checkOverdue(); await checkDeadlines(); }
+// ── Digest harian 07:00 WIB — ringkasan antrian per role ─────────
+const DIGEST_HOUR_WIB = 7;
+
+async function sendDailyDigest() {
+  try {
+    const hourWIB = Number(new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Jakarta', hour: '2-digit', hour12: false,
+    }).format(new Date()));
+    if (hourWIB !== DIGEST_HOUR_WIB) return;
+
+    // Anti-dobel: cek email_logs, sudah ada digest sejak 00:00 WIB hari ini?
+    const todayWIB = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+    const startUTC = new Date(`${todayWIB}T00:00:00+07:00`).toISOString();
+    const { count, error: logErr } = await supabase
+      .from('email_logs').select('id', { count: 'exact', head: true })
+      .eq('type', 'daily_digest').gte('created_at', startUTC);
+    if (logErr) { console.error('[digest] cek log gagal, skip:', logErr.message); return; }
+    if ((count || 0) > 0) return;
+
+    const fmtRp = v => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(v || 0);
+    const line  = s => `• ${s.nomor_pengajuan} — ${fmtRp(s.total_harga)} (${new Date(s.tanggal).toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day: '2-digit', month: 'short' })})`;
+
+    const [verifQ, apprQ, parQ, notaQ] = await Promise.all([
+      supabase.from('submissions').select('nomor_pengajuan,total_harga,tanggal').eq('type', 'PR').eq('status', 'Menunggu Verifikasi').order('tanggal'),
+      supabase.from('submissions').select('nomor_pengajuan,total_harga,tanggal').eq('type', 'PR').eq('status', 'Terverifikasi').order('tanggal'),
+      supabase.from('submissions').select('nomor_pengajuan,total_harga,tanggal').eq('type', 'PAR').in('status', ['Menunggu Verifikasi', 'Terverifikasi']).order('tanggal'),
+      supabase.from('submissions').select('nomor_pengajuan').eq('status', 'Disetujui').is('nota_url', null),
+    ]).then(rs => rs.map(r => r.data || []));
+
+    // Verifikator: antrian verifikasi PR
+    if (verifQ.length) {
+      const msg = `Ringkasan pagi BAWDI (${todayWIB}):\n\n${verifQ.length} pengajuan menunggu verifikasi Anda:\n${verifQ.map(line).join('\n')}\n\nBuka web BAWDI untuk memproses.`;
+      sendEmailToRole('Verifikator', { subject: `📋 Digest Harian — ${verifQ.length} menunggu verifikasi`, message: msg, type: 'daily_digest' }).catch(() => {});
+      sendPushToRole('Verifikator', { title: 'Digest Harian BAWDI', body: `${verifQ.length} pengajuan menunggu verifikasi Anda.` }).catch(() => {});
+    }
+
+    // Approval: antrian persetujuan PR + info nota belum ada
+    if (apprQ.length || notaQ.length) {
+      const parts = [];
+      if (apprQ.length) parts.push(`${apprQ.length} pengajuan menunggu persetujuan Anda:\n${apprQ.map(line).join('\n')}`);
+      if (notaQ.length) parts.push(`${notaQ.length} pengajuan disetujui tetapi belum ada nota.`);
+      const msg = `Ringkasan pagi BAWDI (${todayWIB}):\n\n${parts.join('\n\n')}\n\nBuka web BAWDI untuk memproses.`;
+      sendEmailToRole('Approval', { subject: `📋 Digest Harian — ${apprQ.length} menunggu persetujuan`, message: msg, type: 'daily_digest' }).catch(() => {});
+      sendPushToRole('Approval', { title: 'Digest Harian BAWDI', body: `${apprQ.length} menunggu persetujuan, ${notaQ.length} belum ada nota.` }).catch(() => {});
+    }
+
+    // Kepala Operasional: antrian PAR
+    if (parQ.length) {
+      const msg = `Ringkasan pagi BAWDI (${todayWIB}):\n\n${parQ.length} pengajuan PAR menunggu keputusan Anda:\n${parQ.map(line).join('\n')}\n\nBuka web BAWDI untuk memproses.`;
+      const { data: kops } = await supabase
+        .from('users').select('email, email_notif')
+        .eq('jabatan', 'Kepala Operasional').eq('is_active', true).eq('email_notif', true);
+      await Promise.allSettled((kops || []).filter(u => u.email).map(u =>
+        sendEmail({ to: u.email, subject: `📋 Digest Harian — ${parQ.length} PAR menunggu keputusan`, message: msg, type: 'daily_digest' })
+      ));
+      sendPushToJabatan('Kepala Operasional', { title: 'Digest Harian BAWDI', body: `${parQ.length} pengajuan PAR menunggu keputusan Anda.` }).catch(() => {});
+    }
+
+    if (verifQ.length || apprQ.length || parQ.length || notaQ.length)
+      console.log(`[scheduler] Daily digest terkirim (verif:${verifQ.length} appr:${apprQ.length} par:${parQ.length} nota:${notaQ.length})`);
+  } catch (err) { console.error('[scheduler/dailyDigest]', err.message); }
+}
+
+async function runAll() { await checkOverdue(); await checkDeadlines(); await sendDailyDigest(); }
 
 function startScheduler() {
   console.log('⏰  Notification scheduler dimulai (interval: 30 menit)');
