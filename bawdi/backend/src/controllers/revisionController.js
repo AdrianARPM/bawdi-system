@@ -24,6 +24,7 @@ async function notifyUser(userId, submissionId, type, message) {
       id: uuidv4(), user_id: userId, submission_id: submissionId,
       type, message, is_read: false,
     });
+    require('../utils/pushService').sendPushToUser(userId, { body: message, submissionId }).catch(() => {});
   } catch (e) { console.error('[notifyUser]', e.message); }
 }
 
@@ -34,6 +35,7 @@ async function notifyRole(role, submissionId, type, message) {
     await supabase.from('notifications').insert(
       users.map(u => ({ id: uuidv4(), user_id: u.id, submission_id: submissionId, type, message, is_read: false }))
     );
+    require('../utils/pushService').sendPushToRole(role, { body: message, submissionId }).catch(() => {});
   } catch (e) { console.error('[notifyRole]', e.message); }
 }
 

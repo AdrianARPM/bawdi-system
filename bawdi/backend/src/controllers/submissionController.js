@@ -20,6 +20,7 @@ async function notifyRole(role, submissionId, type, message) {
   await supabase.from('notifications').insert(
     users.map(u => ({ id: uuidv4(), user_id: u.id, submission_id: submissionId, type, message, is_read: false }))
   );
+  require('../utils/pushService').sendPushToRole(role, { body: message, submissionId }).catch(() => {});
 }
 
 async function notifyUser(userId, submissionId, type, message) {
@@ -27,6 +28,7 @@ async function notifyUser(userId, submissionId, type, message) {
   await supabase.from('notifications').insert({
     id: uuidv4(), user_id: userId, submission_id: submissionId, type, message, is_read: false
   });
+  require('../utils/pushService').sendPushToUser(userId, { body: message, submissionId }).catch(() => {});
 }
 
 // Notif khusus Kepala Operasional (cari berdasarkan jabatan)
@@ -37,6 +39,7 @@ async function notifyKepalaOp(submissionId, type, message) {
   await supabase.from('notifications').insert(
     users.map(u => ({ id: uuidv4(), user_id: u.id, submission_id: submissionId, type, message, is_read: false }))
   );
+  require('../utils/pushService').sendPushToJabatan('Kepala Operasional', { body: message, submissionId }).catch(() => {});
 }
 
 // Email ke Kepala Operasional
