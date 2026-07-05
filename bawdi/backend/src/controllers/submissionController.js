@@ -502,7 +502,7 @@ async function overdueForAction(req, res) {
       .from('submissions')
       .select(`
         id, nomor_pengajuan, type, status, tanggal, kendaraan,
-        total_harga,
+        total_harga, jumlah_bayar, jumlah_dp, nota_url, approval_at,
         pemohon:users!submissions_pemohon_id_fkey(name)
       `)
       .in('status', statuses)
@@ -514,14 +514,27 @@ async function overdueForAction(req, res) {
     const { data, error } = await query;
     if (error) throw error;
 
-    const result = (data || []).map(s => ({
-      ...s,
-      days: Math.floor((Date.now() - new Date(s.tanggal).getTime()) / 86400000),
-      action: s.status === 'Menunggu Verifikasi'
-        ? (s.type === 'PAR' ? 'Perlu persetujuan Anda' : 'Perlu verifikasi')
-        : s.status === 'Terverifikasi' ? 'Perlu persetujuan Anda'
-        : 'Perlu proses pembayaran',
-    }));
+    const result = (data || [])
+      // Dibayar lunas tapi nota belum ada → yang ditunggu adalah PEMOHON (upload nota),
+      // bukan tindakan Approval/Admin — jangan tampil di modal ini
+      .filter(s => !(s.status === 'Disetujui' && Number(s.jumlah_bayar) > 0 && !s.nota_url))
+      .map(s => {
+        const paid = Number(s.jumlah_bayar) > 0;
+        // Umur dihitung dari tahapnya: pengajuan Disetujui dihitung sejak disetujui,
+        // bukan sejak dibuat — supaya yang baru di-approve tidak langsung dicap telat
+        const baseDate = s.status === 'Disetujui' && s.approval_at ? s.approval_at : s.tanggal;
+        return {
+          ...s,
+          days: Math.floor((Date.now() - new Date(baseDate).getTime()) / 86400000),
+          action: s.status === 'Menunggu Verifikasi'
+            ? (s.type === 'PAR' ? 'Perlu persetujuan Anda' : 'Perlu verifikasi')
+            : s.status === 'Terverifikasi' ? 'Perlu persetujuan Anda'
+            : paid ? 'Siap ditutup ke Arsip'
+            : (Number(s.jumlah_dp) > 0 ? 'Perlu pelunasan' : 'Perlu proses pembayaran'),
+        };
+      })
+      // Konsisten dengan judul modal: hanya yang benar-benar >3 hari di tahapnya
+      .filter(s => s.days >= 3);
 
     res.json({ data: result });
   } catch (err) {
