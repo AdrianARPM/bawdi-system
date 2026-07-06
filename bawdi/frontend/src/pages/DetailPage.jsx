@@ -232,16 +232,27 @@ function RevisiPanel({ snapshot, sub, user, onAction }) {
                 )}
                 <p className="text-sm font-medium text-slate-700 leading-relaxed">{item.penjelasan}</p>
               </div>
-              {Number(item.diskon) > 0 && (
-                <div className="flex justify-between text-[11px] text-rose-500 mb-0.5">
-                  <span>Diskon (dari {fmtCurrency((Number(item.total)||0) + (Number(item.diskon)||0))})</span>
-                  <span>− {fmtCurrency(item.diskon)}</span>
+              {Number(item.diskon) > 0 ? (
+                <>
+                  <div className="flex justify-between text-xs text-slate-500 mb-0.5">
+                    <span>{item.satuan} × {fmtCurrency(item.harga)}</span>
+                    <span>{fmtCurrency((Number(item.total)||0) + (Number(item.diskon)||0))}</span>
+                  </div>
+                  <div className="flex justify-between text-[11px] text-rose-500 mb-0.5">
+                    <span>Diskon</span>
+                    <span>− {fmtCurrency(item.diskon)}</span>
+                  </div>
+                  <div className="flex justify-between border-t border-slate-50 pt-1">
+                    <span className="text-xs text-slate-500">Subtotal</span>
+                    <span className="text-xs font-bold text-slate-600">{fmtCurrency(item.total || item.harga)}</span>
+                  </div>
+                </>
+              ) : (
+                <div className="flex justify-between">
+                  <span className="text-xs text-slate-400">{Number(item.harga) > 0 ? `${item.satuan} × ${fmtCurrency(item.harga)}` : item.satuan}</span>
+                  <span className="text-xs font-bold text-slate-600">{fmtCurrency(item.total || item.harga)}</span>
                 </div>
               )}
-              <div className="flex justify-between">
-                <span className="text-xs text-slate-400">{item.satuan}</span>
-                <span className="text-xs font-bold text-slate-600">{fmtCurrency(item.total || item.harga)}</span>
-              </div>
             </div>
           ))}
           {Number(snapshot.ppn) > 0 && (
@@ -735,6 +746,7 @@ export default function DetailPage() {
   };
 
   const doRequestRevision = async () => {
+    if (actLoading === 'req') return;               // cegah klik ganda / double-submit
     if (!reqRevCat.trim()) { toast.error('Alasan revisi wajib diisi'); return; }
     setActLoading('req');
     try {
@@ -1095,16 +1107,27 @@ export default function DetailPage() {
                   )}
                   <p className="text-sm font-medium text-slate-700 leading-relaxed">{item.penjelasan}</p>
                 </div>
-                {Number(item.diskon) > 0 && (
-                  <div className="flex justify-between text-[11px] text-rose-500 mb-0.5">
-                    <span>Diskon (dari {fmtCurrency((Number(item.total)||0) + (Number(item.diskon)||0))})</span>
-                    <span>− {fmtCurrency(item.diskon)}</span>
+                {Number(item.diskon) > 0 ? (
+                  <>
+                    <div className="flex justify-between text-xs text-slate-500 mb-0.5">
+                      <span>{item.satuan} × {fmtCurrency(item.harga)}</span>
+                      <span>{fmtCurrency((Number(item.total)||0) + (Number(item.diskon)||0))}</span>
+                    </div>
+                    <div className="flex justify-between text-[11px] text-rose-500 mb-0.5">
+                      <span>Diskon</span>
+                      <span>− {fmtCurrency(item.diskon)}</span>
+                    </div>
+                    <div className="flex justify-between border-t border-slate-50 pt-1">
+                      <span className="text-xs text-slate-500">Subtotal</span>
+                      <span className="text-xs font-bold text-slate-600">{fmtCurrency(item.total || item.harga)}</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex justify-between">
+                    <span className="text-xs text-slate-400">{Number(item.harga) > 0 ? `${item.satuan} × ${fmtCurrency(item.harga)}` : item.satuan}</span>
+                    <span className="text-xs font-bold text-slate-600">{fmtCurrency(item.total || item.harga)}</span>
                   </div>
                 )}
-                <div className="flex justify-between">
-                  <span className="text-xs text-slate-400">{item.satuan}</span>
-                  <span className="text-xs font-bold text-slate-600">{fmtCurrency(item.total || item.harga)}</span>
-                </div>
               </div>
             ))}
             {Number(sub.ppn) > 0 && (
