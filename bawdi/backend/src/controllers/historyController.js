@@ -8,6 +8,13 @@ const supabase = require('../../config/supabase');
 // Normalisasi teks: trim + lowercase + rapikan spasi ganda.
 const normTxt = (v) => (v || '').trim().toLowerCase().replace(/\s+/g, ' ');
 
+// Filter kasar sisi-DB untuk kas_kecil: pakai digit plat (toleran beda format penulisan).
+// Pencocokan final tetap di JS (normTxt) — perilaku tidak berubah, volume tarikan terpangkas.
+const platCoarse = (kendaraan) => {
+  const d = (kendaraan || '').replace(/\D+/g, '');
+  return d.length >= 2 ? `%${d}%` : `%${(kendaraan || '').trim()}%`;
+};
+
 /**
  * GET /api/history/vehicle
  */
@@ -98,9 +105,14 @@ async function getLastKM(req, res) {
     });
 
     // v25: sertakan kas kecil sebagai sumber KM — acuan item bisa dari kas kecil.
+    // Fault-tolerant: bila tabel belum ada, dilewati.
     try {
       const { data: kk } = await supabase
-        .from('kas_kecil').select('plat, tanggal, keterangan, km').not('km', 'is', null);
+        .from('kas_kecil').select('plat, tanggal, keterangan, km')
+        .not('km', 'is', null)
+        .ilike('plat', platCoarse(kendaraan))
+        .order('tanggal', { ascending: false })
+        .limit(500);
       for (const k of kk || []) {
         if (normTxt(k.plat) === platN && normTxt(k.keterangan) === kwN) {
           matched.push({
@@ -185,7 +197,10 @@ async function getVehicleItems(req, res) {
       const { data: kk } = await supabase
         .from('kas_kecil')
         .select('plat, tanggal, keterangan, km, kategori_biaya, harga')
-        .not('keterangan', 'is', null);
+        .not('keterangan', 'is', null)
+        .ilike('plat', platCoarse(kendaraan))
+        .order('tanggal', { ascending: false })
+        .limit(500);
       for (const k of kk || []) {
         if (normTxt(k.plat) !== platN) continue;
         const key = normTxt(k.keterangan);
