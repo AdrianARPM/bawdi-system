@@ -5,6 +5,7 @@ const cors      = require('cors');
 const helmet    = require('helmet');
 const morgan    = require('morgan');
 const rateLimit = require('express-rate-limit');
+const compression = require('compression');
 
 const authRoutes       = require('./routes/auth');
 const submissionRoutes = require('./routes/submissions');
@@ -23,6 +24,7 @@ const app = express();
 
 app.set('trust proxy', 1);  // wajib untuk Railway (proxy)
 app.use(helmet());
+app.use(compression());  // gzip respons JSON — payload menyusut ±70-85%
 app.use(cors({
   origin(origin, cb) {
     const ok = [process.env.FRONTEND_URL, 'http://localhost:3000', 'http://localhost:5173'].filter(Boolean);
