@@ -69,6 +69,20 @@ function ItemRow({ item, onUpdate, onRemove, canRemove, vendorLabel, vendorColor
         </div>
       </div>
 
+      {/* Diskon per item (opsional) */}
+      <div className="relative">
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] text-rose-400 pointer-events-none">Diskon Rp</span>
+        <input
+          type="number"
+          value={item.diskon || ''}
+          onChange={e => onUpdate('diskon', e.target.value)}
+          placeholder="0"
+          className="w-full pl-16 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800
+                     outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100
+                     placeholder:text-slate-300 transition-colors"
+        />
+      </div>
+
       {/* v11: Kategori biaya + KM saat pengajuan (per item) */}
       <div className="grid grid-cols-5 gap-2">
         <select
@@ -87,11 +101,18 @@ function ItemRow({ item, onUpdate, onRemove, canRemove, vendorLabel, vendorColor
         />
       </div>
 
-      {item.harga > 0 && (
-        <p className="text-xs text-amber-500 font-semibold text-right">
-          {fmtCurrency(parseFloat(item.harga) || 0)}
-        </p>
-      )}
+      {item.harga > 0 && (() => {
+        const gross = (parseFloat(item.satuan) || 1) * (parseFloat(item.harga) || 0);
+        const net   = Math.max(0, gross - (parseFloat(item.diskon) || 0));
+        return (
+          <p className="text-xs font-semibold text-right">
+            {Number(item.diskon) > 0 && (
+              <span className="text-slate-400 mr-1.5">{fmtCurrency(gross)} − {fmtCurrency(parseFloat(item.diskon) || 0)} =</span>
+            )}
+            <span className="text-amber-500">{fmtCurrency(net)}</span>
+          </p>
+        );
+      })()}
     </div>
   );
 }
@@ -102,7 +123,10 @@ function ItemsSection({ items, vendorNum, vendorLabel, vendorColor, onUpdate, on
     .map((it, i) => ({ ...it, _globalIdx: i }))
     .filter(it => it.vendor_num === vendorNum);
 
-  const total = vendorItems.reduce((s, it) => s + (parseFloat(it.harga) || 0), 0);
+  const total = vendorItems.reduce((s, it) => {
+    const gross = (parseFloat(it.satuan) || 1) * (parseFloat(it.harga) || 0);
+    return s + Math.max(0, gross - (parseFloat(it.diskon) || 0));
+  }, 0);
 
   return (
     <div className="space-y-2">
@@ -149,12 +173,15 @@ export default function RevisiEditor({ snapshot, onClose, onSubmitted }) {
     vendor2:         snapshot.vendor2         || '',
     npwp2:           snapshot.npwp2           || '',
     rekening_tujuan: snapshot.rekening_tujuan || '',
+    ppn:             snapshot.ppn != null && snapshot.ppn !== '' ? String(snapshot.ppn) : '',
+    pph23:           snapshot.pph23 || '',
     // Gunakan id asli dari database sebagai key yang stabil
     items: (snapshot.items || []).map(i => ({
       id:            i.id || `new-${Date.now()}-${Math.random()}`,
       penjelasan:    i.penjelasan || '',
       satuan:        i.satuan     || '',
       harga:         String(i.harga || ''),
+      diskon:        i.diskon ? String(i.diskon) : '',
       vendor_num:    i.vendor_num || 1,
       km_pengajuan:  i.km_pengajuan != null ? String(i.km_pengajuan) : '',
       kategori_biaya: i.kategori_biaya || 'Lainnya',
@@ -182,6 +209,7 @@ export default function RevisiEditor({ snapshot, onClose, onSubmitted }) {
         penjelasan:    '',
         satuan:        '',
         harga:         '',
+        diskon:        '',
         vendor_num:    vendorNum,
         km_pengajuan:  '',
         kategori_biaya: 'Lainnya',
@@ -283,6 +311,33 @@ export default function RevisiEditor({ snapshot, onClose, onSubmitted }) {
               <p className="text-[10px] text-slate-400 mt-1">💡 Tekan Enter untuk baris baru</p>
             </div>
 
+            {/* Ppn & Pph23 */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1.5">Ppn (Rp)</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">Rp</span>
+                  <input
+                    type="number"
+                    value={form.ppn}
+                    onChange={e => setField('ppn', e.target.value)}
+                    placeholder="0"
+                    className={inputCls + ' pl-8'}/>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">Menambah total. Kosongkan jika tidak ada.</p>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1.5">Pph23 (keterangan)</label>
+                <textarea
+                  value={form.pph23}
+                  onChange={e => setField('pph23', e.target.value)}
+                  rows={2}
+                  className={inputCls + ' resize-none leading-relaxed'}
+                  placeholder="Contoh: Rp 1.695.330 × 2% = Rp 33.907"/>
+                <p className="text-[10px] text-slate-400 mt-1">Informatif — tidak mengubah total.</p>
+              </div>
+            </div>
+
             {/* Vendor 1 */}
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -296,7 +351,7 @@ export default function RevisiEditor({ snapshot, onClose, onSubmitted }) {
                   placeholder="Nama vendor/bengkel"/>
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1.5">NPWP Vendor 1</label>
+                <label className="block text-xs font-bold text-slate-600 mb-1.5">NPWP/KTP Vendor 1</label>
                 <input
                   value={form.npwp}
                   onChange={e => setField('npwp', e.target.value)}
