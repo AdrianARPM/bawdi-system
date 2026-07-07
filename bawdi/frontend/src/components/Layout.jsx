@@ -1,7 +1,7 @@
 // src/components/Layout.jsx  — v7 (Draft hanya Admin/Verifikator/Approval)
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-import { LayoutDashboard, FileText, Plus, Users, LogOut, Menu, Truck, Archive, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, FileText, Plus, Users, LogOut, Menu, Truck, Archive, BarChart3, Activity } from 'lucide-react';
 import useAuthStore from '../context/authStore';
 import NotificationBell from './NotificationBell';
 
@@ -84,7 +84,10 @@ export default function Layout() {
         {/* Master Kendaraan — dapat dilihat semua user (edit hanya Admin) */}
         <NavItem to="/vehicles" icon={Truck} label="Super Track" onClick={close}/>
         {user?.role === 'Admin' && (
-          <NavItem to="/users" icon={Users} label="Kelola User" onClick={close}/>
+          <>
+            <NavItem to="/users"  icon={Users}    label="Kelola User"   onClick={close}/>
+            <NavItem to="/status" icon={Activity} label="Status Sistem" onClick={close}/>
+          </>
         )}
       </nav>
 
