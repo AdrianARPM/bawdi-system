@@ -49,6 +49,10 @@ export const notifAPI = {
   readOne: id => api.put(`/notifications/${id}/read`),
 };
 
+export const healthAPI = {
+  detail: () => api.get('/health/detail'),
+};
+
 export const pushAPI = {
   vapidKey:    ()       => api.get('/push/vapid-public-key'),
   subscribe:   sub      => api.post('/push/subscribe', { subscription: sub }),
