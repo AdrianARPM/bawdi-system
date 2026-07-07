@@ -836,6 +836,9 @@ export default function DetailPage() {
   ];
 
   const activeRevision = revisions.find(r => `revisi-${r.revision_number}` === activeTab);
+  // Revisi yang sedang berjalan (butuh aksi verif/approval) — kalau ada,
+  // aksi yang benar ada di TAB revisi, bukan di banner global
+  const revisiAktif = revisions.find(r => ['submitted', 'terverifikasi'].includes(r.status));
 
   return (
     <div className="max-w-2xl mx-auto space-y-4">
@@ -933,29 +936,55 @@ export default function DetailPage() {
 
       {/* PR — Verifikator: verifikasi */}
       {!isPAR && user.role === 'Verifikator' && sub.status === 'Menunggu Verifikasi' && (
-        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-bold text-blue-800">Perlu Verifikasi Anda</p>
-            <p className="text-xs text-blue-400 mt-0.5">
-              Periksa data {revisions.length > 0 ? 'revisi terakhir' : 'pengajuan'}
-            </p>
+        revisiAktif ? (
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-bold text-blue-800">Perlu Verifikasi Anda</p>
+              <p className="text-xs text-blue-400 mt-0.5">
+                Ada Revisi ke-{revisiAktif.revision_number} — periksa & verifikasi di tab revisinya
+              </p>
+            </div>
+            <Button variant="info" onClick={() => setActiveTab(`revisi-${revisiAktif.revision_number}`)}>
+              Lihat Revisi-{revisiAktif.revision_number} →
+            </Button>
           </div>
-          <Button variant="info" onClick={() => doAction('verify')} loading={actLoading === 'verify'}>
-            Verifikasi
-          </Button>
-        </div>
+        ) : (
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-bold text-blue-800">Perlu Verifikasi Anda</p>
+              <p className="text-xs text-blue-400 mt-0.5">Periksa data pengajuan</p>
+            </div>
+            <Button variant="info" onClick={() => doAction('verify')} loading={actLoading === 'verify'}>
+              Verifikasi
+            </Button>
+          </div>
+        )
       )}
 
       {/* PR — Approval: setujui/tolak */}
       {!isPAR && user.role === 'Approval' && sub.status === 'Terverifikasi' && (
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
-          <p className="text-sm font-bold text-amber-800 mb-3">Menunggu Keputusan Anda</p>
-          <div className="flex gap-2.5">
-            <Button variant="danger"  className="flex-1" onClick={() => setShowReject(true)}>✗ Tolak</Button>
-            <Button variant="success" className="flex-1" onClick={() => doAction('approve')}
-              loading={actLoading === 'approve'}>✓ Setujui</Button>
+        revisiAktif ? (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-bold text-amber-800">Menunggu Keputusan Anda</p>
+              <p className="text-xs text-amber-500 mt-0.5">
+                Ada Revisi ke-{revisiAktif.revision_number} — putuskan di tab revisinya
+              </p>
+            </div>
+            <Button variant="primary" onClick={() => setActiveTab(`revisi-${revisiAktif.revision_number}`)}>
+              Lihat Revisi-{revisiAktif.revision_number} →
+            </Button>
           </div>
-        </div>
+        ) : (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+            <p className="text-sm font-bold text-amber-800 mb-3">Menunggu Keputusan Anda</p>
+            <div className="flex gap-2.5">
+              <Button variant="danger"  className="flex-1" onClick={() => setShowReject(true)}>✗ Tolak</Button>
+              <Button variant="success" className="flex-1" onClick={() => doAction('approve')}
+                loading={actLoading === 'approve'}>✓ Setujui</Button>
+            </div>
+          </div>
+        )
       )}
 
       {/* PAR — Kepala Operasional: langsung setujui/tolak dari status Menunggu Verifikasi */}
