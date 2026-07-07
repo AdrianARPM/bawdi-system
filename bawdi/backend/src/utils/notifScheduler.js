@@ -194,7 +194,12 @@ async function sendDailyDigest() {
   } catch (err) { console.error('[scheduler/dailyDigest]', err.message); }
 }
 
-async function runAll() { await checkOverdue(); await checkDeadlines(); await sendDailyDigest(); }
+let lastRunAt = null; // heartbeat untuk panel Status Sistem
+async function runAll() {
+  await checkOverdue(); await checkDeadlines(); await sendDailyDigest();
+  lastRunAt = new Date().toISOString();
+}
+function getLastRunAt() { return lastRunAt; }
 
 function startScheduler() {
   console.log('⏰  Notification scheduler dimulai (interval: 30 menit)');
@@ -202,4 +207,4 @@ function startScheduler() {
   setInterval(runAll, 30 * 60 * 1000);
 }
 
-module.exports = { startScheduler, runAll };
+module.exports = { startScheduler, runAll, getLastRunAt };
