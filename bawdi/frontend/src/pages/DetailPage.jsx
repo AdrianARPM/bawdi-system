@@ -790,6 +790,8 @@ export default function DetailPage() {
         vendor2:          lastRevision.vendor2,
         rekening_tujuan:  lastRevision.rekening_tujuan,
         total_harga:      lastRevision.total_harga,
+        ppn:              lastRevision.ppn,
+        pph23:            lastRevision.pph23,
         items:            lastRevision.items,   // ← items dari snapshot, bukan submission_items
         _isRevision:      true,
         _revisionNumber:  lastRevision.revision_number,
