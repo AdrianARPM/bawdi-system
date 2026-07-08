@@ -2,51 +2,43 @@
 # Backup otomatis database BAWDI (pg_dump penuh) — berjalan di GitHub, bukan di server Anda.
 #
 # CARA PASANG (sekali saja, tanpa terminal):
-# 1. Supabase → Project Settings → Database → Connection string → pilih "URI"
-#    (pakai yang port 5432 / direct connection). Salin.
+# 1. Supabase → Connect → Session pooler → Type: URI. Salin.
+#    Ganti [YOUR-PASSWORD] dengan password database (tanpa kurung siku).
 # 2. GitHub repo → Settings → Secrets and variables → Actions → New repository secret
 #    Name : SUPABASE_DB_URL
-#    Value: (tempel connection string tadi, ganti [YOUR-PASSWORD] dengan password DB)
-# 3. Simpan file ini di repo pada path .github/workflows/backup.yml → commit & push.
-# 4. Uji manual: GitHub → tab Actions → "Backup Database Harian" → Run workflow.
+#    Value: (connection string Session pooler tadi)
+# 3. Simpan file ini di .github/workflows/backup.yml (di ROOT repo) → commit.
+# 4. Uji: tab Actions → "Backup Database Harian" → Run workflow.
 #
-# Hasil backup tersimpan sebagai "artifact" di tab Actions (privat, hanya kolaborator repo),
-# disimpan 30 hari, satu file per hari. PENTING: pastikan repo Anda PRIVATE.
+# Hasil backup = artifact di tab Actions (privat, 30 hari). PASTIKAN REPO PRIVATE.
 
 name: Backup Database Harian
 
 on:
   schedule:
     - cron: '0 20 * * *'   # 20:00 UTC = 03:00 WIB setiap hari
-  workflow_dispatch:        # bisa juga dijalankan manual dari tab Actions
+  workflow_dispatch:
 
 jobs:
   backup:
     runs-on: ubuntu-latest
+    # Jalankan seluruh job DI DALAM image PostgreSQL 17 resmi.
+    # Dengan begini pg_dump PASTI versi 17 — tak bergantung instalasi apt.
+    container:
+      image: postgres:17
     steps:
-      - name: Pasang klien PostgreSQL 17 (harus >= versi server Supabase)
-        run: |
-          sudo mkdir -p /usr/share/postgresql-common/pgdg
-          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | \
-            sudo gpg --dearmor -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg
-          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | \
-            sudo tee /etc/apt/sources.list.d/pgdg.list
-          sudo apt-get update
-          sudo apt-get install -y postgresql-client-17
-          # Pastikan pg_dump 17 yang dipakai (bukan bawaan Ubuntu 16)
-          echo "/usr/lib/postgresql/17/bin" >> $GITHUB_PATH
-          /usr/lib/postgresql/17/bin/pg_dump --version
+      - name: Cek versi pg_dump (harus 17.x)
+        run: pg_dump --version
 
       - name: Jalankan pg_dump
         env:
           DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
-          TANGGAL=$(TZ=Asia/Jakarta date +%Y-%m-%d)
+          TANGGAL=$(date +%Y-%m-%d)
           pg_dump "$DB_URL" \
             --no-owner --no-privileges \
             --format=custom \
             --file="bawdi_backup_${TANGGAL}.dump"
-          # format=custom: terkompresi & bisa di-restore selektif dengan pg_restore
           ls -lh bawdi_backup_*.dump
 
       - name: Simpan sebagai artifact (30 hari)
