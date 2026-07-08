@@ -194,6 +194,7 @@ const JENIS_KENDARAAN = [
   'Beban Perawatan dan Suku Cadang',
   'Beban Perlengkapan Kendaraan',
   'Beban Perbaikan dan Perlengkapan Kendaraan',
+  'Beban Perbaikan Box',
   'Beban Pengiriman Barang',
   'Beban Izin Kendaraan',
   'Beban Parkir',
@@ -635,15 +636,15 @@ export default function NewFormPage() {
           <h2 className="text-sm font-bold text-slate-700 mb-4">Pilih Jenis Pengajuan</h2>
           <div className="grid grid-cols-2 gap-3 mb-5">
             {[['PR','Purchase Requisition','Permintaan pembelian rutin'],['PAR','Purchase Auth. Request','Otorisasi nilai besar']].map(([t,title,desc])=>(
-              <button key={t} type="button" onClick={()=>{set('type',t); if(t!=='PR') set('is_umum',false);}} className={`p-4 rounded-2xl border-2 text-left transition-all ${form.type===t?'border-amber-500 bg-amber-50':'border-slate-200 hover:border-slate-300'}`}>
+              <button key={t} type="button" onClick={()=>set('type',t)} className={`p-4 rounded-2xl border-2 text-left transition-all ${form.type===t?'border-amber-500 bg-amber-50':'border-slate-200 hover:border-slate-300'}`}>
                 <p className={`text-2xl font-black mb-1 ${form.type===t?'text-amber-500':'text-slate-300'}`}>{t}</p>
                 <p className="text-xs font-bold text-slate-700 mb-0.5">{title}</p>
                 <p className="text-[10px] text-slate-400">{desc}</p>
               </button>
             ))}
           </div>
-          {form.type==='PR' && (
-            <div className="mb-5">
+          {/* Pilihan Kendaraan/Umum — berlaku untuk PR maupun PAR (alur persetujuan tidak berubah) */}
+          <div className="mb-5">
               <p className="text-xs font-bold text-slate-700 mb-2">Isi pengajuan untuk</p>
               <div className="grid grid-cols-2 gap-3">
                 {[[false,'Perawatan Kendaraan','Dengan plat & riwayat KM'],[true,'Barang Kantor / Umum','ATK, aset — tanpa kendaraan']].map(([val,title,desc])=>(
@@ -655,7 +656,6 @@ export default function NewFormPage() {
                 ))}
               </div>
             </div>
-          )}
           <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200">
             <p className="text-xs font-bold text-slate-700 mb-3">Format Nomor Pengajuan</p>
             <div className="bg-white border-2 border-amber-300 rounded-xl px-4 py-2.5 mb-3 text-center">
