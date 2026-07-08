@@ -14,9 +14,9 @@ import { Button, fmtCurrency } from './ui';
    2. key menggunakan _idx dari filter → tidak stabil saat list berubah
    Fix: gunakan item.id sebagai key, hapus onInput, pakai min-h tetap
 ─────────────────────────────────────────────────────────────── */
-const KATEGORI_BIAYA = ['Sewa', 'Service', 'Ban', 'Izin Kendaraan', 'Jasa', 'Lainnya'];
+const KATEGORI_BIAYA = ['Sewa', 'Service', 'Ban', 'Izin Kendaraan', 'Lainnya'];
 
-function ItemRow({ item, onUpdate, onRemove, canRemove, vendorLabel, vendorColor }) {
+function ItemRow({ item, onUpdate, onRemove, canRemove, vendorLabel, vendorColor, isUmum }) {
   return (
     <div className="border border-slate-200 rounded-xl p-3 space-y-2 bg-white">
       <div className="flex justify-between items-center">
@@ -83,7 +83,8 @@ function ItemRow({ item, onUpdate, onRemove, canRemove, vendorLabel, vendorColor
         />
       </div>
 
-      {/* v11: Kategori biaya + KM saat pengajuan (per item) */}
+      {/* v11: Kategori biaya + KM saat pengajuan (per item) — tidak relevan utk pengajuan umum */}
+      {!isUmum && (
       <div className="grid grid-cols-5 gap-2">
         <select
           value={item.kategori_biaya || ''}
@@ -100,6 +101,7 @@ function ItemRow({ item, onUpdate, onRemove, canRemove, vendorLabel, vendorColor
           className="col-span-2 px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 placeholder:text-slate-300"
         />
       </div>
+      )}
 
       {item.harga > 0 && (() => {
         const gross = (parseFloat(item.satuan) || 1) * (parseFloat(item.harga) || 0);
@@ -118,7 +120,7 @@ function ItemRow({ item, onUpdate, onRemove, canRemove, vendorLabel, vendorColor
 }
 
 /* ── Items Section per vendor ────────────────────────────────── */
-function ItemsSection({ items, vendorNum, vendorLabel, vendorColor, onUpdate, onAdd, onRemove }) {
+function ItemsSection({ items, vendorNum, vendorLabel, vendorColor, onUpdate, onAdd, onRemove, isUmum }) {
   const vendorItems = items
     .map((it, i) => ({ ...it, _globalIdx: i }))
     .filter(it => it.vendor_num === vendorNum);
@@ -143,6 +145,7 @@ function ItemsSection({ items, vendorNum, vendorLabel, vendorColor, onUpdate, on
 
       {vendorItems.map(it => (
         <ItemRow
+          isUmum={isUmum}
           key={it.id || `item-${it._globalIdx}`}  /* ← stable key */
           item={it}
           vendorLabel={vendorLabel}
@@ -164,7 +167,7 @@ function ItemsSection({ items, vendorNum, vendorLabel, vendorColor, onUpdate, on
 /* ═══════════════════════════════════════════════════════════════
    MAIN COMPONENT
 ═══════════════════════════════════════════════════════════════ */
-export default function RevisiEditor({ snapshot, onClose, onSubmitted }) {
+export default function RevisiEditor({ snapshot, onClose, onSubmitted, isUmum = false }) {
   const [form, setForm] = useState({
     alasan:          snapshot.alasan          || '',
     riwayat:         snapshot.riwayat         || '',
@@ -351,7 +354,7 @@ export default function RevisiEditor({ snapshot, onClose, onSubmitted }) {
                   placeholder="Nama vendor/bengkel"/>
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1.5">NPWP/KTP Vendor 1</label>
+                <label className="block text-xs font-bold text-slate-600 mb-1.5">NPWP Vendor 1</label>
                 <input
                   value={form.npwp}
                   onChange={e => setField('npwp', e.target.value)}
@@ -373,6 +376,7 @@ export default function RevisiEditor({ snapshot, onClose, onSubmitted }) {
 
             {/* Items Vendor 1 */}
             <ItemsSection
+              isUmum={isUmum}
               items={form.items}
               vendorNum={1}
               vendorLabel="Vendor 1"
@@ -405,6 +409,7 @@ export default function RevisiEditor({ snapshot, onClose, onSubmitted }) {
                     </div>
                   </div>
                   <ItemsSection
+                    isUmum={isUmum}
                     items={form.items}
                     vendorNum={2}
                     vendorLabel="Vendor 2"
