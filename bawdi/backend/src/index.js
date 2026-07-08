@@ -18,6 +18,7 @@ const vehicleRoutes = require('./routes/vehicles');
 const historyRoutes    = require('./routes/history');
 const pushRoutes       = require('./routes/push');
 const healthRoutes     = require('./routes/health');
+const backupRoutes     = require('./routes/backup');
 const analyticsRoutes  = require('./routes/analytics');
 const { startScheduler } = require('./utils/notifScheduler');
 
@@ -51,6 +52,7 @@ app.use('/api/vehicles', vehicleRoutes);
 app.use('/api/history',       historyRoutes);
 app.use('/api/push',          pushRoutes);
 app.use('/api/health',        healthRoutes);
+app.use('/api/backup',        backupRoutes);
 app.use('/api/analytics',     analyticsRoutes);
 // Health check — verifikasi versi yang sedang berjalan
 app.get('/health', (_, res) =>
