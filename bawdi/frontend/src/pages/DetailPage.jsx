@@ -103,8 +103,12 @@ function RevisiPanel({ snapshot, sub, user, onAction }) {
     setActLoading('');
   };
 
-  const canVerify  = user.role === 'Verifikator' && snapshot.status === 'submitted';
-  const canApprove = user.role === 'Approval'    && snapshot.status === 'terverifikasi';
+  // PR: verifikasi oleh Verifikator, keputusan oleh Approval.
+  // PAR: keduanya oleh Kepala Operasional (atau Admin) — backend memang mengizinkannya.
+  const isPARSnap       = sub?.type === 'PAR';
+  const kepalaOpOrAdmin = user.jabatan === 'Kepala Operasional' || user.role === 'Admin';
+  const canVerify  = (isPARSnap ? kepalaOpOrAdmin : user.role === 'Verifikator') && snapshot.status === 'submitted';
+  const canApprove = (isPARSnap ? kepalaOpOrAdmin : user.role === 'Approval')    && snapshot.status === 'terverifikasi';
 
   return (
     <div className="space-y-4">
@@ -852,6 +856,7 @@ export default function DetailPage() {
       {editSnap && (
         <RevisiEditor
           snapshot={editSnap}
+          isUmum={!!sub.is_umum}
           onClose={() => setEditSnap(null)}
           onSubmitted={() => { setEditSnap(null); load(); }}
         />
@@ -990,16 +995,30 @@ export default function DetailPage() {
       )}
 
       {/* PAR — Kepala Operasional: langsung setujui/tolak dari status Menunggu Verifikasi */}
-      {isPAR && isKepalaOp && sub.status === 'Menunggu Verifikasi' && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
-          <p className="text-sm font-bold text-emerald-800 mb-1">Menunggu Keputusan Anda (PAR)</p>
-          <p className="text-xs text-emerald-600 mb-3">Sebagai Kepala Operasional, Anda dapat langsung menyetujui atau menolak pengajuan PAR ini.</p>
-          <div className="flex gap-2.5">
-            <Button variant="danger"  className="flex-1" onClick={() => setShowReject(true)}>✗ Tolak</Button>
-            <Button variant="success" className="flex-1" onClick={() => doAction('approve')}
-              loading={actLoading === 'approve'}>✓ Setujui</Button>
+      {isPAR && isKepalaOp && ['Menunggu Verifikasi', 'Terverifikasi'].includes(sub.status) && (
+        revisiAktif ? (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-bold text-emerald-800">Menunggu Keputusan Anda (PAR)</p>
+              <p className="text-xs text-emerald-600 mt-0.5">
+                Ada Revisi ke-{revisiAktif.revision_number} — periksa & putuskan di tab revisinya
+              </p>
+            </div>
+            <Button variant="success" onClick={() => setActiveTab(`revisi-${revisiAktif.revision_number}`)}>
+              Lihat Revisi-{revisiAktif.revision_number} →
+            </Button>
           </div>
-        </div>
+        ) : sub.status === 'Menunggu Verifikasi' ? (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
+            <p className="text-sm font-bold text-emerald-800 mb-1">Menunggu Keputusan Anda (PAR)</p>
+            <p className="text-xs text-emerald-600 mb-3">Sebagai Kepala Operasional, Anda dapat langsung menyetujui atau menolak pengajuan PAR ini.</p>
+            <div className="flex gap-2.5">
+              <Button variant="danger"  className="flex-1" onClick={() => setShowReject(true)}>✗ Tolak</Button>
+              <Button variant="success" className="flex-1" onClick={() => doAction('approve')}
+                loading={actLoading === 'approve'}>✓ Setujui</Button>
+            </div>
+          </div>
+        ) : null
       )}
 
       {/* PAR — info untuk Verifikator/Approval (mereka hanya bisa LIHAT) */}
