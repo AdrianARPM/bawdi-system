@@ -53,6 +53,10 @@ export const healthAPI = {
   detail: () => api.get('/health/detail'),
 };
 
+export const backupAPI = {
+  export: (format) => api.get(`/backup/export?format=${format}`, { responseType: 'blob' }),
+};
+
 export const pushAPI = {
   vapidKey:    ()       => api.get('/push/vapid-public-key'),
   subscribe:   sub      => api.post('/push/subscribe', { subscription: sub }),
