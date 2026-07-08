@@ -1,8 +1,8 @@
 // src/pages/StatusPage.jsx — panel Status Sistem (khusus Admin)
 // Pelengkap UptimeRobot: UptimeRobot = alarm dari luar, halaman ini = stetoskop Admin.
 import { useState, useEffect } from 'react';
-import { RefreshCw, Server, Database, Clock, BellRing, Mail, ListTodo } from 'lucide-react';
-import { healthAPI } from '../utils/api';
+import { RefreshCw, Server, Database, Clock, BellRing, Mail, ListTodo, Download } from 'lucide-react';
+import { healthAPI, backupAPI } from '../utils/api';
 import { Spinner } from '../components/ui';
 
 const fmtUptime = (s) => {
@@ -43,6 +43,23 @@ export default function StatusPage() {
   const [error, setError]     = useState('');
   const [loading, setLoading] = useState(true);
   const [updatedAt, setUpdatedAt] = useState(null);
+  const [exporting, setExporting] = useState('');
+
+  const doExport = async (format) => {
+    if (exporting) return;
+    setExporting(format);
+    try {
+      const { data } = await backupAPI.export(format);
+      const url = URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `bawdi_export_${new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' })}.${format}`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      setError('Gagal membuat export — coba lagi.');
+    } finally { setExporting(''); }
+  };
 
   const load = async () => {
     try {
@@ -152,6 +169,29 @@ export default function StatusPage() {
                   <span className={`font-bold ${q.belum_nota > 0 ? 'text-red-600' : 'text-slate-800'}`}>{q.belum_nota ?? 0}</span>
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* Backup & Export */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+            <div className="flex items-center gap-1.5 mb-2">
+              <Download size={12} className="text-slate-400"/>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Backup & Export Data</p>
+            </div>
+            <p className="text-xs text-slate-500 mb-3 leading-relaxed">
+              Unduh seluruh data (pengajuan, item, revisi, user tanpa password, kendaraan, kas kecil) untuk disimpan
+              berkala. Excel untuk dibaca, JSON untuk arsip pemulihan. Backup penuh otomatis berjalan tiap 03:00 WIB
+              via GitHub Actions.
+            </p>
+            <div className="flex gap-2.5">
+              <button onClick={() => doExport('xlsx')} disabled={!!exporting}
+                className="flex-1 flex items-center justify-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl py-2.5 hover:bg-emerald-100 transition-colors disabled:opacity-50">
+                <Download size={12}/> {exporting === 'xlsx' ? 'Menyiapkan…' : 'Export Excel'}
+              </button>
+              <button onClick={() => doExport('json')} disabled={!!exporting}
+                className="flex-1 flex items-center justify-center gap-1.5 text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 rounded-xl py-2.5 hover:bg-blue-100 transition-colors disabled:opacity-50">
+                <Download size={12}/> {exporting === 'json' ? 'Menyiapkan…' : 'Export JSON'}
+              </button>
             </div>
           </div>
 
