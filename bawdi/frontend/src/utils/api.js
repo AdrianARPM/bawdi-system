@@ -38,6 +38,8 @@ export const submissionAPI = {
   reject:       (id, alasan_tolak) => api.put(`/submissions/${id}/reject`, { alasan_tolak }),
   selectVendor: (id, vendor_pilihan, vendor_pilihan_alasan) =>
     api.put(`/submissions/${id}/select-vendor`, { vendor_pilihan, vendor_pilihan_alasan }),
+  cancel:     (id, body) => api.put(`/submissions/${id}/cancel`, body),
+  hardDelete: (id, body) => api.delete(`/submissions/${id}`, { data: body }),
 };
 export const messageAPI = {
   list: id      => api.get(`/messages/${id}`),
@@ -51,6 +53,7 @@ export const notifAPI = {
 
 export const healthAPI = {
   detail: () => api.get('/health/detail'),
+  audit:  () => api.get('/health/audit'),
 };
 
 export const backupAPI = {
