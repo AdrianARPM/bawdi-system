@@ -6,7 +6,7 @@ import { submissionAPI } from '../utils/api';
 import { Pill, Card, Spinner, Empty, fmtDate, fmtCurrency, daysSince, RevisiBadge } from '../components/ui';
 import useAuthStore from '../context/authStore';
 
-const STATUSES = ['Semua','Menunggu Verifikasi','Terverifikasi','Disetujui','Ditolak'];
+const STATUSES = ['Semua','Menunggu Verifikasi','Terverifikasi','Disetujui','Ditolak','Dibatalkan'];
 
 export default function SubmissionsPage() {
   const { user } = useAuthStore();
