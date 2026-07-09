@@ -6,7 +6,7 @@ import useAuthStore from '../context/authStore';
 import NotificationBell from './NotificationBell';
 
 const ROLE_COLOR = { Operasional:'bg-amber-400', Verifikator:'bg-blue-500', Approval:'bg-emerald-500', Admin:'bg-violet-500' };
-const DRAFT_ROLES = ['Admin', 'Verifikator', 'Approval'];
+const DRAFT_ROLES = ['Admin', 'Verifikator', 'Approval', 'Operasional'];
 
 function NavItem({ to, icon: Icon, label, onClick, badge }) {
   return (
