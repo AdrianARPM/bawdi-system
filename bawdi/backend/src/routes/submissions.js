@@ -22,4 +22,8 @@ router.put('/:id/reject',  authorize('Approval', 'Verifikator', 'Admin', 'Operas
 
 router.put('/:id/select-vendor', authorize('Approval', 'Admin'), ctrl.selectVendor);
 
+// Zona Admin: batalkan (soft) & hapus permanen — keduanya tercatat di audit log
+router.put('/:id/cancel', authorize('Admin'), ctrl.cancelSubmission);
+router.delete('/:id',     authorize('Admin'), ctrl.hardDeleteSubmission);
+
 module.exports = router;
