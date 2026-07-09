@@ -660,6 +660,11 @@ export default function DetailPage() {
 
   const [sub,       setSub]       = useState(null);
   const [revisions, setRevisions] = useState([]);
+  // Zona Admin: batalkan / hapus permanen
+  const [adminModal, setAdminModal]   = useState('');   // '' | 'cancel' | 'delete'
+  const [adminAlasan, setAdminAlasan] = useState('');
+  const [adminKonfirmasi, setAdminKonfirmasi] = useState('');
+  const [adminBusy, setAdminBusy]     = useState(false);
   const [msgs,      setMsgs]      = useState([]);
   const [loading,   setLoading]   = useState(true);
   const [activeTab, setActiveTab] = useState('asli');
@@ -776,6 +781,25 @@ export default function DetailPage() {
     } catch { toast.error('Gagal mengirim pesan'); }
   };
 
+  const doAdminAction = async () => {
+    if (adminBusy || !adminAlasan.trim()) return;
+    setAdminBusy(true);
+    try {
+      if (adminModal === 'cancel') {
+        await submissionAPI.cancel(id, { alasan: adminAlasan });
+        toast.success('Pengajuan dibatalkan');
+        setAdminModal(''); setAdminAlasan('');
+        await load();
+      } else {
+        await submissionAPI.hardDelete(id, { alasan: adminAlasan, konfirmasi_nomor: adminKonfirmasi });
+        toast.success('Pengajuan dihapus permanen');
+        navigate('/submissions');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Gagal memproses');
+    } finally { setAdminBusy(false); }
+  };
+
   const handleExportPDF = async () => {
     setExporting(true);
     try {
@@ -853,6 +877,76 @@ export default function DetailPage() {
       {lightbox && <Lightbox photo={lightbox} onClose={() => setLightbox(null)}/>}
 
       {/* RevisiEditor — dari komponen terpisah */}
+      {/* Banner status Dibatalkan */}
+      {sub.status === 'Dibatalkan' && (
+        <div className="bg-slate-100 border border-slate-300 rounded-2xl p-4">
+          <p className="text-sm font-bold text-slate-700">Pengajuan Dibatalkan</p>
+          {sub.alasan_batal && <p className="text-xs text-slate-500 mt-1">Alasan: {sub.alasan_batal}</p>}
+        </div>
+      )}
+
+      {/* Zona Admin */}
+      {user.role === 'Admin' && !['Selesai', 'Dibatalkan'].includes(sub.status) && (
+        <div className="bg-white border border-red-200 rounded-2xl p-4">
+          <p className="text-[10px] font-bold text-red-600 uppercase tracking-wide mb-0.5">Zona Admin</p>
+          <p className="text-[11px] text-slate-400 mb-3">Tindakan di bawah ini tercatat permanen di log audit.</p>
+          <div className="flex flex-wrap gap-2">
+            {!(Number(sub.jumlah_bayar) > 0 || Number(sub.jumlah_dp) > 0) && (
+              <button onClick={() => { setAdminModal('cancel'); setAdminAlasan(''); }}
+                className="text-xs font-bold text-red-600 border border-red-300 rounded-xl px-3.5 py-2 hover:bg-red-50 transition-colors">
+                ✕ Batalkan Pengajuan
+              </button>
+            )}
+            <button
+              onClick={() => { setAdminModal('delete'); setAdminAlasan(''); setAdminKonfirmasi(''); }}
+              disabled={sub.status !== 'Menunggu Verifikasi'}
+              title={sub.status !== 'Menunggu Verifikasi' ? 'Hanya untuk pengajuan yang belum diproses' : ''}
+              className="text-xs font-bold text-slate-500 border border-slate-200 rounded-xl px-3.5 py-2 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+              🗑 Hapus Permanen{sub.status !== 'Menunggu Verifikasi' ? ' — nonaktif (sudah diproses)' : ''}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Zona Admin */}
+      {adminModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => !adminBusy && setAdminModal('')}>
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-5" onClick={e => e.stopPropagation()}>
+            <h3 className="text-base font-bold text-red-600 mb-1">
+              {adminModal === 'cancel' ? `Batalkan ${sub.nomor_pengajuan}?` : `Hapus permanen ${sub.nomor_pengajuan}?`}
+            </h3>
+            <p className="text-xs text-slate-500 leading-relaxed mb-3">
+              {adminModal === 'cancel'
+                ? 'Status menjadi "Dibatalkan" — keluar dari semua antrean, tapi dokumen & riwayat tetap tersimpan. Tidak bisa dibuka kembali dari UI.'
+                : 'Pengajuan beserta seluruh item, chat, dan notifikasinya DIHAPUS PERMANEN dan tidak bisa dikembalikan.'}
+            </p>
+            <label className="block text-xs font-bold text-slate-600 mb-1.5">
+              Alasan <span className="text-red-500">*wajib</span>
+            </label>
+            <textarea value={adminAlasan} onChange={e => setAdminAlasan(e.target.value)} rows={2}
+              placeholder={adminModal === 'cancel' ? 'Contoh: dobel input — sudah diajukan di 021-PR' : 'Contoh: salah input nomor cabang'}
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100 resize-none mb-3"/>
+            {adminModal === 'delete' && (
+              <>
+                <label className="block text-xs font-bold text-slate-600 mb-1.5">
+                  Ketik ulang nomor pengajuan untuk konfirmasi
+                </label>
+                <input value={adminKonfirmasi} onChange={e => setAdminKonfirmasi(e.target.value)}
+                  placeholder={sub.nomor_pengajuan}
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100 mb-3 font-mono"/>
+              </>
+            )}
+            <div className="flex gap-2.5 justify-end">
+              <Button variant="secondary" onClick={() => setAdminModal('')} disabled={adminBusy}>Batal</Button>
+              <Button variant="danger" onClick={doAdminAction} loading={adminBusy}
+                disabled={!adminAlasan.trim() || (adminModal === 'delete' && adminKonfirmasi !== sub.nomor_pengajuan)}>
+                {adminModal === 'cancel' ? 'Ya, Batalkan' : 'Ya, Hapus Permanen'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {editSnap && (
         <RevisiEditor
           snapshot={editSnap}
