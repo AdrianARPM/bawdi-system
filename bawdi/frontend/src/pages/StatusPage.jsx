@@ -1,7 +1,7 @@
 // src/pages/StatusPage.jsx — panel Status Sistem (khusus Admin)
 // Pelengkap UptimeRobot: UptimeRobot = alarm dari luar, halaman ini = stetoskop Admin.
 import { useState, useEffect } from 'react';
-import { RefreshCw, Server, Database, Clock, BellRing, Mail, ListTodo, Download } from 'lucide-react';
+import { RefreshCw, Server, Database, Clock, BellRing, Mail, ListTodo, Download, ScrollText } from 'lucide-react';
 import { healthAPI, backupAPI } from '../utils/api';
 import { Spinner } from '../components/ui';
 
@@ -44,6 +44,7 @@ export default function StatusPage() {
   const [loading, setLoading] = useState(true);
   const [updatedAt, setUpdatedAt] = useState(null);
   const [exporting, setExporting] = useState('');
+  const [audit, setAudit] = useState([]);
 
   const doExport = async (format) => {
     if (exporting) return;
@@ -65,6 +66,7 @@ export default function StatusPage() {
     try {
       const { data: d } = await healthAPI.detail();
       setData(d); setError(''); setUpdatedAt(new Date());
+      healthAPI.audit().then(r => setAudit(r.data?.data || [])).catch(() => {});
     } catch (err) {
       setError(err.response?.data?.error || 'Gagal menghubungi server — server mungkin sedang down.');
     } finally { setLoading(false); }
@@ -170,6 +172,53 @@ export default function StatusPage() {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Log Audit */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+            <div className="flex items-center gap-1.5 mb-3">
+              <ScrollText size={12} className="text-slate-400"/>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Log Audit — 50 terakhir</p>
+            </div>
+            {audit.length === 0 ? (
+              <p className="text-xs text-slate-400">Belum ada catatan. Aksi penting (verifikasi, persetujuan, pembayaran, pembatalan, kelola user) akan tercatat di sini.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-[11px]">
+                  <thead>
+                    <tr className="text-left text-slate-400">
+                      <th className="py-1 pr-3 font-semibold">Waktu (WIB)</th>
+                      <th className="py-1 pr-3 font-semibold">User</th>
+                      <th className="py-1 pr-3 font-semibold">Aksi</th>
+                      <th className="py-1 pr-3 font-semibold">Target</th>
+                      <th className="py-1 font-semibold">Keterangan</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {audit.map(a => {
+                      const badge = {
+                        batalkan: 'bg-red-100 text-red-700', hapus_permanen: 'bg-red-100 text-red-700',
+                        bayar: 'bg-emerald-100 text-emerald-700', dp: 'bg-emerald-100 text-emerald-700',
+                        verifikasi: 'bg-blue-100 text-blue-700', setujui: 'bg-emerald-100 text-emerald-700',
+                        tolak: 'bg-rose-100 text-rose-700', tutup_arsip: 'bg-slate-100 text-slate-600',
+                        hapus_nota: 'bg-amber-100 text-amber-700',
+                      }[a.action] || (a.action?.startsWith('revisi') ? 'bg-purple-100 text-purple-700'
+                        : a.action?.startsWith('user') ? 'bg-violet-100 text-violet-700'
+                        : 'bg-slate-100 text-slate-600');
+                      return (
+                        <tr key={a.id} className="border-t border-slate-50 align-top">
+                          <td className="py-1.5 pr-3 text-slate-400 whitespace-nowrap">{fmtWIB(a.created_at)}</td>
+                          <td className="py-1.5 pr-3 text-slate-700 font-semibold whitespace-nowrap">{a.user_name || '—'}</td>
+                          <td className="py-1.5 pr-3"><span className={`px-1.5 py-0.5 rounded font-bold ${badge}`}>{a.action}</span></td>
+                          <td className="py-1.5 pr-3 text-slate-600 whitespace-nowrap">{a.target || '—'}</td>
+                          <td className="py-1.5 text-slate-400">{a.detail || '—'}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
 
           {/* Backup & Export */}
