@@ -4,6 +4,7 @@ const { authenticate, authorize } = require('../middleware/auth');
 const bcrypt = require('bcryptjs');
 const supabase = require('../../config/supabase');
 const { v4: uuidv4 } = require('uuid');
+const { logAudit } = require('../utils/auditLogger');
 
 router.use(authenticate);
 
@@ -41,6 +42,7 @@ router.post('/', authorize('Admin'), async (req, res) => {
     });
     if (error) throw error;
 
+    logAudit(req, { action: 'user_buat', target: name, detail: `role ${role}${jabatan ? ', ' + jabatan : ''}` });
     res.status(201).json({ message: `User ${name} berhasil ditambahkan. Password default = NIK (${nik})` });
   } catch (err) {
     console.error('[users/create]', err);
@@ -54,6 +56,7 @@ router.put('/:id/toggle-active', authorize('Admin'), async (req, res) => {
     const { data: user } = await supabase.from('users').select('is_active, name').eq('id', req.params.id).single();
     if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
     await supabase.from('users').update({ is_active: !user.is_active }).eq('id', req.params.id);
+    logAudit(req, { action: 'user_toggle', target: user.name, detail: user.is_active ? 'dinonaktifkan' : 'diaktifkan' });
     res.json({ message: `User ${user.name} berhasil di${user.is_active ? 'nonaktifkan' : 'aktifkan'}` });
   } catch (err) {
     res.status(500).json({ error: 'Gagal memperbarui status user' });
@@ -67,6 +70,7 @@ router.put('/:id/reset-password', authorize('Admin'), async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
     const hash = await bcrypt.hash(user.nik, 12);
     await supabase.from('users').update({ password_hash: hash, must_change_password: true }).eq('id', req.params.id);
+    logAudit(req, { action: 'user_reset_password', target: user.name });
     res.json({ message: `Password ${user.name} direset ke NIK (${user.nik})` });
   } catch (err) {
     res.status(500).json({ error: 'Gagal mereset password' });
