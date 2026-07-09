@@ -87,4 +87,19 @@ router.get('/detail', authenticate, authorize('Admin'), async (req, res) => {
   }
 });
 
+// ── Log audit — 50 terakhir (Admin) ─────────────────────────────
+router.get('/audit', authenticate, authorize('Admin'), async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('audit_logs')
+      .select('id, user_name, action, target, submission_id, detail, created_at')
+      .order('created_at', { ascending: false })
+      .limit(50);
+    if (error) throw error;
+    res.json({ data: data || [] });
+  } catch (err) {
+    res.status(500).json({ error: 'Gagal mengambil log audit: ' + err.message });
+  }
+});
+
 module.exports = router;
