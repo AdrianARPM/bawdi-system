@@ -822,7 +822,7 @@ const NAMA_BULAN = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
 // Ambil baris arsip langsung dari submissions (status Disetujui/Selesai).
 async function fetchArsipRows({ kendaraan, tahun } = {}) {
   let query = supabase.from('submissions')
-    .select(`id, nomor_pengajuan, type, status, tanggal, approval_at, tanggal_bayar,
+    .select(`id, nomor_pengajuan, type, status, tanggal, approval_at, tanggal_bayar, pemohon_id,
              jumlah_bayar, jumlah_dp, total_harga, jenis_pembelian, kendaraan, cabang, cabang_manual,
              nota_url, nota_uploaded_at, ditutup_at, vendor, vendor2, vendor_pilihan,
              pemohon:users!submissions_pemohon_id_fkey(name, cabang)`)
@@ -841,7 +841,7 @@ async function fetchArsipRows({ kendaraan, tahun } = {}) {
     const jdp = Number(s.jumlah_dp) || 0;      // uang muka / DP
     const dibayar = jb > 0 ? jb : jdp;         // pelunasan menggantikan DP; bila belum lunas pakai DP
     return {
-      id: s.id, nomor_pengajuan: s.nomor_pengajuan, type: s.type, status: s.status,
+      id: s.id, nomor_pengajuan: s.nomor_pengajuan, type: s.type, status: s.status, pemohon_id: s.pemohon_id,
       tanggal: s.tanggal, approval_at: s.approval_at, tanggal_bayar: s.tanggal_bayar,
       ditutup_at: s.ditutup_at, kendaraan: s.kendaraan, cabang,
       jenis_pembelian: s.jenis_pembelian || '',
@@ -859,7 +859,9 @@ async function fetchArsipRows({ kendaraan, tahun } = {}) {
 async function getDraft(req, res) {
   try {
     const { kendaraan, bulan, tahun } = req.query;
-    const all = await fetchArsipRows({});   // semua, untuk membangun daftar filter
+    let all = await fetchArsipRows({});   // semua, untuk membangun daftar filter
+    // Operasional (termasuk Kepala Op) hanya melihat arsip pengajuannya sendiri
+    if (req.user.role === 'Operasional') all = all.filter(r => r.pemohon_id === req.user.id);
     const kendaraanList = [...new Set(all.map(r => r.kendaraan))].sort();
     const cabangList    = [...new Set(all.map(r => r.cabang))].sort();
     const bulanList = [...new Map(all.map(r => [
