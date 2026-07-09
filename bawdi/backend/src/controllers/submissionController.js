@@ -8,6 +8,7 @@ const supabase = require('../../config/supabase');
 const { v4: uuidv4 } = require('uuid');
 const { sendEmailToRole, sendEmailToUser, emailTemplates } = require('../utils/emailService');
 const { autoRegisterVehicle } = require('./vehicleController');
+const { logAudit } = require('../utils/auditLogger');
 
 // Helper: cek apakah user adalah Kepala Operasional
 const isKepalaOp = (user) => user?.jabatan === 'Kepala Operasional';
@@ -96,7 +97,7 @@ async function list(req, res) {
       .from('submissions')
       .select(`
         id, nomor_pengajuan, type, status, tanggal, kendaraan, vendor, vendor2,
-        vendor_pilihan, jenis_pembelian, total_harga, batas_akhir_pembayaran, revisi_count, 
+        vendor_pilihan, jenis_pembelian, total_harga, batas_akhir_pembayaran, revisi_count,
         nota_url, approval_at,
         pemohon:users!submissions_pemohon_id_fkey(name, cabang),
         verifikator:users!submissions_verifikator_id_fkey(name),
@@ -334,6 +335,7 @@ async function verify(req, res) {
     sendEmailToRole('Approval', { ...tmpl, nomor: sub.nomor_pengajuan, submissionId: req.params.id, type: 'need_approval' }).catch(() => {});
     sendEmailToUser(sub.pemohon_id, { ...emailTemplates.need_approval(sub.nomor_pengajuan), nomor: sub.nomor_pengajuan, submissionId: req.params.id }).catch(() => {});
 
+    logAudit(req, { action: 'verifikasi', target: sub.nomor_pengajuan, submissionId: req.params.id });
     res.json({ message: 'Pengajuan berhasil diverifikasi' });
   } catch (err) {
     res.status(500).json({ error: 'Gagal memverifikasi pengajuan' });
@@ -422,6 +424,7 @@ async function approve(req, res) {
     await supabase.from('notification_schedule').update({ sent: true, sent_at: now })
       .eq('submission_id', req.params.id).eq('type', 'overdue_2days');
 
+    logAudit(req, { action: 'setujui', target: sub.nomor_pengajuan, submissionId: req.params.id });
     res.json({ message: 'Pengajuan berhasil disetujui' });
   } catch (err) {
     console.error('[submissions/approve]', err);
@@ -469,6 +472,7 @@ async function reject(req, res) {
     await supabase.from('notification_schedule').update({ sent: true, sent_at: now })
       .eq('submission_id', req.params.id).eq('type', 'overdue_2days');
 
+    logAudit(req, { action: 'tolak', target: sub.nomor_pengajuan, submissionId: req.params.id, detail: alasan_tolak });
     res.json({ message: 'Pengajuan berhasil ditolak' });
   } catch (err) {
     res.status(500).json({ error: 'Gagal menolak pengajuan' });
@@ -544,4 +548,91 @@ async function overdueForAction(req, res) {
   }
 }
 
-module.exports = { list, getOne, create, verify, approve, reject, stats, selectVendor, overdueForAction };
+
+// ── PUT /api/submissions/:id/cancel — Batalkan (soft delete, Admin) ──────────
+// Dokumen tetap ada (status "Dibatalkan"), keluar dari semua antrean aktif.
+async function cancelSubmission(req, res) {
+  try {
+    const { alasan } = req.body;
+    if (!alasan?.trim()) return res.status(400).json({ error: 'Alasan pembatalan wajib diisi' });
+
+    const { data: sub } = await supabase.from('submissions')
+      .select('id, nomor_pengajuan, status, pemohon_id, jumlah_bayar, jumlah_dp')
+      .eq('id', req.params.id).single();
+    if (!sub) return res.status(404).json({ error: 'Pengajuan tidak ditemukan' });
+
+    if (['Selesai', 'Dibatalkan'].includes(sub.status))
+      return res.status(400).json({ error: `Pengajuan berstatus ${sub.status} tidak dapat dibatalkan` });
+    if (Number(sub.jumlah_bayar) > 0 || Number(sub.jumlah_dp) > 0)
+      return res.status(400).json({ error: 'Pengajuan yang sudah ada pembayaran/DP tidak dapat dibatalkan dari UI' });
+
+    const { error } = await supabase.from('submissions').update({
+      status:          'Dibatalkan',
+      alasan_batal:    alasan.trim(),
+      dibatalkan_at:   new Date().toISOString(),
+      dibatalkan_oleh: req.user.id,
+    }).eq('id', sub.id);
+    if (error) throw error;
+
+    await notifyUser(sub.pemohon_id, sub.id, 'dibatalkan',
+      `Pengajuan ${sub.nomor_pengajuan} dibatalkan oleh ${req.user.name}: ${alasan.trim()}`);
+    logAudit(req, { action: 'batalkan', target: sub.nomor_pengajuan, submissionId: sub.id, detail: alasan.trim() });
+
+    res.json({ message: `Pengajuan ${sub.nomor_pengajuan} dibatalkan` });
+  } catch (err) {
+    res.status(500).json({ error: 'Gagal membatalkan: ' + err.message });
+  }
+}
+
+// ── DELETE /api/submissions/:id — Hapus permanen (Admin) ─────────────────────
+// HANYA untuk pengajuan yang belum tersentuh proses (salah input / dobel).
+// Wajib konfirmasi dengan mengetik ulang nomor pengajuan.
+async function hardDeleteSubmission(req, res) {
+  try {
+    const { alasan, konfirmasi_nomor } = req.body;
+    if (!alasan?.trim()) return res.status(400).json({ error: 'Alasan penghapusan wajib diisi' });
+
+    const { data: sub } = await supabase.from('submissions')
+      .select('id, nomor_pengajuan, status, jumlah_bayar, jumlah_dp, nota_url')
+      .eq('id', req.params.id).single();
+    if (!sub) return res.status(404).json({ error: 'Pengajuan tidak ditemukan' });
+
+    if (sub.status !== 'Menunggu Verifikasi')
+      return res.status(400).json({ error: 'Hanya pengajuan berstatus "Menunggu Verifikasi" (belum diproses) yang dapat dihapus permanen. Gunakan Batalkan untuk yang sudah berjalan.' });
+    if (Number(sub.jumlah_bayar) > 0 || Number(sub.jumlah_dp) > 0 || sub.nota_url)
+      return res.status(400).json({ error: 'Pengajuan dengan pembayaran/nota tidak dapat dihapus' });
+    if (konfirmasi_nomor !== sub.nomor_pengajuan)
+      return res.status(400).json({ error: 'Konfirmasi nomor pengajuan tidak cocok' });
+
+    // Catat ke audit SEBELUM menghapus (log tidak ber-FK, tetap ada setelah delete)
+    await logAudit(req, { action: 'hapus_permanen', target: sub.nomor_pengajuan, submissionId: sub.id, detail: alasan.trim() });
+
+    // Urutan pembersihan turunan (FK melingkar: null-kan active_revision_id dulu)
+    const sid = sub.id;
+    await supabase.from('submissions').update({ active_revision_id: null }).eq('id', sid);
+    const { data: snaps } = await supabase.from('revision_snapshots').select('id').eq('submission_id', sid);
+    if (snaps?.length) {
+      const snapIds = snaps.map(r => r.id);
+      await supabase.from('revision_snapshot_items').delete().in('snapshot_id', snapIds);
+      await supabase.from('revision_snapshots').delete().eq('submission_id', sid);
+    }
+    // Foto (tabel + file storage, best-effort)
+    try {
+      const { data: photos } = await supabase.from('submission_photos').select('id, url').eq('submission_id', sid);
+      if (photos?.length) {
+        await supabase.from('submission_photos').delete().eq('submission_id', sid);
+      }
+    } catch { /* abaikan */ }
+    await supabase.from('messages').delete().eq('submission_id', sid);
+    await supabase.from('notifications').delete().eq('submission_id', sid);
+    await supabase.from('submission_items').delete().eq('submission_id', sid);
+    const { error } = await supabase.from('submissions').delete().eq('id', sid);
+    if (error) throw error;
+
+    res.json({ message: `Pengajuan ${sub.nomor_pengajuan} dihapus permanen` });
+  } catch (err) {
+    res.status(500).json({ error: 'Gagal menghapus: ' + err.message });
+  }
+}
+
+module.exports = { list, getOne, create, verify, approve, reject, stats, selectVendor, overdueForAction, cancelSubmission, hardDeleteSubmission };

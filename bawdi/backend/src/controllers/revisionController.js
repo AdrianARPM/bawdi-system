@@ -10,6 +10,7 @@
 const supabase = require('../../config/supabase');
 const { v4: uuidv4 } = require('uuid');
 const ExcelJS = require('exceljs');
+const { logAudit } = require('../utils/auditLogger');
 const { sendEmailToUser, sendEmailToRole, emailTemplates } = require('../utils/emailService');
 
 // Helper: cek apakah user adalah Kepala Operasional
@@ -109,6 +110,12 @@ async function requestRevision(req, res) {
     } else {
       if (!['Verifikator', 'Approval', 'Admin'].includes(req.user.role))
         return res.status(403).json({ error: 'Anda tidak memiliki izin meminta revisi pengajuan PR' });
+    }
+
+    // ── GUARD anti-dobel: kalau sudah "Perlu Revisi", jangan buat snapshot lagi ──
+    // Mencegah double-submit (klik ganda / retry) yang membuat Revisi-1 & Revisi-2 kembar.
+    if (sub.status === 'Perlu Revisi') {
+      return res.status(409).json({ error: 'Pengajuan ini sudah dalam status menunggu revisi dari pemohon.' });
     }
 
     // Ambil items terpisah
@@ -217,6 +224,7 @@ async function requestRevision(req, res) {
       nomor: sub.nomor_pengajuan, submissionId, type: 'revision_request',
     }).catch(() => {});
 
+    logAudit(req, { action: 'revisi_minta', target: sub.nomor_pengajuan, submissionId, detail: `Revisi ke-${revisionNumber}: ${alasan_revisi.trim()}` });
     res.json({
       message:     `Permintaan revisi ke-${revisionNumber} berhasil dikirim`,
       snapshot_id: snapshotId,
@@ -429,6 +437,7 @@ async function verifyRevision(req, res) {
       }).catch(() => {});
     }
 
+    logAudit(req, { action: 'revisi_verifikasi', target: `Revisi ke-${snap.revision_number}`, submissionId: snap.submission_id });
     res.json({ message: 'Revisi berhasil diverifikasi' });
   } catch (err) {
     res.status(500).json({ error: 'Gagal verifikasi revisi: ' + err.message });
@@ -507,6 +516,7 @@ async function approveRevision(req, res) {
       }
     }
 
+    logAudit(req, { action: 'revisi_setujui', target: `Revisi ke-${snap.revision_number}`, submissionId: snap.submission_id });
     res.json({ message: `Revisi ke-${snap.revision_number} berhasil disetujui` });
   } catch (err) {
     res.status(500).json({ error: 'Gagal menyetujui revisi: ' + err.message });
@@ -565,6 +575,7 @@ async function rejectRevision(req, res) {
       nomor: sub?.nomor_pengajuan, submissionId: snap.submission_id, type: 'rejected',
     }).catch(() => {});
 
+    logAudit(req, { action: 'revisi_tolak', target: `Revisi ke-${snap.revision_number}`, submissionId: snap.submission_id });
     res.json({ message: `Revisi ke-${snap.revision_number} berhasil ditolak` });
   } catch (err) {
     res.status(500).json({ error: 'Gagal menolak revisi: ' + err.message });
@@ -673,6 +684,7 @@ async function deleteNota(req, res) {
       message: `🗑️ Nota "${nota.file_name}" dihapus oleh ${req.user.name}`, is_system: true,
     });
 
+    logAudit(req, { action: 'hapus_nota', submissionId: req.params.submissionId || null, detail: 'Nota dihapus' });
     res.json({ message: 'Nota berhasil dihapus' });
   } catch (err) {
     res.status(500).json({ error: 'Gagal menghapus nota: ' + err.message });
@@ -707,6 +719,7 @@ async function recordDP(req, res) {
     await notifyUser(sub.pemohon_id, req.params.submissionId, 'dp_recorded',
       `\u{1F4B5} DP ${sub.nomor_pengajuan} sebesar ${fmt} telah dicatat.`);
 
+    logAudit(req, { action: 'dp', submissionId: req.params.submissionId, detail: `DP ${Number(jumlah_dp).toLocaleString('id-ID')}` });
     res.json({ message: 'DP berhasil dicatat' });
   } catch (err) {
     res.status(500).json({ error: 'Gagal mencatat DP: ' + err.message });
@@ -755,6 +768,7 @@ async function recordPayment(req, res) {
       } catch (e) { console.warn('[recordPayment] pengingat nota dilewati:', e.message); }
     }
 
+    logAudit(req, { action: 'bayar', submissionId: req.params.submissionId, detail: `Bayar ${Number(jumlah_bayar).toLocaleString('id-ID')}` });
     res.json({ message: 'Pembayaran berhasil dicatat' });
   } catch (err) {
     res.status(500).json({ error: 'Gagal mencatat pembayaran: ' + err.message });
@@ -791,6 +805,7 @@ async function closeSubmission(req, res) {
     await notifyUser(sub.pemohon_id, req.params.submissionId, 'submission_closed',
       `🏁 Pengajuan ${sub.nomor_pengajuan} telah ditutup.`);
 
+    logAudit(req, { action: 'tutup_arsip', submissionId: req.params.submissionId });
     res.json({ message: 'Pengajuan berhasil ditutup' });
   } catch (err) {
     res.status(500).json({ error: 'Gagal menutup pengajuan: ' + err.message });
