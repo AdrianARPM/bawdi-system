@@ -10,7 +10,8 @@ import { revisionAPI } from '../utils/api';
 import { Card, Spinner, fmtDate, fmtCurrency } from '../components/ui';
 import useAuthStore from '../context/authStore';
 
-const ALLOWED_ROLES = ['Admin', 'Verifikator', 'Approval'];
+const ALLOWED_ROLES = ['Admin', 'Verifikator', 'Approval', 'Operasional'];
+// Operasional hanya melihat arsip pengajuannya sendiri (difilter di backend)
 
 // Status tagihan dari pembayaran (selaras rumus Excel)
 function statusTagihan(total, bayar) {
@@ -114,18 +115,21 @@ export default function DraftPage() {
           </h1>
           <p className="text-sm text-slate-400 mt-0.5">Pengajuan disetujui &amp; selesai · dikelompokkan per cabang</p>
         </div>
-        <button onClick={handleExportExcel} disabled={exporting || loading}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold transition-all shadow-sm">
-          {exporting ? <Loader size={13} className="animate-spin"/> : <FileSpreadsheet size={13}/>}
-          Export Excel
-        </button>
+        {user?.role !== 'Operasional' && (
+          <button onClick={handleExportExcel} disabled={exporting || loading}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold transition-all shadow-sm">
+            {exporting ? <Loader size={13} className="animate-spin"/> : <FileSpreadsheet size={13}/>}
+            Export Excel
+          </button>
+        )}
       </div>
 
       {/* Info akses */}
       <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-2.5">
         <p className="text-xs text-blue-600 font-medium">
-          🔒 Halaman ini hanya dapat dilihat oleh <strong>Admin, Verifikator, dan Approval</strong>.
-          Export Excel mengunduh rekap per cabang (satu sheet per cabang) untuk tahun terpilih.
+          {user?.role === 'Operasional'
+            ? <>🔒 Anda melihat <strong>arsip pengajuan Anda sendiri</strong> (disetujui &amp; selesai), dikelompokkan per cabang.</>
+            : <>🔒 Halaman ini dapat dilihat oleh <strong>Admin, Verifikator, dan Approval</strong> (seluruh arsip) serta <strong>Pemohon</strong> (arsip miliknya sendiri). Export Excel mengunduh rekap per cabang (satu sheet per cabang) untuk tahun terpilih.</>}
         </p>
       </div>
 
