@@ -473,10 +473,10 @@ try {                                                               // ✅ try a
   doc.setFont('helvetica', 'bold');
   doc.text(fmtDateExport(sub.batas_akhir_pembayaran), margin + 103, currentY);
 
-  currentY += 20;
+  currentY += 10;
 
   // ── Tanda Tangan ──────────────────────────────────────────────
-  if (currentY + 28 > pageH - 15) {
+  if (currentY + 22 > pageH - 15) {
     doc.addPage();
     currentY = margin;
   }
@@ -516,10 +516,10 @@ try {                                                               // ✅ try a
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(120, 120, 120);
-    doc.text(sig.date, xCenter, currentY + 9, { align: 'center' }); 
+    doc.text(sig.date, xCenter, currentY + 7, { align: 'center' }); 
   }
 
-  const signAreaY = currentY + 14;
+  const signAreaY = currentY + 12;
 
   if (sig.name) {
     doc.setFont('helvetica', 'bold');
