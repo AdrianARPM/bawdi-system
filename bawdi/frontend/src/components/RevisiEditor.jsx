@@ -5,8 +5,18 @@
 import { useState, useCallback } from 'react';
 import { Plus, Trash2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { revisionAPI } from '../utils/api';
+import { revisionAPI, historyAPI } from '../utils/api';
 import { Button, fmtCurrency } from './ui';
+
+// Format helper — disamakan dgn NewFormPage agar riwayat konsisten
+function fmtKM(km) {
+  if (km == null || km === '') return '—';
+  return Number(km).toLocaleString('id-ID') + ' KM';
+}
+function fmtTanggal(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+}
 
 /* ── Item Row — FIXED: tidak kehilangan fokus saat mengetik ─────
    Root cause sebelumnya:
@@ -167,7 +177,7 @@ function ItemsSection({ items, vendorNum, vendorLabel, vendorColor, onUpdate, on
 /* ═══════════════════════════════════════════════════════════════
    MAIN COMPONENT
 ═══════════════════════════════════════════════════════════════ */
-export default function RevisiEditor({ snapshot, onClose, onSubmitted, isUmum = false }) {
+export default function RevisiEditor({ snapshot, onClose, onSubmitted, isUmum = false, kendaraan = '' }) {
   const [form, setForm] = useState({
     alasan:          snapshot.alasan          || '',
     riwayat:         snapshot.riwayat         || '',
@@ -195,6 +205,64 @@ export default function RevisiEditor({ snapshot, onClose, onSubmitted, isUmum = 
   const [submitting, setSubmitting] = useState(false);
 
   const setField = useCallback((k, v) => setForm(f => ({ ...f, [k]: v })), []);
+
+  // Susun teks Riwayat otomatis dari item — format PERSIS seperti pengajuan asli (NewFormPage.buildRiwayat)
+  const [buildingRiwayat, setBuildingRiwayat] = useState(false);
+  const susunRiwayat = useCallback(async () => {
+    if (buildingRiwayat) return;
+    // Jaring pengaman: jika Riwayat sudah ada isinya (mis. hasil suntingan manual),
+    // konfirmasi dulu sebelum menulis ulang seluruhnya.
+    const isiSekarang = (form.riwayat || '').trim();
+    if (isiSekarang && isiSekarang !== '(Tidak ada riwayat KM yang diisi)') {
+      if (!window.confirm('Kotak Riwayat sudah berisi teks. Menyusun otomatis akan menulis ulang SELURUH isinya (termasuk suntingan manual). Lanjutkan?')) {
+        return;
+      }
+    }
+    setBuildingRiwayat(true);
+    try {
+      const ordered = [
+        ...form.items.filter(i => i.vendor_num !== 2),
+        ...form.items.filter(i => i.vendor_num === 2),
+      ];
+      // Cari KM/Tgl terakhir dari arsip per item (paralel), berdasarkan plat + nama item
+      const results = await Promise.all(ordered.map(async item => {
+        let arsip = null;
+        const keyword = item.penjelasan?.trim();
+        if (kendaraan?.trim() && keyword) {
+          try {
+            const { data: res } = await historyAPI.getLastKM(kendaraan.trim(), keyword);
+            if (res?.data) arsip = res.data;
+          } catch { /* abaikan — arsip tak ada */ }
+        }
+        return { item, arsip };
+      }));
+
+      const lines = [];
+      let counter = 0;
+      results.forEach(({ item, arsip }) => {
+        const hasArsip      = !!arsip;
+        const kmTerakhirEf  = hasArsip ? arsip.km_pengajuan : null;
+        const tglTerakhirEf = hasArsip ? arsip.tanggal      : null;
+        const kmSekarang    = parseInt(item.km_pengajuan) || null;
+        if (!kmSekarang && !kmTerakhirEf && !tglTerakhirEf) return;  // item tanpa data KM dilewati
+        counter++;
+        const selisih = kmSekarang && kmTerakhirEf != null ? kmSekarang - kmTerakhirEf : null;
+        const sumber  = hasArsip ? (arsip.nomor_pengajuan ? ` (${arsip.nomor_pengajuan})` : '') : '';
+        lines.push(`${counter}. ${item.penjelasan || '(tanpa penjelasan)'}`);
+        lines.push(`   a. Tgl Terakhir : ${tglTerakhirEf ? fmtTanggal(tglTerakhirEf) + sumber : '—'}`);
+        lines.push(`   b. KM Terakhir  : ${kmTerakhirEf != null ? fmtKM(kmTerakhirEf) : '—'}`);
+        lines.push(`   c. KM Sekarang  : ${kmSekarang != null ? fmtKM(kmSekarang) : '—'}`);
+        lines.push(`   d. Selisih KM   : ${selisih != null ? `${selisih >= 0 ? '+' : ''}${selisih.toLocaleString('id-ID')} KM` : '—'}`);
+        lines.push('');
+      });
+      setField('riwayat', lines.length ? lines.join('\n').trim() : '(Tidak ada riwayat KM yang diisi)');
+      toast.success('Riwayat disusun otomatis dari data item');
+    } catch {
+      toast.error('Gagal menyusun riwayat');
+    } finally {
+      setBuildingRiwayat(false);
+    }
+  }, [form.items, form.riwayat, kendaraan, buildingRiwayat, setField]);
 
   // Update item by global index — menggunakan functional update untuk stabilitas
   const updateItem = useCallback((globalIdx, field, value) => {
@@ -304,14 +372,25 @@ export default function RevisiEditor({ snapshot, onClose, onSubmitted, isUmum = 
 
             {/* Riwayat */}
             <div>
-              <label className="block text-xs font-bold text-slate-600 mb-1.5">Riwayat</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-bold text-slate-600">Riwayat</label>
+                {!isUmum && (
+                  <button type="button" onClick={susunRiwayat} disabled={buildingRiwayat}
+                    className="text-[11px] font-bold text-blue-600 hover:text-blue-700 disabled:opacity-50">
+                    {buildingRiwayat ? 'Menyusun…' : '↻ Susun Riwayat Otomatis'}
+                  </button>
+                )}
+              </div>
               <textarea
                 value={form.riwayat}
                 onChange={e => setField('riwayat', e.target.value)}
                 rows={4}
                 className={inputCls + ' resize-none leading-relaxed'}
                 placeholder="Riwayat service/penggantian sebelumnya..."/>
-              <p className="text-[10px] text-slate-400 mt-1">💡 Tekan Enter untuk baris baru</p>
+              <p className="text-[10px] text-slate-400 mt-1">
+                {isUmum ? '💡 Tekan Enter untuk baris baru'
+                        : '💡 Isi KM Sekarang tiap item, lalu klik "Susun Riwayat Otomatis" agar formatnya sama persis dengan pengajuan asli — atau ketik manual.'}
+              </p>
             </div>
 
             {/* Ppn & Pph23 */}
