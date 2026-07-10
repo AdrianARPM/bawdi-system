@@ -40,6 +40,7 @@ export default function App() {
           <Route path="submissions"     element={<SubmissionsPage />} />
           <Route path="submissions/:id" element={<DetailPage />} />
           <Route path="new"             element={<PrivateRoute roles={['Operasional','Admin']}><NewFormPage /></PrivateRoute>} />
+          <Route path="submissions/:id/revisi/:snapshotId" element={<NewFormPage />} />
           <Route path="users"           element={<PrivateRoute roles={['Admin']}><UsersPage /></PrivateRoute>} />
           <Route path="draft"           element={<DraftPage />} />
           <Route path="analytics"       element={<PrivateRoute roles={['Admin','Verifikator','Approval','Operasional']}><AnalyticsPage /></PrivateRoute>} />
