@@ -1140,7 +1140,7 @@ export default function DetailPage() {
             <p className="text-xs text-purple-500 mt-0.5">{draftRevision.alasan_revisi}</p>
           </div>
           <button
-            onClick={() => { setEditSnap(draftRevision); setActiveTab(`revisi-${draftRevision.revision_number}`); }}
+            onClick={() => navigate(`/submissions/${sub.id}/revisi/${draftRevision.id}`)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-500 hover:bg-purple-600 text-white text-xs font-bold transition-all flex-shrink-0">
             <RefreshCw size={12}/> Edit Revisi
           </button>
