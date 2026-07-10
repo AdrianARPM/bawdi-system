@@ -14,24 +14,27 @@ export default function SubmissionsPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('Semua');
   const [q, setQ] = useState('');
+  const [debouncedQ, setDebouncedQ] = useState('');
 
+  // Debounce input pencarian — kueri ke server hanya setelah berhenti mengetik (300ms)
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQ(q), 300);
+    return () => clearTimeout(t);
+  }, [q]);
+
+  // Pencarian & filter status dikerjakan di server; Opsi A: muat semua saat tak mencari
   useEffect(() => {
     const load = async () => {
       try {
-        const params = {};
-        if (filter !== 'Semua') params.status = filter;
+        const params = { limit: 1000 };
+        if (filter !== 'Semua')  params.status = filter;
+        if (debouncedQ.trim())   params.q = debouncedQ.trim();
         const { data } = await submissionAPI.list(params);
         setSubs(data.data || []);
       } catch {} finally { setLoading(false); }
     };
     load();
-  }, [filter]);
-
-  const filtered = subs.filter(s =>
-    !q || s.nomor_pengajuan?.toLowerCase().includes(q.toLowerCase()) ||
-    s.kendaraan?.toLowerCase().includes(q.toLowerCase()) ||
-    s.pemohon?.name?.toLowerCase().includes(q.toLowerCase())
-  );
+  }, [filter, debouncedQ]);
 
   if (loading) return <Spinner size={32} />;
 
@@ -63,10 +66,10 @@ export default function SubmissionsPage() {
         ))}
       </div>
 
-      {filtered.length === 0 && <Empty icon={FileText} message="Tidak ada pengajuan ditemukan" sub="Coba ubah filter atau buat pengajuan baru" />}
+      {subs.length === 0 && <Empty icon={FileText} message="Tidak ada pengajuan ditemukan" sub="Coba ubah kata kunci atau filter" />}
 
       <div className="space-y-2.5">
-        {filtered.map(s => {
+        {subs.map(s => {
           const isAlert = ['Menunggu Verifikasi','Terverifikasi'].includes(s.status) && daysSince(s.tanggal) > 3;
           const notaAlert = s.status === 'Disetujui' && !s.nota_url && daysSince(s.approval_at) >= 1;
           return (
