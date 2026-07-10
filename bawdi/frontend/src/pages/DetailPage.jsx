@@ -723,6 +723,8 @@ export default function DetailPage() {
   };
 
   useEffect(() => { load(); }, [id]);
+  // Selalu tampilkan pesan urut waktu (naik) — tak bergantung urutan dari server
+  const sortedMsgs = [...msgs].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
   useEffect(() => {
     if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
@@ -1424,7 +1426,7 @@ export default function DetailPage() {
                 Belum ada pesan
               </div>
             )}
-            {msgs.map((m, i) => {
+            {sortedMsgs.map((m, i) => {
               const isMe = m.user?.id === user.id;
               if (m.is_system) return (
                 <div key={i} className="text-center">
