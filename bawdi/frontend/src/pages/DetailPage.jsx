@@ -953,6 +953,7 @@ export default function DetailPage() {
         <RevisiEditor
           snapshot={editSnap}
           isUmum={!!sub.is_umum}
+          kendaraan={sub.kendaraan}
           onClose={() => setEditSnap(null)}
           onSubmitted={() => { setEditSnap(null); load(); }}
         />
