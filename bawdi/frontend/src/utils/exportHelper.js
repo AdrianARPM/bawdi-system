@@ -119,27 +119,27 @@ export async function exportSinglePDF(sub) {
 
   // ── Header Perusahaan ─────────────────────────────────────────
 try {                                                               // ✅ try added
-  doc.addImage(LOGO_PATH, 'JPEG', pageW - margin - 40, 6, 40, 24);
+  doc.addImage(LOGO_PATH, 'JPEG', pageW - margin - 40, 4, 40, 22);
 } catch (e) {                                                      // ✅ closing } added
   console.warn("Logo tidak ditemukan");
 }
 
   doc.setFontSize(12);
   doc.setTextColor(0, 0, 0);
-  doc.text('PT. Bantu Kawal Distribusi', margin, 25);
+  doc.text('PT. Bantu Kawal Distribusi', margin, 19);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(50, 50, 50);
-  doc.text('Jl. Rajawali Sakti, Ruko Komplek Royal Regency, Kota Pekanbaru', margin, 30);
+  doc.text('Jl. Rajawali Sakti, Ruko Komplek Royal Regency, Kota Pekanbaru', margin, 24);
 
   // Garis Bawah Header
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.6);
-  doc.line(margin, 38, pageW - margin, 38);
+  doc.line(margin, 30, pageW - margin, 30);
 
   // ── Judul Dokumen & Status ────────────────────────────────────
-  let currentY = 48;
+  let currentY = 39;
   const typeLabel = sub.type === 'PAR' ? 'PURCHASE AUTHORIZATION REQUEST' : 'PURCHASE REQUISITION';
 
   doc.setFont('helvetica', 'bold');
@@ -182,7 +182,7 @@ try {                                                               // ✅ try a
   doc.setTextColor(100, 100, 100);
   doc.text(`Dicetak: ${fmtDateTimeExport(new Date().toISOString())}`, pageW - margin, currentY + 7, { align: 'right' });
 
-  currentY += 18;
+  currentY += 15;
 
   // ── Grid Metadata (2 Kolom) ───────────────────────────────────
   const col1X = margin;
@@ -241,7 +241,7 @@ try {                                                               // ✅ try a
     currentY += Math.max(lines1.length, lines2.length, 1) * metaLineH;
   });
 
-  currentY += 2;
+  currentY += 1;
 
   // ── Tabel Item ────────────────────────────────────────────────
   // Kolom: No | Penjelasan Item | Satuan | Harga (Rp) | Total Harga
@@ -306,7 +306,7 @@ try {                                                               // ✅ try a
     margin: { left: margin, right: margin }
   });
 
-  currentY = doc.lastAutoTable.finalY + 12;
+  currentY = doc.lastAutoTable.finalY + 6;
 
   // ── Box Keterangan ────────────────────────────────────────────
   // Page break BEFORE drawing the box
@@ -328,8 +328,19 @@ try {                                                               // ✅ try a
 
   // Wrap teks ke lebar kolom (separuh halaman)
   const alasanLines = doc.splitTextToSize(sub.alasan || '—', colW);
-  const riwayatAll  = doc.splitTextToSize(
-    (sub.riwayat || '—').replace(/\n\s*\n/g, '\n'), colW);
+
+  // KM Sekarang selalu sama utk semua item dalam satu pengajuan →
+  // tampilkan SEKALI di atas Riwayat, buang baris "KM Sekarang" per item, renumber d→c.
+  let riwayatText  = (sub.riwayat || '—').replace(/\n\s*\n/g, '\n');
+  let kmSekarangVal = null;
+  const kmMatch = riwayatText.match(/KM Sekarang\s*:\s*([^\n]+)/);
+  if (kmMatch) {
+    kmSekarangVal = kmMatch[1].trim();
+    riwayatText = riwayatText
+      .replace(/^[ \t]*c\.[ \t]*KM Sekarang[ \t]*:[^\n]*\n?/gm, '')
+      .replace(/(^[ \t]*)d\.[ \t]*Selisih KM/gm, '$1c. Selisih KM');
+  }
+  const riwayatAll  = doc.splitTextToSize(riwayatText, colW);
 
   // Page-break sebelum mulai box bila ruang minim
   if (currentY + titleH + colHeaderH + lineH * 4 > footerSafeY) {
@@ -347,6 +358,12 @@ try {                                                               // ✅ try a
   doc.setLineWidth(0.3);
   doc.line(margin + boxPadding, innerY + 1,
            margin + boxPadding + doc.getTextWidth('KETERANGAN'), innerY + 1);
+  // KM Sekarang — sekali, kanan atas box (sama utk semua item)
+  if (kmSekarangVal) {
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(0, 0, 0);
+    doc.text(`KM Sekarang : ${kmSekarangVal}`, pageW - margin - boxPadding, innerY, { align: 'right' });
+  }
   innerY += titleH - boxPadding;
 
   const leftX  = margin + boxPadding;
