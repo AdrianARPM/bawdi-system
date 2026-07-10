@@ -373,6 +373,20 @@ try {                                                               // ✅ try a
   doc.text(alasanLines, leftX, alasanY);
   let leftBottomY = alasanY + alasanLines.length * lineH;
 
+  // Pph23 — di dalam box Keterangan, bawah Alasan (kolom kiri)
+  if (sub.pph23 && String(sub.pph23).trim()) {
+    let pphY = leftBottomY + 3;
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(80, 80, 80);
+    doc.text('Pph23', leftX, pphY);
+    pphY += colHeaderH - 1;
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(0, 0, 0);
+    const pphLines = doc.splitTextToSize(String(sub.pph23), colW);
+    doc.text(pphLines, leftX, pphY);
+    leftBottomY = pphY + pphLines.length * lineH;
+  }
+
   // ── Kolom kanan: Riwayat Sebelumnya (dgn page-break bila panjang) ──
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(80, 80, 80);
@@ -416,21 +430,6 @@ try {                                                               // ✅ try a
       leftBottomY = cont;          // tak ada alasan di halaman lanjutan
       rY          = cont + colHeaderH;
     }
-  }
-
-  // ── Pph23 (teks bebas, di bawah keterangan) ───────────────────
-  if (sub.pph23 && String(sub.pph23).trim()) {
-    if (currentY + 14 > pageH - 15) { doc.addPage(); currentY = margin; }
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(80, 80, 80);
-    doc.text('Pph23', margin, currentY);
-    currentY += 5;
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(0, 0, 0);
-    const pphLines = doc.splitTextToSize(String(sub.pph23), pageW - margin * 2);
-    doc.text(pphLines, margin, currentY);
-    currentY += pphLines.length * 4 + 6;
   }
 
   // ── Info Pembayaran / Batas Waktu ─────────────────────────────
