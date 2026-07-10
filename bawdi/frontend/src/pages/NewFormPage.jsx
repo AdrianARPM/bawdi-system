@@ -13,10 +13,10 @@
 // 3. Auto-fetch KM berdasarkan plat + penjelasan item saat user blur penjelasan
 // 4. Jika arsip kosong, KM & tanggal terakhir bisa diisi manual per item
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Plus, Trash2, Check, ChevronLeft, Upload, X, AlertCircle, Loader } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { submissionAPI, photoAPI, historyAPI, vehicleAPI, offlineQueue } from '../utils/api';
+import { submissionAPI, photoAPI, historyAPI, vehicleAPI, offlineQueue, revisionAPI } from '../utils/api';
 import { Card, Button, fmtCurrency } from '../components/ui';
 import VehicleHistoryPanel from '../components/VehicleHistoryPanel';
 import useAuthStore from '../context/authStore';
@@ -379,6 +379,12 @@ export default function NewFormPage() {
   const navigate  = useNavigate();
   const [step, setStep]       = useState(0);
   const [loading, setLoading] = useState(false);
+  // ── Mode Revisi: NewFormPage dipakai ulang untuk mengedit snapshot revisi ──
+  const { id: revSubId, snapshotId } = useParams();
+  const isRevision = !!snapshotId;
+  const [revLoading, setRevLoading]       = useState(isRevision);
+  const [revNumber, setRevNumber]         = useState(null);
+  const [preservedItems2, setPreservedItems2] = useState([]); // item Vendor 2 dipertahankan apa adanya
   const [photos, setPhotos]   = useState([]);
   const [errors, setErrors]   = useState({});
 
@@ -551,15 +557,100 @@ export default function NewFormPage() {
     return Object.keys(e).length === 0;
   };
 
-  const handleNext = () => { if (!validate(step)){toast.error('Lengkapi field yang wajib');return;} if(step===3&&!form.useVendor2){setStep(4);return;} setStep(s=>s+1); };
-  const handleBack = () => { setErrors({}); if(step===4&&!form.useVendor2){setStep(2);return;} setStep(s=>s-1); };
+  const handleNext = () => { if (!validate(step)){toast.error('Lengkapi field yang wajib');return;} if(isRevision){ if(step===1){setStep(2);} return; } if(step===3&&!form.useVendor2){setStep(4);return;} setStep(s=>s+1); };
+  const handleBack = () => { setErrors({}); if(isRevision){ if(step===2){setStep(1);} else {navigate(-1);} return; } if(step===4&&!form.useVendor2){setStep(2);return;} setStep(s=>s-1); };
+
+  // Pre-fill dari submission (konteks) + snapshot (data revisi) saat mode revisi
+  useEffect(() => {
+    if (!isRevision) return;
+    let alive = true;
+    (async () => {
+      try {
+        const [subRes, revRes] = await Promise.all([
+          submissionAPI.getOne(revSubId),
+          revisionAPI.list(revSubId),
+        ]);
+        if (!alive) return;
+        const sub  = subRes.data.data;
+        const snap = (revRes.data.data || []).find(r => String(r.id) === String(snapshotId));
+        if (!snap) { toast.error('Revisi tidak ditemukan'); navigate(`/submissions/${revSubId}`); return; }
+        setRevNumber(snap.revision_number);
+        const allItems = snap.items || [];
+        const v1 = allItems.filter(i => i.vendor_num !== 2);
+        const v2 = allItems.filter(i => i.vendor_num === 2);
+        setPreservedItems2(v2);
+        const mapItem = i => ({
+          id: crypto.randomUUID(),
+          penjelasan: i.penjelasan || '', satuan: i.satuan || '',
+          harga:  i.harga  != null ? String(i.harga)  : '',
+          diskon: i.diskon ? String(i.diskon) : '',
+          km_pengajuan: i.km_pengajuan != null ? String(i.km_pengajuan) : '',
+          kategori_biaya: i.kategori_biaya || '',
+          km_manual: '', tgl_manual: '',
+        });
+        const items1 = v1.length ? v1.map(mapItem) : [newItem()];
+        setForm(f => ({
+          ...f,
+          type: sub.type || 'PR', is_umum: !!sub.is_umum,
+          kendaraan: sub.kendaraan || '', jenis_pembelian: sub.jenis_pembelian || '',
+          alasan: snap.alasan || '', alasan_type: sub.alasan_type || '',
+          pph23: snap.pph23 || '',
+          ppn: snap.ppn != null && snap.ppn !== '' ? String(snap.ppn) : '',
+          vendor: snap.vendor || '', npwp: snap.npwp || '', rekening_tujuan: snap.rekening_tujuan || '',
+          vendor2: snap.vendor2 || '', npwp2: snap.npwp2 || '', useVendor2: v2.length > 0,
+          batas_waktu_dana: sub.batas_waktu_dana || '', batas_akhir_pembayaran: sub.batas_akhir_pembayaran || '',
+          items1, items2: v2.length ? v2.map(mapItem) : [newItem()],
+        }));
+        setStep(1);
+        // Isi cache KM arsip per item agar riwayat tersusun lengkap (spt pengajuan asli)
+        if (!sub.is_umum && sub.kendaraan) {
+          items1.forEach(it => { if (it.penjelasan) fetchItemKM(it.id, sub.kendaraan, it.penjelasan); });
+        }
+      } catch {
+        if (alive) toast.error('Gagal memuat data revisi');
+      } finally {
+        if (alive) setRevLoading(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, [isRevision, revSubId, snapshotId]); // eslint-disable-line
 
   const submit = async () => {
     if (!validate(step)){toast.error('Lengkapi field yang wajib');return;}
     setLoading(true);
     try {
-      const nomor   = buildNomor(form.nomorUrut, form.type, form.cabangManual);
       const riwayat = form.is_umum ? '' : buildRiwayat();
+
+      // ── MODE REVISI: simpan ke snapshot, bukan buat pengajuan baru ──
+      if (isRevision) {
+        const itemsV1 = form.items1.map(i => ({
+          penjelasan:i.penjelasan, satuan:i.satuan, vendor_num:1,
+          harga:parseFloat(i.harga)||0, diskon:parseFloat(i.diskon)||0, total:calcItemTotal(i),
+          km_pengajuan: parseInt(i.km_pengajuan) || null, kategori_biaya: i.kategori_biaya || 'Lainnya',
+        }));
+        // Vendor 2 dipertahankan apa adanya (tidak diedit di layar revisi ini)
+        const itemsV2 = preservedItems2.map(i => ({
+          penjelasan:i.penjelasan, satuan:i.satuan, vendor_num:2,
+          harga:Number(i.harga)||0, diskon:Number(i.diskon)||0, total:Number(i.total)||0,
+          km_pengajuan: i.km_pengajuan != null ? Number(i.km_pengajuan) : null,
+          kategori_biaya: i.kategori_biaya || 'Lainnya',
+        }));
+        const payload = {
+          alasan: form.alasan, riwayat,
+          vendor: form.vendor, npwp: form.npwp, rekening_tujuan: form.rekening_tujuan,
+          vendor2: form.vendor2, npwp2: form.npwp2,
+          ppn: parseFloat(form.ppn)||0, pph23: form.pph23||'',
+          items: [...itemsV1, ...itemsV2],
+        };
+        await revisionAPI.editSnapshot(snapshotId, payload);
+        await revisionAPI.submitSnapshot(snapshotId);
+        toast.success('Revisi berhasil dikirim!');
+        navigate(`/submissions/${revSubId}`);
+        setLoading(false);
+        return;
+      }
+
+      const nomor   = buildNomor(form.nomorUrut, form.type, form.cabangManual);
       const items   = [
         ...form.items1.map(i=>({
           penjelasan:i.penjelasan, satuan:i.satuan, vendor_num:1,
@@ -612,14 +703,19 @@ export default function NewFormPage() {
 
   const ic = ek => `w-full px-3 py-2.5 rounded-xl border text-sm text-slate-800 outline-none transition-colors placeholder:text-slate-300 disabled:bg-slate-50 focus:ring-2 ${errors[ek]?'border-red-300 focus:border-red-400 focus:ring-red-50':'border-slate-200 focus:border-amber-400 focus:ring-amber-100'}`;
 
+  if (revLoading) return <div className="flex justify-center py-20"><Spinner size={32}/></div>;
+
   return (
     <div className="max-w-2xl mx-auto space-y-5">
       <div className="flex items-center gap-3">
         <button onClick={()=>navigate(-1)} className="p-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50"><ChevronLeft size={18} className="text-slate-600"/></button>
-        <div><h1 className="text-xl font-black text-slate-800">Buat Pengajuan Baru</h1><p className="text-xs text-slate-400">Langkah {step+1}/{STEPS.length}</p></div>
+        <div>
+          <h1 className="text-xl font-black text-slate-800">{isRevision ? `Edit Revisi ke-${revNumber||''}` : 'Buat Pengajuan Baru'}</h1>
+          <p className="text-xs text-slate-400">{isRevision ? `Langkah ${step===1?1:2}/2 · ${step===1?'Data & Keterangan':'Vendor & Item'}` : `Langkah ${step+1}/${STEPS.length}`}</p>
+        </div>
       </div>
 
-      <div className="flex items-center overflow-x-auto pb-1">
+      <div className={`flex items-center overflow-x-auto pb-1 ${isRevision?'hidden':''}`}>
         {STEPS.map((s,i)=>(
           <div key={s} className="flex items-center flex-shrink-0">
             <div className="flex flex-col items-center">
@@ -687,6 +783,7 @@ export default function NewFormPage() {
                     if (e.target.value === '__new__') { setPlatBaru(true); set('kendaraan', ''); }
                     else set('kendaraan', e.target.value);
                   }}
+                  disabled={isRevision}
                   className={`${ic('kendaraan')} bg-white ${form.kendaraan ? 'text-slate-800' : 'text-slate-400'}`}>
                   <option value="">— Pilih kendaraan dari master —</option>
                   {platList.map(p => <option key={p} value={p}>{p}</option>)}
@@ -694,7 +791,7 @@ export default function NewFormPage() {
                 </select>
               ) : (
                 <div className="space-y-1">
-                  <input value={form.kendaraan} onChange={e=>set('kendaraan',e.target.value.toUpperCase())} placeholder="BM 1234 ZZ" className={ic('kendaraan')}/>
+                  <input value={form.kendaraan} onChange={e=>set('kendaraan',e.target.value.toUpperCase())} placeholder="BM 1234 ZZ" disabled={isRevision} className={ic('kendaraan')}/>
                   {platList.length > 0 && (
                     <button type="button" onClick={() => { setPlatBaru(false); set('kendaraan',''); }}
                       className="text-[10.5px] font-bold text-amber-500 hover:text-amber-600">
@@ -711,7 +808,7 @@ export default function NewFormPage() {
             </Field>
             )}
             <Field label="Jenis Pembelian" required error={errors.jenis_pembelian}>
-              <select value={form.jenis_pembelian} onChange={e=>set('jenis_pembelian',e.target.value)} className={ic('jenis_pembelian')}>
+              <select value={form.jenis_pembelian} onChange={e=>set('jenis_pembelian',e.target.value)} disabled={isRevision} className={ic('jenis_pembelian')}>
                 <option value="">— Pilih Jenis Pembelian —</option>
                 {(form.is_umum ? JENIS_UMUM : JENIS_KENDARAAN).map(j => (
                   <option key={j} value={j}>{j}</option>
@@ -720,7 +817,7 @@ export default function NewFormPage() {
             </Field>
             <Field label="Type" error={errors.alasan_type}>
               <input value={form.alasan_type} onChange={e=>set('alasan_type',e.target.value)} placeholder="Contoh: Revo Tahun 2010"
-                className={ic('alasan_type')}/>
+                disabled={isRevision} className={ic('alasan_type')}/>
             </Field>
             <Field label="Alasan Pengajuan" required error={errors.alasan}>
               <textarea value={form.alasan} onChange={e=>set('alasan',e.target.value)} rows={3} placeholder="Jelaskan alasan pengajuan..."
@@ -731,8 +828,8 @@ export default function NewFormPage() {
                 className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none resize-none placeholder:text-slate-300 focus:border-amber-400 focus:ring-2 focus:ring-amber-100 leading-relaxed"/>
             </Field>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Batas Waktu Dana" required error={errors.batas_waktu_dana}><input value={form.batas_waktu_dana} onChange={e=>set('batas_waktu_dana',e.target.value)} placeholder="30 Hari" className={ic('batas_waktu_dana')}/></Field>
-              <Field label="Batas Akhir Pembayaran" required error={errors.batas_akhir_pembayaran}><input type="date" value={form.batas_akhir_pembayaran} onChange={e=>set('batas_akhir_pembayaran',e.target.value)} className={ic('batas_akhir_pembayaran')}/></Field>
+              <Field label="Batas Waktu Dana" required error={errors.batas_waktu_dana}><input value={form.batas_waktu_dana} onChange={e=>set('batas_waktu_dana',e.target.value)} placeholder="30 Hari" disabled={isRevision} className={ic('batas_waktu_dana')}/></Field>
+              <Field label="Batas Akhir Pembayaran" required error={errors.batas_akhir_pembayaran}><input type="date" value={form.batas_akhir_pembayaran} onChange={e=>set('batas_akhir_pembayaran',e.target.value)} disabled={isRevision} className={ic('batas_akhir_pembayaran')}/></Field>
             </div>
           </div>
         </Card>
@@ -898,7 +995,13 @@ export default function NewFormPage() {
 
       <div className="flex gap-3 pb-4">
         {step>0&&<Button variant="secondary" className="flex-1" onClick={handleBack}>← Kembali</Button>}
-        {step<STEPS.length-1?<Button className="flex-1" onClick={handleNext}>Lanjut →</Button>:<Button variant="success" className="flex-1" onClick={submit} loading={loading}>✓ Kirim Pengajuan</Button>}
+        {isRevision
+          ? (step===2
+              ? <Button variant="success" className="flex-1" onClick={submit} loading={loading}>✓ Kirim Revisi</Button>
+              : <Button className="flex-1" onClick={handleNext}>Lanjut →</Button>)
+          : (step<STEPS.length-1
+              ? <Button className="flex-1" onClick={handleNext}>Lanjut →</Button>
+              : <Button variant="success" className="flex-1" onClick={submit} loading={loading}>✓ Kirim Pengajuan</Button>)}
       </div>
     </div>
   );
