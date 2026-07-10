@@ -115,7 +115,7 @@ export async function exportSinglePDF(sub) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
-  const margin = 15;
+  const margin = 10;
 
   // ── Header Perusahaan ─────────────────────────────────────────
 try {                                                               // ✅ try added
