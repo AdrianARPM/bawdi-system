@@ -640,4 +640,89 @@ async function hardDeleteSubmission(req, res) {
   }
 }
 
-module.exports = { list, getOne, create, verify, approve, reject, stats, selectVendor, overdueForAction, cancelSubmission, hardDeleteSubmission };
+
+// ── Deteksi Pengajuan Ganda ──────────────────────────────────────────────────
+// Memperingatkan, TIDAK memblokir. Cocok bila: kendaraan sama (atau cabang+jenis
+// utk pengajuan umum) + ada item yang mirip + status masih hidup + dalam 30 hari.
+const STATUS_HIDUP = ['Menunggu Verifikasi', 'Terverifikasi', 'Disetujui'];
+
+// Normalisasi teks item: huruf kecil, buang tanda baca & spasi ganda
+function normTxt(t) {
+  return String(t || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Mirip bila salah satu memuat yang lain, atau berbagi >= 2 kata bermakna (>3 huruf)
+function itemMirip(a, b) {
+  const na = normTxt(a), nb = normTxt(b);
+  if (!na || !nb) return false;
+  if (na === nb) return true;
+  if (na.includes(nb) || nb.includes(na)) return true;
+  const wa = new Set(na.split(' ').filter(w => w.length > 3));
+  const wb = nb.split(' ').filter(w => w.length > 3);
+  return wb.filter(w => wa.has(w)).length >= 2;
+}
+
+// POST /api/submissions/check-duplicate
+// body: { kendaraan, cabang, jenis_pembelian, is_umum, items: [{penjelasan}], exclude_id? }
+async function checkDuplicate(req, res) {
+  try {
+    const { kendaraan, cabang, jenis_pembelian, is_umum, items = [], exclude_id } = req.body;
+    const penjelasanList = items.map(i => i?.penjelasan).filter(Boolean);
+    if (!penjelasanList.length) return res.json({ data: [] });
+
+    const sejak = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+    let query = supabase
+      .from('submissions')
+      .select(`id, nomor_pengajuan, status, tanggal, kendaraan, cabang, total_harga,
+               is_umum, jenis_pembelian,
+               pemohon:users!submissions_pemohon_id_fkey(name),
+               items:submission_items(penjelasan)`)
+      .in('status', STATUS_HIDUP)
+      .gte('tanggal', sejak)
+      .order('tanggal', { ascending: false })
+      .limit(50);
+
+    if (is_umum) {
+      if (!cabang?.trim()) return res.json({ data: [] });
+      query = query.eq('is_umum', true).eq('cabang', cabang.trim());
+      if (jenis_pembelian) query = query.eq('jenis_pembelian', jenis_pembelian);
+    } else {
+      if (!kendaraan?.trim()) return res.json({ data: [] });
+      query = query.eq('kendaraan', kendaraan.trim());
+    }
+    if (exclude_id) query = query.neq('id', exclude_id);
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    // Saring: hanya yang punya item mirip
+    const hasil = [];
+    for (const sub of data || []) {
+      const cocok = [];
+      for (const it of (sub.items || [])) {
+        if (penjelasanList.some(p => itemMirip(p, it.penjelasan))) cocok.push(it.penjelasan);
+      }
+      if (cocok.length) {
+        hasil.push({
+          id: sub.id, nomor_pengajuan: sub.nomor_pengajuan, status: sub.status,
+          tanggal: sub.tanggal, kendaraan: sub.kendaraan, cabang: sub.cabang,
+          total_harga: sub.total_harga, pemohon: sub.pemohon?.name || null,
+          item_mirip: [...new Set(cocok)].slice(0, 3),
+        });
+      }
+    }
+
+    res.json({ data: hasil.slice(0, 5) });
+  } catch (err) {
+    // Fitur bantu — jangan pernah menggagalkan alur pengajuan
+    console.error('[check-duplicate]', err.message);
+    res.json({ data: [] });
+  }
+}
+
+module.exports = { list, getOne, create, verify, approve, reject, stats, selectVendor, overdueForAction, cancelSubmission, hardDeleteSubmission, checkDuplicate };
