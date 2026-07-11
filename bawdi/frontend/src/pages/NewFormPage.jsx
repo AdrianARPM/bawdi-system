@@ -17,7 +17,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Plus, Trash2, Check, ChevronLeft, Upload, X, AlertCircle, Loader } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { submissionAPI, photoAPI, historyAPI, vehicleAPI, offlineQueue, revisionAPI } from '../utils/api';
-import { Card, Button, fmtCurrency } from '../components/ui';
+import { Card, Button, Spinner, fmtCurrency } from '../components/ui';
 import VehicleHistoryPanel from '../components/VehicleHistoryPanel';
 import useAuthStore from '../context/authStore';
 
