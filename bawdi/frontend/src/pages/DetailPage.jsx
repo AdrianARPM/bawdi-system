@@ -2,7 +2,7 @@
 // - RevisiEditor diimport dari komponen terpisah (bukan inline)
 // - Bug fix: item form tidak kehilangan fokus
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   ChevronLeft, Send, Check, User, Download, Eye,
   X, ZoomIn, Upload, FileText, CreditCard, Lock,
@@ -715,6 +715,7 @@ export default function DetailPage() {
 
   const [sub,       setSub]       = useState(null);
   const [revisions, setRevisions] = useState([]);
+  const [duplikat, setDuplikat]   = useState([]);   // pengajuan serupa (peringatan utk verifikator)
   // Zona Admin: batalkan / hapus permanen
   const [adminModal, setAdminModal]   = useState('');   // '' | 'cancel' | 'delete'
   const [adminAlasan, setAdminAlasan] = useState('');
@@ -748,6 +749,16 @@ export default function DetailPage() {
       setSub(subRes.data.data);
       setMsgs(subRes.data.data.messages || []);
       setRevisions(revRes.data.data || []);
+      // Peringatan pengajuan ganda — hanya relevan selagi belum diputuskan
+      const sd = subRes.data.data;
+      if (['Menunggu Verifikasi', 'Terverifikasi'].includes(sd.status)) {
+        submissionAPI.checkDuplicate({
+          kendaraan: sd.kendaraan, cabang: sd.cabang,
+          jenis_pembelian: sd.jenis_pembelian, is_umum: sd.is_umum,
+          items: (sd.items || []).map(i => ({ penjelasan: i.penjelasan })),
+          exclude_id: sd.id,
+        }).then(r => setDuplikat(r.data?.data || [])).catch(() => {});
+      } else setDuplikat([]);
     } catch {
       toast.error('Gagal memuat pengajuan');
     } finally {
@@ -935,6 +946,36 @@ export default function DetailPage() {
 
       {/* RevisiEditor — dari komponen terpisah */}
       {/* Banner status Dibatalkan */}
+      {/* Peringatan pengajuan serupa — terlihat oleh verifikator/approval sebelum memutuskan */}
+      {duplikat.length > 0 && (
+        <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4">
+          <p className="text-xs font-bold text-amber-800 mb-2">⚠ Mirip dengan pengajuan lain</p>
+          <div className="space-y-2">
+            {duplikat.map(d => (
+              <div key={d.id} className="bg-white border border-amber-200 rounded-xl px-3 py-2.5 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-slate-800 truncate">
+                    {d.nomor_pengajuan}
+                    <span className="ml-1.5 text-[10px] font-bold bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full">{d.status}</span>
+                  </p>
+                  <p className="text-[11px] text-slate-500 truncate">
+                    {d.item_mirip.join(' · ')} · {fmtCurrency(d.total_harga)} · {fmtDate(d.tanggal)}
+                    {d.pemohon ? ` · ${d.pemohon}` : ''}
+                  </p>
+                </div>
+                <Link to={`/submissions/${d.id}`}
+                  className="text-[11px] font-bold text-blue-600 hover:text-blue-700 whitespace-nowrap flex-shrink-0">
+                  Bandingkan →
+                </Link>
+              </div>
+            ))}
+          </div>
+          <p className="text-[10px] text-amber-700/70 mt-2.5">
+            Pastikan bukan pengajuan ganda sebelum memverifikasi/menyetujui.
+          </p>
+        </div>
+      )}
+
       {sub.status === 'Dibatalkan' && (
         <div className="bg-slate-100 border border-slate-300 rounded-2xl p-4">
           <p className="text-sm font-bold text-slate-700">Pengajuan Dibatalkan</p>
