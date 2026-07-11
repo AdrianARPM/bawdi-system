@@ -378,6 +378,9 @@ export default function NewFormPage() {
   const { user }  = useAuthStore();
   const navigate  = useNavigate();
   const [step, setStep]       = useState(0);
+  // Deteksi pengajuan ganda — memperingatkan, tidak memblokir
+  const [duplikat, setDuplikat] = useState([]);
+  const [cekDup, setCekDup]     = useState(false);
   const [loading, setLoading] = useState(false);
   // ── Mode Revisi: NewFormPage dipakai ulang untuk mengedit snapshot revisi ──
   const { id: revSubId, snapshotId } = useParams();
@@ -557,7 +560,26 @@ export default function NewFormPage() {
     return Object.keys(e).length === 0;
   };
 
-  const handleNext = () => { if (!validate(step)){toast.error('Lengkapi field yang wajib');return;} if(isRevision){ if(step===1){setStep(2);} return; } if(step===3&&!form.useVendor2){setStep(4);return;} setStep(s=>s+1); };
+  // Cek kemungkinan pengajuan ganda (kendaraan/cabang sama + item mirip, 30 hari terakhir)
+  const cekDuplikat = useCallback(async () => {
+    if (isRevision) return;                       // revisi bukan pengajuan baru
+    const items = form.items1.filter(i => i.penjelasan?.trim());
+    if (!items.length) { setDuplikat([]); return; }
+    if (!form.is_umum && !form.kendaraan?.trim()) { setDuplikat([]); return; }
+    if (form.is_umum && !form.cabangManual?.trim()) { setDuplikat([]); return; }
+    setCekDup(true);
+    try {
+      const { data } = await submissionAPI.checkDuplicate({
+        kendaraan: form.kendaraan, cabang: form.cabangManual,
+        jenis_pembelian: form.jenis_pembelian, is_umum: form.is_umum,
+        items: items.map(i => ({ penjelasan: i.penjelasan })),
+      });
+      setDuplikat(data?.data || []);
+    } catch { setDuplikat([]); }
+    finally { setCekDup(false); }
+  }, [form.items1, form.kendaraan, form.cabangManual, form.jenis_pembelian, form.is_umum, isRevision]);
+
+  const handleNext = () => { if (!validate(step)){toast.error('Lengkapi field yang wajib');return;} if(isRevision){ if(step===1){setStep(2);} return; } if(step===2){cekDuplikat();} if(step===3&&!form.useVendor2){setStep(4);return;} setStep(s=>s+1); };
   const handleBack = () => { setErrors({}); if(isRevision){ if(step===2){setStep(1);} else {navigate(-1);} return; } if(step===4&&!form.useVendor2){setStep(2);return;} setStep(s=>s-1); };
 
   // Pre-fill dari submission (konteks) + snapshot (data revisi) saat mode revisi
@@ -726,6 +748,44 @@ export default function NewFormPage() {
           </div>
         ))}
       </div>
+
+      {/* Peringatan kemungkinan pengajuan ganda — muncul setelah langkah Vendor 1 */}
+      {!isRevision && duplikat.length > 0 && step >= 3 && (
+        <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4">
+          <p className="text-xs font-bold text-amber-800 mb-1">⚠ Kemungkinan pengajuan ganda</p>
+          <p className="text-[11px] text-amber-700/90 mb-3 leading-relaxed">
+            {form.is_umum
+              ? <>Cabang <b>{form.cabangManual}</b> punya pengajuan aktif dengan item serupa dalam 30 hari terakhir. Periksa dulu sebelum melanjutkan:</>
+              : <>Kendaraan <b>{form.kendaraan}</b> punya pengajuan aktif dengan item serupa dalam 30 hari terakhir. Periksa dulu sebelum melanjutkan:</>}
+          </p>
+          <div className="space-y-2">
+            {duplikat.map(d => (
+              <div key={d.id} className="bg-white border border-amber-200 rounded-xl px-3 py-2.5 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-slate-800 truncate">
+                    {d.nomor_pengajuan}
+                    <span className="ml-1.5 text-[10px] font-bold bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full">{d.status}</span>
+                  </p>
+                  <p className="text-[11px] text-slate-500 truncate">
+                    {d.item_mirip.join(' · ')} · {fmtCurrency(d.total_harga)}
+                    {d.pemohon ? ` · ${d.pemohon}` : ''}
+                  </p>
+                </div>
+                <a href={`/submissions/${d.id}`} target="_blank" rel="noreferrer"
+                  className="text-[11px] font-bold text-blue-600 hover:text-blue-700 whitespace-nowrap flex-shrink-0">
+                  Buka →
+                </a>
+              </div>
+            ))}
+          </div>
+          <p className="text-[10px] text-amber-700/70 mt-2.5">
+            Tetap boleh melanjutkan jika ini kebutuhan berbeda — peringatan ini juga terlihat oleh verifikator.
+          </p>
+        </div>
+      )}
+      {cekDup && !isRevision && step >= 3 && (
+        <p className="text-[11px] text-slate-400 text-center">Memeriksa kemungkinan pengajuan ganda…</p>
+      )}
 
       {step===0&&(
         <Card>
