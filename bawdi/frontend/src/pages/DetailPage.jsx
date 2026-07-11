@@ -313,6 +313,9 @@ function PaymentPanel({ sub, user, onRefresh }) {
   const [lightbox,  setLightbox] = useState(null);
   const [saving,    setSaving]   = useState('');
   const [notaKet,   setNotaKet]  = useState('');
+  // Mode koreksi pencatatan DP / pembayaran (bila ada salah input)
+  const [editDP,  setEditDP]  = useState(false);
+  const [editPay, setEditPay] = useState(false);
   const [payDate,   setPayDate]  = useState('');
   const [payTime,   setPayTime]  = useState('');
   const [payJumlah, setPayJumlah]= useState('');
@@ -730,9 +733,6 @@ export default function DetailPage() {
   const [reqRevModal,   setReqRevModal]   = useState(false);
   const [reqRevCat,     setReqRevCat]     = useState('');
   const [editSnap,      setEditSnap]      = useState(null); // snapshot yang sedang diedit
-  // Mode koreksi pencatatan DP / pembayaran (bila ada salah input)
-  const [editDP,  setEditDP]  = useState(false);
-  const [editPay, setEditPay] = useState(false);
   const [exporting,     setExporting]     = useState(false);
 
   const chatRef = useRef(null);
