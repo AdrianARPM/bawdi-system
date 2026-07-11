@@ -7,6 +7,7 @@ router.use(authenticate);
 
 router.get('/stats', ctrl.stats);
 router.get('/overdue-action', ctrl.overdueForAction);
+router.post('/check-duplicate', ctrl.checkDuplicate);
 router.get('/',      ctrl.list);
 router.get('/:id',   ctrl.getOne);
 
