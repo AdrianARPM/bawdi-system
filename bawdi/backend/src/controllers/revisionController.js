@@ -693,7 +693,7 @@ async function deleteNota(req, res) {
 
 async function recordDP(req, res) {
   try {
-    const { tanggal_dp, jumlah_dp, catatan_dp } = req.body;
+    const { tanggal_dp, jumlah_dp, catatan_dp, is_koreksi } = req.body;
     if (!tanggal_dp) return res.status(400).json({ error: 'Tanggal DP wajib' });
     if (!jumlah_dp || Number(jumlah_dp) <= 0) return res.status(400).json({ error: 'Jumlah DP wajib' });
 
@@ -712,15 +712,15 @@ async function recordDP(req, res) {
 
     await supabase.from('messages').insert({
       id: uuidv4(), submission_id: req.params.submissionId, user_id: req.user.id,
-      message: `\u{1F4B5} DP ${fmt} dicatat oleh ${req.user.name} pada ${new Date(tanggal_dp).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}`,
+      message: `\u{1F4B5} DP ${fmt} ${is_koreksi ? 'DIKOREKSI' : 'dicatat'} oleh ${req.user.name} pada ${new Date(tanggal_dp).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}`,
       is_system: true,
     });
 
     await notifyUser(sub.pemohon_id, req.params.submissionId, 'dp_recorded',
       `\u{1F4B5} DP ${sub.nomor_pengajuan} sebesar ${fmt} telah dicatat.`);
 
-    logAudit(req, { action: 'dp', submissionId: req.params.submissionId, detail: `DP ${Number(jumlah_dp).toLocaleString('id-ID')}` });
-    res.json({ message: 'DP berhasil dicatat' });
+    logAudit(req, { action: is_koreksi ? 'dp_koreksi' : 'dp', target: sub.nomor_pengajuan, submissionId: req.params.submissionId, detail: `${is_koreksi ? 'KOREKSI → ' : ''}DP ${Number(jumlah_dp).toLocaleString('id-ID')}` });
+    res.json({ message: is_koreksi ? 'DP berhasil dikoreksi' : 'DP berhasil dicatat' });
   } catch (err) {
     res.status(500).json({ error: 'Gagal mencatat DP: ' + err.message });
   }
@@ -728,7 +728,7 @@ async function recordDP(req, res) {
 
 async function recordPayment(req, res) {
   try {
-    const { tanggal_bayar, jumlah_bayar, catatan_bayar } = req.body;
+    const { tanggal_bayar, jumlah_bayar, catatan_bayar, is_koreksi } = req.body;
     if (!tanggal_bayar) return res.status(400).json({ error: 'Tanggal pembayaran wajib' });
     if (!jumlah_bayar || Number(jumlah_bayar) <= 0) return res.status(400).json({ error: 'Jumlah pembayaran wajib' });
 
@@ -747,7 +747,7 @@ async function recordPayment(req, res) {
 
     await supabase.from('messages').insert({
       id: uuidv4(), submission_id: req.params.submissionId, user_id: req.user.id,
-      message: `💰 Pembayaran ${fmt} dicatat oleh ${req.user.name} pada ${new Date(tanggal_bayar).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}`,
+      message: `💰 Pembayaran ${fmt} ${is_koreksi ? 'DIKOREKSI' : 'dicatat'} oleh ${req.user.name} pada ${new Date(tanggal_bayar).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}`,
       is_system: true,
     });
 
@@ -768,8 +768,8 @@ async function recordPayment(req, res) {
       } catch (e) { console.warn('[recordPayment] pengingat nota dilewati:', e.message); }
     }
 
-    logAudit(req, { action: 'bayar', submissionId: req.params.submissionId, detail: `Bayar ${Number(jumlah_bayar).toLocaleString('id-ID')}` });
-    res.json({ message: 'Pembayaran berhasil dicatat' });
+    logAudit(req, { action: is_koreksi ? 'bayar_koreksi' : 'bayar', target: sub.nomor_pengajuan, submissionId: req.params.submissionId, detail: `${is_koreksi ? 'KOREKSI → ' : ''}Bayar ${Number(jumlah_bayar).toLocaleString('id-ID')}` });
+    res.json({ message: is_koreksi ? 'Pembayaran berhasil dikoreksi' : 'Pembayaran berhasil dicatat' });
   } catch (err) {
     res.status(500).json({ error: 'Gagal mencatat pembayaran: ' + err.message });
   }
