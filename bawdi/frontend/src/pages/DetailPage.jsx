@@ -362,10 +362,12 @@ function PaymentPanel({ sub, user, onRefresh }) {
     try {
       const tgl = new Date(`${dpDate}T${dpTime || '00:00'}:00+07:00`).toISOString();
       await revisionAPI.recordDP(sub.id, {
+        is_koreksi: editDP,
         tanggal_dp: tgl, jumlah_dp: dpJumlah, catatan_dp: dpCat,
       });
       await onRefresh();
-      toast.success('DP dicatat!');
+      toast.success(editDP ? 'DP berhasil dikoreksi!' : 'DP dicatat!');
+      setEditDP(false);
     } catch (err) {
       toast.error(err.response?.data?.error || 'Gagal mencatat DP');
     }
@@ -378,10 +380,12 @@ function PaymentPanel({ sub, user, onRefresh }) {
     try {
      const tgl = new Date(`${payDate}T${payTime || '00:00'}:00+07:00`).toISOString();
       await revisionAPI.recordPayment(sub.id, {
+        is_koreksi: editPay,
         tanggal_bayar: tgl, jumlah_bayar: payJumlah, catatan_bayar: payCat,
       });
       await onRefresh();
-      toast.success('Pembayaran dicatat!');
+      toast.success(editPay ? 'Pembayaran berhasil dikoreksi!' : 'Pembayaran dicatat!');
+      setEditPay(false);
     } catch (err) {
       toast.error(err.response?.data?.error || 'Gagal mencatat pembayaran');
     }
@@ -495,12 +499,24 @@ function PaymentPanel({ sub, user, onRefresh }) {
             <CreditCard size={15} className="text-amber-500"/>
             <p className="text-sm font-bold text-slate-700">Catat DP (Uang Muka)</p>
             <span className="text-[10px] font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">opsional</span>
-            {sub.tanggal_dp && (
-              <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full ml-auto">✓ Tercatat</span>
+            {sub.tanggal_dp && !editDP && (
+              <div className="flex items-center gap-2 ml-auto">
+                <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">✓ Tercatat</span>
+                <button onClick={() => {
+                    setDpDate(sub.tanggal_dp ? sub.tanggal_dp.slice(0,10) : '');
+                    setDpTime(sub.tanggal_dp ? new Date(sub.tanggal_dp).toTimeString().slice(0,5) : '');
+                    setDpJumlah(sub.jumlah_dp ? String(sub.jumlah_dp) : '');
+                    setDpCat(sub.catatan_dp || '');
+                    setEditDP(true);
+                  }}
+                  className="text-[10px] font-bold text-amber-600 hover:text-amber-700 underline">
+                  ✏️ Edit
+                </button>
+              </div>
             )}
           </div>
 
-          {sub.tanggal_dp ? (
+          {sub.tanggal_dp && !editDP ? (
             <div className="bg-amber-50 rounded-xl p-3 space-y-1">
               <p className="text-xs text-amber-600">Tanggal DP: <strong>{fmtDateTime(sub.tanggal_dp)}</strong></p>
               <p className="text-xs text-amber-600">Jumlah DP: <strong>{fmtCurrency(sub.jumlah_dp)}</strong></p>
@@ -537,10 +553,22 @@ function PaymentPanel({ sub, user, onRefresh }) {
               <textarea value={dpCat} onChange={e => setDpCat(e.target.value)} rows={2}
                 placeholder="Catatan DP (opsional)..."
                 className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none resize-none focus:border-amber-400"/>
-              <Button variant="secondary" className="w-full" onClick={handleDP}
-                loading={saving === 'dp'} disabled={!dpDate || !dpJumlah}>
-                💵 Simpan DP
-              </Button>
+              {editDP && (
+                <p className="text-[10px] text-amber-600 bg-amber-50 rounded-lg px-2.5 py-1.5">
+                  ✏️ Mode koreksi — menyimpan akan <b>menimpa</b> data DP sebelumnya. Perubahan tercatat di log audit.
+                </p>
+              )}
+              <div className="flex gap-2.5">
+                {editDP && (
+                  <Button variant="secondary" className="flex-1" onClick={() => setEditDP(false)} disabled={saving === 'dp'}>
+                    Batal
+                  </Button>
+                )}
+                <Button variant="secondary" className="flex-1" onClick={handleDP}
+                  loading={saving === 'dp'} disabled={!dpDate || !dpJumlah}>
+                  💵 {editDP ? 'Simpan Koreksi DP' : 'Simpan DP'}
+                </Button>
+              </div>
             </div>
           )}
         </Card>
@@ -552,14 +580,26 @@ function PaymentPanel({ sub, user, onRefresh }) {
           <div className="flex items-center gap-2 mb-3">
             <CreditCard size={15} className="text-emerald-500"/>
             <p className="text-sm font-bold text-slate-700">Catat Pembayaran</p>
-            {sub.tanggal_bayar && (
-              <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full ml-auto">
-                ✓ Tercatat
-              </span>
+            {sub.tanggal_bayar && !editPay && (
+              <div className="flex items-center gap-2 ml-auto">
+                <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
+                  ✓ Tercatat
+                </span>
+                <button onClick={() => {
+                    setPayDate(sub.tanggal_bayar ? sub.tanggal_bayar.slice(0,10) : '');
+                    setPayTime(sub.tanggal_bayar ? new Date(sub.tanggal_bayar).toTimeString().slice(0,5) : '');
+                    setPayJumlah(sub.jumlah_bayar ? String(sub.jumlah_bayar) : '');
+                    setPayCat(sub.catatan_bayar || '');
+                    setEditPay(true);
+                  }}
+                  className="text-[10px] font-bold text-emerald-600 hover:text-emerald-700 underline">
+                  ✏️ Edit
+                </button>
+              </div>
             )}
           </div>
 
-          {sub.tanggal_bayar ? (
+          {sub.tanggal_bayar && !editPay ? (
             <div className="bg-emerald-50 rounded-xl p-3 space-y-1">
               <p className="text-xs text-emerald-600">Tanggal: <strong>{fmtDateTime(sub.tanggal_bayar)}</strong></p>
               <p className="text-xs text-emerald-600">Jumlah: <strong>{fmtCurrency(sub.jumlah_bayar)}</strong></p>
@@ -591,10 +631,22 @@ function PaymentPanel({ sub, user, onRefresh }) {
               <textarea value={payCat} onChange={e => setPayCat(e.target.value)} rows={2}
                 placeholder="Catatan pembayaran (opsional)..."
                 className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none resize-none focus:border-emerald-400"/>
-              <Button variant="success" className="w-full" onClick={handlePay}
-                loading={saving === 'pay'} disabled={!payDate || !payJumlah}>
-                💰 Simpan Data Pembayaran
-              </Button>
+              {editPay && (
+                <p className="text-[10px] text-emerald-700 bg-emerald-50 rounded-lg px-2.5 py-1.5">
+                  ✏️ Mode koreksi — menyimpan akan <b>menimpa</b> data pembayaran sebelumnya. Perubahan tercatat di log audit.
+                </p>
+              )}
+              <div className="flex gap-2.5">
+                {editPay && (
+                  <Button variant="secondary" className="flex-1" onClick={() => setEditPay(false)} disabled={saving === 'pay'}>
+                    Batal
+                  </Button>
+                )}
+                <Button variant="success" className="flex-1" onClick={handlePay}
+                  loading={saving === 'pay'} disabled={!payDate || !payJumlah}>
+                  💰 {editPay ? 'Simpan Koreksi' : 'Simpan Data Pembayaran'}
+                </Button>
+              </div>
             </div>
           )}
         </Card>
@@ -678,6 +730,9 @@ export default function DetailPage() {
   const [reqRevModal,   setReqRevModal]   = useState(false);
   const [reqRevCat,     setReqRevCat]     = useState('');
   const [editSnap,      setEditSnap]      = useState(null); // snapshot yang sedang diedit
+  // Mode koreksi pencatatan DP / pembayaran (bila ada salah input)
+  const [editDP,  setEditDP]  = useState(false);
+  const [editPay, setEditPay] = useState(false);
   const [exporting,     setExporting]     = useState(false);
 
   const chatRef = useRef(null);
