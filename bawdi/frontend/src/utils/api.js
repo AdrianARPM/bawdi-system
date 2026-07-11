@@ -33,6 +33,7 @@ export const submissionAPI = {
   overdueAction:() => api.get('/submissions/overdue-action'),
   getOne:       id => api.get(`/submissions/${id}`),
   create:       d  => api.post('/submissions', d),
+  checkDuplicate: (body) => api.post('/submissions/check-duplicate', body),
   verify:       id => api.put(`/submissions/${id}/verify`),
   approve:      id => api.put(`/submissions/${id}/approve`),
   reject:       (id, alasan_tolak) => api.put(`/submissions/${id}/reject`, { alasan_tolak }),
