@@ -1,4 +1,4 @@
-// src/pages/DetailPage.jsx  — v6 FIXED
+// src/pages/DetailPage.jsx  — v7 (Dark Mode Tahap 3: hanya penambahan varian dark:, tanpa perubahan fitur — basis v6 FIXED)
 // - RevisiEditor diimport dari komponen terpisah (bukan inline)
 // - Bug fix: item form tidak kehilangan fokus
 import { useState, useEffect, useRef } from 'react';
@@ -17,19 +17,19 @@ import useAuthStore from '../context/authStore';
 
 /* ── STATUS CONFIG ───────────────────────────────────────────── */
 const STATUS_COLOR = {
-  'Menunggu Verifikasi': 'bg-amber-100 text-amber-700',
-  'Terverifikasi':       'bg-blue-100 text-blue-700',
-  'Disetujui':           'bg-emerald-100 text-emerald-700',
-  'Ditolak':             'bg-red-100 text-red-700',
-  'Perlu Revisi':        'bg-purple-100 text-purple-700',
-  'Selesai':             'bg-slate-100 text-slate-500',
+  'Menunggu Verifikasi': 'bg-amber-100 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300',
+  'Terverifikasi':       'bg-blue-100 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300',
+  'Disetujui':           'bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+  'Ditolak':             'bg-red-100 dark:bg-red-500/10 text-red-700 dark:text-red-300',
+  'Perlu Revisi':        'bg-purple-100 dark:bg-purple-500/10 text-purple-700 dark:text-purple-300',
+  'Selesai':             'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400',
 };
 const SNAP_STATUS_COLOR = {
-  draft:         'bg-slate-100 text-slate-500',
-  submitted:     'bg-amber-100 text-amber-700',
-  terverifikasi: 'bg-blue-100 text-blue-700',
-  disetujui:     'bg-emerald-100 text-emerald-700',
-  ditolak:       'bg-red-100 text-red-700',
+  draft:         'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400',
+  submitted:     'bg-amber-100 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300',
+  terverifikasi: 'bg-blue-100 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300',
+  disetujui:     'bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+  ditolak:       'bg-red-100 dark:bg-red-500/10 text-red-700 dark:text-red-300',
 };
 const SNAP_STATUS_LABEL = {
   draft:         'Draft',
@@ -53,7 +53,7 @@ function Lightbox({ photo, onClose }) {
         {isImg
           ? <img src={photo.file_url} alt={photo.file_name} className="max-w-full max-h-[75vh] object-contain rounded-2xl"/>
           : (
-            <div className="bg-white rounded-2xl p-8 text-center">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 text-center">
               <p className="mb-4">📄 {photo.file_name}</p>
               <a href={photo.file_url} target="_blank" rel="noreferrer"
                 className="bg-amber-500 text-white px-4 py-2 rounded-xl text-sm font-bold">
@@ -75,7 +75,7 @@ function Lightbox({ photo, onClose }) {
 
 /* ── PANEL SATU REVISI (tampilan snapshot) ───────────────────── */
 function RevisiPanel({ snapshot, sub, user, onAction }) {
-  const sc = SNAP_STATUS_COLOR[snapshot.status] || 'bg-slate-100 text-slate-500';
+  const sc = SNAP_STATUS_COLOR[snapshot.status] || 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400';
 
   const items1 = (snapshot.items || []).filter(i => i.vendor_num !== 2);
   const items2 = (snapshot.items || []).filter(i => i.vendor_num === 2);
@@ -115,11 +115,11 @@ function RevisiPanel({ snapshot, sub, user, onAction }) {
       {/* Reject Modal */}
       {showReject && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl">
-            <h3 className="text-base font-bold text-slate-800 mb-3">Alasan Penolakan</h3>
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+            <h3 className="text-base font-bold text-slate-800 dark:text-slate-100 mb-3">Alasan Penolakan</h3>
             <textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)}
               rows={4} placeholder="Tuliskan alasan penolakan..."
-              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none resize-none focus:border-red-400 mb-4"/>
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 text-sm outline-none resize-none focus:border-red-400 mb-4"/>
             <div className="flex gap-2.5">
               <Button variant="secondary" className="flex-1" onClick={() => setShowReject(false)}>Batal</Button>
               <Button variant="danger" className="flex-1" onClick={() => act('reject', rejectReason)}
@@ -131,17 +131,17 @@ function RevisiPanel({ snapshot, sub, user, onAction }) {
 
       {/* Status badge */}
       <div className={`rounded-2xl p-3 border flex items-center gap-2 ${
-        snapshot.status === 'draft'         ? 'bg-slate-50 border-slate-200' :
-        snapshot.status === 'submitted'     ? 'bg-amber-50 border-amber-200' :
-        snapshot.status === 'terverifikasi' ? 'bg-blue-50 border-blue-200' :
-        snapshot.status === 'disetujui'     ? 'bg-emerald-50 border-emerald-200' :
-        'bg-red-50 border-red-200'
+        snapshot.status === 'draft'         ? 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700' :
+        snapshot.status === 'submitted'     ? 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/30' :
+        snapshot.status === 'terverifikasi' ? 'bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/30' :
+        snapshot.status === 'disetujui'     ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30' :
+        'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/30'
       }`}>
         <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${sc}`}>
           {SNAP_STATUS_LABEL[snapshot.status]}
         </span>
         {snapshot.diminta_oleh_user && (
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-500 dark:text-slate-400">
             Diminta: {snapshot.diminta_oleh_user.name} · {fmtDate(snapshot.diminta_at)}
           </p>
         )}
@@ -149,17 +149,17 @@ function RevisiPanel({ snapshot, sub, user, onAction }) {
 
       {/* Catatan revisi */}
       {snapshot.alasan_revisi && (
-        <div className="bg-purple-50 border border-purple-200 rounded-2xl p-3">
-          <p className="text-[10px] font-bold text-purple-600 uppercase mb-1">Catatan Permintaan Revisi</p>
-          <p className="text-sm text-purple-700">{snapshot.alasan_revisi}</p>
+        <div className="bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/30 rounded-2xl p-3">
+          <p className="text-[10px] font-bold text-purple-600 dark:text-purple-400 uppercase mb-1">Catatan Permintaan Revisi</p>
+          <p className="text-sm text-purple-700 dark:text-purple-300">{snapshot.alasan_revisi}</p>
         </div>
       )}
 
       {/* Action: Verifikator */}
       {canVerify && (
-        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-center justify-between gap-3">
+        <div className="bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-2xl p-4 flex items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-bold text-blue-800">Perlu Verifikasi Anda</p>
+            <p className="text-sm font-bold text-blue-800 dark:text-blue-300">Perlu Verifikasi Anda</p>
             <p className="text-xs text-blue-400 mt-0.5">Periksa perubahan data revisi ini</p>
           </div>
           <Button variant="info" onClick={() => act('verify')} loading={actLoading === 'verify'}>
@@ -170,8 +170,8 @@ function RevisiPanel({ snapshot, sub, user, onAction }) {
 
       {/* Action: Approval */}
       {canApprove && (
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
-          <p className="text-sm font-bold text-amber-800 mb-3">Menunggu Keputusan Anda</p>
+        <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-2xl p-4">
+          <p className="text-sm font-bold text-amber-800 dark:text-amber-300 mb-3">Menunggu Keputusan Anda</p>
           <div className="flex gap-2.5">
             <Button variant="danger"  className="flex-1" onClick={() => setShowReject(true)}>✗ Tolak</Button>
             <Button variant="success" className="flex-1" onClick={() => act('approve')}
@@ -182,15 +182,15 @@ function RevisiPanel({ snapshot, sub, user, onAction }) {
 
       {/* Alasan tolak */}
       {snapshot.status === 'ditolak' && snapshot.alasan_tolak && (
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-3">
+        <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-2xl p-3">
           <p className="text-[10px] font-bold text-red-500 uppercase mb-1">Alasan Penolakan</p>
-          <p className="text-sm text-red-700">{snapshot.alasan_tolak}</p>
+          <p className="text-sm text-red-700 dark:text-red-300">{snapshot.alasan_tolak}</p>
         </div>
       )}
 
       {/* Data vendor */}
       <Card padding={false}>
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-4 pt-3 pb-2">
+        <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-4 pt-3 pb-2">
           Data Revisi ke-{snapshot.revision_number}
         </p>
         {[
@@ -202,9 +202,9 @@ function RevisiPanel({ snapshot, sub, user, onAction }) {
           ...(snapshot.vendor2         ? [['Vendor 2',        snapshot.vendor2]]         : []),
           ...(snapshot.npwp2           ? [['NPWP Vendor 2',   snapshot.npwp2]]           : []),
         ].map(([k, v], i) => (
-          <div key={k} className={`flex justify-between gap-4 px-4 py-2.5 ${i > 0 ? 'border-t border-slate-50' : ''}`}>
-            <span className="text-xs text-slate-400 flex-shrink-0">{k}</span>
-            <span className="text-xs font-semibold text-slate-700 text-right whitespace-pre-line">{v || '—'}</span>
+          <div key={k} className={`flex justify-between gap-4 px-4 py-2.5 ${i > 0 ? 'border-t border-slate-50 dark:border-slate-800' : ''}`}>
+            <span className="text-xs text-slate-400 dark:text-slate-500 flex-shrink-0">{k}</span>
+            <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 text-right whitespace-pre-line">{v || '—'}</span>
           </div>
         ))}
       </Card>
@@ -212,33 +212,33 @@ function RevisiPanel({ snapshot, sub, user, onAction }) {
       {/* Riwayat */}
       {snapshot.riwayat && (
         <Card>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Riwayat</p>
-          <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{snapshot.riwayat}</p>
+          <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Riwayat</p>
+          <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-line">{snapshot.riwayat}</p>
         </Card>
       )}
 
       {/* Items */}
       {items1.length > 0 && (
         <Card padding={false}>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-4 pt-3 pb-2">
+          <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-4 pt-3 pb-2">
             Rincian Item
           </p>
           {[
             ...items1.map(i => ({ ...i, _v: 1 })),
             ...items2.map(i => ({ ...i, _v: 2 })),
           ].map((item, i, arr) => (
-            <div key={item.id || i} className={`px-4 py-3 ${i < arr.length - 1 ? 'border-b border-slate-50' : ''}`}>
+            <div key={item.id || i} className={`px-4 py-3 ${i < arr.length - 1 ? 'border-b border-slate-50 dark:border-slate-800' : ''}`}>
               <div className="flex items-start gap-2 mb-1">
                 {items2.length > 0 && (
                   <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 mt-0.5 ${
-                    item._v === 1 ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'
+                    item._v === 1 ? 'bg-blue-100 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400' : 'bg-orange-100 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400'
                   }`}>V{item._v}</span>
                 )}
-                <p className="text-sm font-medium text-slate-700 leading-relaxed">{item.penjelasan}</p>
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-200 leading-relaxed">{item.penjelasan}</p>
               </div>
               {Number(item.diskon) > 0 ? (
                 <>
-                  <div className="flex justify-between text-xs text-slate-500 mb-0.5">
+                  <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-0.5">
                     <span>{item.satuan} × {fmtCurrency(item.harga)}</span>
                     <span>{fmtCurrency((Number(item.total)||0) + (Number(item.diskon)||0))}</span>
                   </div>
@@ -246,27 +246,27 @@ function RevisiPanel({ snapshot, sub, user, onAction }) {
                     <span>Diskon</span>
                     <span>− {fmtCurrency(item.diskon)}</span>
                   </div>
-                  <div className="flex justify-between border-t border-slate-50 pt-1">
-                    <span className="text-xs text-slate-500">Subtotal</span>
-                    <span className="text-xs font-bold text-slate-600">{fmtCurrency(item.total || item.harga)}</span>
+                  <div className="flex justify-between border-t border-slate-50 dark:border-slate-800 pt-1">
+                    <span className="text-xs text-slate-500 dark:text-slate-400">Subtotal</span>
+                    <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{fmtCurrency(item.total || item.harga)}</span>
                   </div>
                 </>
               ) : (
                 <div className="flex justify-between">
-                  <span className="text-xs text-slate-400">{Number(item.harga) > 0 ? `${item.satuan} × ${fmtCurrency(item.harga)}` : item.satuan}</span>
-                  <span className="text-xs font-bold text-slate-600">{fmtCurrency(item.total || item.harga)}</span>
+                  <span className="text-xs text-slate-400 dark:text-slate-500">{Number(item.harga) > 0 ? `${item.satuan} × ${fmtCurrency(item.harga)}` : item.satuan}</span>
+                  <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{fmtCurrency(item.total || item.harga)}</span>
                 </div>
               )}
             </div>
           ))}
           {Number(snapshot.ppn) > 0 && (
-            <div className="flex justify-between px-4 py-2 border-t border-slate-50">
-              <span className="text-xs text-slate-500">Ppn</span>
-              <span className="text-xs font-bold text-emerald-600">+ {fmtCurrency(snapshot.ppn)}</span>
+            <div className="flex justify-between px-4 py-2 border-t border-slate-50 dark:border-slate-800">
+              <span className="text-xs text-slate-500 dark:text-slate-400">Ppn</span>
+              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">+ {fmtCurrency(snapshot.ppn)}</span>
             </div>
           )}
-          <div className="flex justify-between px-4 py-3 bg-amber-50 border-t border-amber-100">
-            <span className="text-sm font-extrabold text-amber-800">TOTAL</span>
+          <div className="flex justify-between px-4 py-3 bg-amber-50 dark:bg-amber-500/10 border-t border-amber-100 dark:border-amber-500/20">
+            <span className="text-sm font-extrabold text-amber-800 dark:text-amber-300">TOTAL</span>
             <span className="text-base font-black text-amber-500">{fmtCurrency(snapshot.total_harga)}</span>
           </div>
         </Card>
@@ -274,7 +274,7 @@ function RevisiPanel({ snapshot, sub, user, onAction }) {
 
       {/* Tanda tangan revisi */}
       <Card>
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">
+        <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">
           Tanda Tangan Revisi ke-{snapshot.revision_number}
         </p>
         <div className="grid grid-cols-3 gap-2">
@@ -284,20 +284,20 @@ function RevisiPanel({ snapshot, sub, user, onAction }) {
             { label: 'Approval',    name: snapshot.approver_user?.name,    done: ['disetujui', 'ditolak'].includes(snapshot.status), isReject: snapshot.status === 'ditolak' },
           ].map((sig, i) => (
             <div key={i} className={`text-center p-2.5 rounded-xl border ${
-              sig.done ? sig.isReject ? 'bg-red-50 border-red-100' : 'bg-emerald-50 border-emerald-100'
-                       : 'bg-slate-50 border-slate-100'
+              sig.done ? sig.isReject ? 'bg-red-50 dark:bg-red-500/10 border-red-100 dark:border-red-500/20' : 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-100 dark:border-emerald-500/20'
+                       : 'bg-slate-50 dark:bg-slate-800/60 border-slate-100 dark:border-slate-800'
             }`}>
-              <p className="text-[9px] text-slate-400 mb-1.5">{sig.label}</p>
+              <p className="text-[9px] text-slate-400 dark:text-slate-500 mb-1.5">{sig.label}</p>
               <div className={`w-8 h-8 rounded-full mx-auto mb-1.5 flex items-center justify-center ${
-                sig.done ? sig.isReject ? 'bg-red-500' : 'bg-emerald-500' : 'bg-slate-200'
+                sig.done ? sig.isReject ? 'bg-red-500' : 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-700'
               }`}>
                 {sig.done
                   ? <Check size={12} className="text-white"/>
-                  : <User size={10} className="text-slate-400"/>
+                  : <User size={10} className="text-slate-400 dark:text-slate-500"/>
                 }
               </div>
               <p className={`text-[10px] font-bold ${
-                sig.done ? sig.isReject ? 'text-red-700' : 'text-emerald-700' : 'text-slate-400'
+                sig.done ? sig.isReject ? 'text-red-700 dark:text-red-300' : 'text-emerald-700 dark:text-emerald-300' : 'text-slate-400 dark:text-slate-500'
               }`}>{sig.name || 'Menunggu...'}</p>
             </div>
           ))}
@@ -435,13 +435,13 @@ function PaymentPanel({ sub, user, onRefresh }) {
 
       {/* Nota */}
       <Card padding={false}>
-        <div className="px-4 py-3 border-b border-slate-50 flex items-center gap-2">
+        <div className="px-4 py-3 border-b border-slate-50 dark:border-slate-800 flex items-center gap-2">
           <FileText size={14} className="text-amber-500"/>
-          <p className="text-sm font-bold text-slate-700">Nota Pembayaran</p>
+          <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Nota Pembayaran</p>
           {sub.nota_url
-            ? <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full ml-auto">✓ Ada</span>
+            ? <span className="text-[10px] font-bold bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full ml-auto">✓ Ada</span>
             : isDiSetujui
-              ? <span className="text-[10px] font-bold bg-red-100 text-red-600 px-2 py-0.5 rounded-full ml-auto">Wajib</span>
+              ? <span className="text-[10px] font-bold bg-red-100 dark:bg-red-500/10 text-red-600 dark:text-red-400 px-2 py-0.5 rounded-full ml-auto">Wajib</span>
               : null
           }
         </div>
@@ -449,17 +449,17 @@ function PaymentPanel({ sub, user, onRefresh }) {
         {notas.length > 0 && (
           <div className="p-3 space-y-2">
             {notas.map(n => (
-              <div key={n.id} className="flex items-center gap-3 p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+              <div key={n.id} className="flex items-center gap-3 p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700">
                 <FileText size={16} className="text-amber-400 flex-shrink-0"/>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-slate-700 truncate">{n.file_name}</p>
-                  {n.keterangan && <p className="text-[10px] text-slate-400">{n.keterangan}</p>}
-                  <p className="text-[10px] text-slate-300">{fmtDateTime(n.created_at)}</p>
+                  <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">{n.file_name}</p>
+                  {n.keterangan && <p className="text-[10px] text-slate-400 dark:text-slate-500">{n.keterangan}</p>}
+                  <p className="text-[10px] text-slate-300 dark:text-slate-600">{fmtDateTime(n.created_at)}</p>
                 </div>
                 <div className="flex gap-1.5">
                   <button onClick={() => setLightbox(n)}
-                    className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50">
-                    <Eye size={12} className="text-slate-500"/>
+                    className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                    <Eye size={12} className="text-slate-500 dark:text-slate-400"/>
                   </button>
                   <a href={n.file_url} download={n.file_name} target="_blank" rel="noreferrer"
                     className="p-1.5 rounded-lg bg-amber-500 hover:bg-amber-600">
@@ -467,7 +467,7 @@ function PaymentPanel({ sub, user, onRefresh }) {
                   </a>
                   {canManageNota && (
                     <button onClick={() => handleDeleteNota(n)} disabled={saving === 'delnota-' + n.id}
-                      className="p-1.5 rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50">
+                      className="p-1.5 rounded-lg border border-red-200 dark:border-red-500/30 hover:bg-red-50 dark:hover:bg-red-500/10 disabled:opacity-50">
                       <Trash2 size={12} className="text-red-500"/>
                     </button>
                   )}
@@ -478,13 +478,13 @@ function PaymentPanel({ sub, user, onRefresh }) {
         )}
 
         {isDiSetujui && !isSelesai && (
-          <div className="p-3 border-t border-slate-50">
+          <div className="p-3 border-t border-slate-50 dark:border-slate-800">
             <input type="text" value={notaKet} onChange={e => setNotaKet(e.target.value)}
               placeholder="Keterangan nota (opsional)..."
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm outline-none focus:border-amber-400 mb-2"/>
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 text-sm outline-none focus:border-amber-400 mb-2"/>
             <input ref={notaRef} type="file" accept="image/*,.pdf" className="hidden" onChange={handleNota}/>
             <button onClick={() => notaRef.current?.click()} disabled={saving === 'nota'}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-amber-300 hover:border-amber-500 text-amber-600 text-sm font-semibold transition-colors disabled:opacity-50">
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-amber-300 dark:border-amber-500/40 hover:border-amber-500 text-amber-600 dark:text-amber-400 text-sm font-semibold transition-colors disabled:opacity-50">
               {saving === 'nota'
                 ? <Loader size={14} className="animate-spin"/>
                 : <Upload size={14}/>
@@ -500,11 +500,11 @@ function PaymentPanel({ sub, user, onRefresh }) {
         <Card>
           <div className="flex items-center gap-2 mb-3">
             <CreditCard size={15} className="text-amber-500"/>
-            <p className="text-sm font-bold text-slate-700">Catat DP (Uang Muka)</p>
-            <span className="text-[10px] font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">opsional</span>
+            <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Catat DP (Uang Muka)</p>
+            <span className="text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded-full">opsional</span>
             {sub.tanggal_dp && !editDP && (
               <div className="flex items-center gap-2 ml-auto">
-                <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">✓ Tercatat</span>
+                <span className="text-[10px] font-bold bg-amber-100 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-full">✓ Tercatat</span>
                 <button onClick={() => {
                     setDpDate(sub.tanggal_dp ? sub.tanggal_dp.slice(0,10) : '');
                     setDpTime(sub.tanggal_dp ? new Date(sub.tanggal_dp).toTimeString().slice(0,5) : '');
@@ -512,7 +512,7 @@ function PaymentPanel({ sub, user, onRefresh }) {
                     setDpCat(sub.catatan_dp || '');
                     setEditDP(true);
                   }}
-                  className="text-[10px] font-bold text-amber-600 hover:text-amber-700 underline">
+                  className="text-[10px] font-bold text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 underline">
                   ✏️ Edit
                 </button>
               </div>
@@ -520,12 +520,12 @@ function PaymentPanel({ sub, user, onRefresh }) {
           </div>
 
           {sub.tanggal_dp && !editDP ? (
-            <div className="bg-amber-50 rounded-xl p-3 space-y-1">
-              <p className="text-xs text-amber-600">Tanggal DP: <strong>{fmtDateTime(sub.tanggal_dp)}</strong></p>
-              <p className="text-xs text-amber-600">Jumlah DP: <strong>{fmtCurrency(sub.jumlah_dp)}</strong></p>
-              {sub.catatan_dp && <p className="text-xs text-amber-600">Catatan: {sub.catatan_dp}</p>}
+            <div className="bg-amber-50 dark:bg-amber-500/10 rounded-xl p-3 space-y-1">
+              <p className="text-xs text-amber-600 dark:text-amber-400">Tanggal DP: <strong>{fmtDateTime(sub.tanggal_dp)}</strong></p>
+              <p className="text-xs text-amber-600 dark:text-amber-400">Jumlah DP: <strong>{fmtCurrency(sub.jumlah_dp)}</strong></p>
+              {sub.catatan_dp && <p className="text-xs text-amber-600 dark:text-amber-400">Catatan: {sub.catatan_dp}</p>}
               {sub.total_harga > 0 && (
-                <p className="text-xs text-slate-500 pt-1 border-t border-amber-100">
+                <p className="text-xs text-slate-500 dark:text-slate-400 pt-1 border-t border-amber-100 dark:border-amber-500/20">
                   Sisa dari total {fmtCurrency(sub.total_harga)}: <strong>{fmtCurrency(Math.max(0, (sub.total_harga||0) - (sub.jumlah_dp||0)))}</strong>
                 </p>
               )}
@@ -534,30 +534,30 @@ function PaymentPanel({ sub, user, onRefresh }) {
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 mb-1.5">Tanggal DP *</label>
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Tanggal DP *</label>
                   <input type="date" value={dpDate} onChange={e => setDpDate(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-amber-400"/>
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 text-sm outline-none focus:border-amber-400"/>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 mb-1.5">Jam DP</label>
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Jam DP</label>
                   <input type="time" value={dpTime} onChange={e => setDpTime(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-amber-400"/>
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 text-sm outline-none focus:border-amber-400"/>
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1.5">Jumlah DP (Rp) *</label>
+                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Jumlah DP (Rp) *</label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">Rp</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 dark:text-slate-500">Rp</span>
                   <input type="number" value={dpJumlah} onChange={e => setDpJumlah(e.target.value)}
                     placeholder="0"
-                    className="w-full pl-8 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-amber-400"/>
+                    className="w-full pl-8 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 text-sm outline-none focus:border-amber-400"/>
                 </div>
               </div>
               <textarea value={dpCat} onChange={e => setDpCat(e.target.value)} rows={2}
                 placeholder="Catatan DP (opsional)..."
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none resize-none focus:border-amber-400"/>
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 text-sm outline-none resize-none focus:border-amber-400"/>
               {editDP && (
-                <p className="text-[10px] text-amber-600 bg-amber-50 rounded-lg px-2.5 py-1.5">
+                <p className="text-[10px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 rounded-lg px-2.5 py-1.5">
                   ✏️ Mode koreksi — menyimpan akan <b>menimpa</b> data DP sebelumnya. Perubahan tercatat di log audit.
                 </p>
               )}
@@ -582,10 +582,10 @@ function PaymentPanel({ sub, user, onRefresh }) {
         <Card>
           <div className="flex items-center gap-2 mb-3">
             <CreditCard size={15} className="text-emerald-500"/>
-            <p className="text-sm font-bold text-slate-700">Catat Pembayaran</p>
+            <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Catat Pembayaran</p>
             {sub.tanggal_bayar && !editPay && (
               <div className="flex items-center gap-2 ml-auto">
-                <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
+                <span className="text-[10px] font-bold bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full">
                   ✓ Tercatat
                 </span>
                 <button onClick={() => {
@@ -595,7 +595,7 @@ function PaymentPanel({ sub, user, onRefresh }) {
                     setPayCat(sub.catatan_bayar || '');
                     setEditPay(true);
                   }}
-                  className="text-[10px] font-bold text-emerald-600 hover:text-emerald-700 underline">
+                  className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 underline">
                   ✏️ Edit
                 </button>
               </div>
@@ -603,39 +603,39 @@ function PaymentPanel({ sub, user, onRefresh }) {
           </div>
 
           {sub.tanggal_bayar && !editPay ? (
-            <div className="bg-emerald-50 rounded-xl p-3 space-y-1">
-              <p className="text-xs text-emerald-600">Tanggal: <strong>{fmtDateTime(sub.tanggal_bayar)}</strong></p>
-              <p className="text-xs text-emerald-600">Jumlah: <strong>{fmtCurrency(sub.jumlah_bayar)}</strong></p>
-              {sub.catatan_bayar && <p className="text-xs text-emerald-600">Catatan: {sub.catatan_bayar}</p>}
+            <div className="bg-emerald-50 dark:bg-emerald-500/10 rounded-xl p-3 space-y-1">
+              <p className="text-xs text-emerald-600 dark:text-emerald-400">Tanggal: <strong>{fmtDateTime(sub.tanggal_bayar)}</strong></p>
+              <p className="text-xs text-emerald-600 dark:text-emerald-400">Jumlah: <strong>{fmtCurrency(sub.jumlah_bayar)}</strong></p>
+              {sub.catatan_bayar && <p className="text-xs text-emerald-600 dark:text-emerald-400">Catatan: {sub.catatan_bayar}</p>}
             </div>
           ) : (
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 mb-1.5">Tanggal Bayar *</label>
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Tanggal Bayar *</label>
                   <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-emerald-400"/>
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 text-sm outline-none focus:border-emerald-400"/>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 mb-1.5">Jam Bayar</label>
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Jam Bayar</label>
                   <input type="time" value={payTime} onChange={e => setPayTime(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-emerald-400"/>
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 text-sm outline-none focus:border-emerald-400"/>
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1.5">Jumlah Dibayar (Rp) *</label>
+                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Jumlah Dibayar (Rp) *</label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">Rp</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 dark:text-slate-500">Rp</span>
                   <input type="number" value={payJumlah} onChange={e => setPayJumlah(e.target.value)}
                     placeholder={String(sub.total_harga || 0)}
-                    className="w-full pl-8 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-emerald-400"/>
+                    className="w-full pl-8 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 text-sm outline-none focus:border-emerald-400"/>
                 </div>
               </div>
               <textarea value={payCat} onChange={e => setPayCat(e.target.value)} rows={2}
                 placeholder="Catatan pembayaran (opsional)..."
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none resize-none focus:border-emerald-400"/>
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 text-sm outline-none resize-none focus:border-emerald-400"/>
               {editPay && (
-                <p className="text-[10px] text-emerald-700 bg-emerald-50 rounded-lg px-2.5 py-1.5">
+                <p className="text-[10px] text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-500/10 rounded-lg px-2.5 py-1.5">
                   ✏️ Mode koreksi — menyimpan akan <b>menimpa</b> data pembayaran sebelumnya. Perubahan tercatat di log audit.
                 </p>
               )}
@@ -657,32 +657,32 @@ function PaymentPanel({ sub, user, onRefresh }) {
 
       {/* Tutup Pengajuan */}
       {isDiSetujui && !isSelesai && isAA && (
-        <Card className={canClose ? 'border-emerald-200' : 'border-slate-200 opacity-75'}>
+        <Card className={canClose ? 'border-emerald-200 dark:border-emerald-500/30' : 'border-slate-200 dark:border-slate-700 opacity-75'}>
           <div className="flex items-center gap-2 mb-2">
-            <Lock size={14} className={canClose ? 'text-emerald-500' : 'text-slate-400'}/>
-            <p className="text-sm font-bold text-slate-700">Tutup & Simpan ke Draft</p>
+            <Lock size={14} className={canClose ? 'text-emerald-500' : 'text-slate-400 dark:text-slate-500'}/>
+            <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Tutup & Simpan ke Draft</p>
           </div>
           {!canClose ? (
-            <div className="bg-slate-50 rounded-xl p-3 mb-3 space-y-1">
+            <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-3 mb-3 space-y-1">
               {[
                 !sub.nota_url      && 'Upload nota pembayaran',
                 !sub.tanggal_bayar && 'Catat tanggal pembayaran',
                 !sub.jumlah_bayar  && 'Catat jumlah pembayaran',
               ].filter(Boolean).map(m => (
                 <p key={m} className="text-xs text-red-500 flex items-center gap-1.5">
-                  <span className="w-4 h-4 rounded-full bg-red-100 flex items-center justify-center text-[9px] font-bold flex-shrink-0">✗</span>
+                  <span className="w-4 h-4 rounded-full bg-red-100 dark:bg-red-500/10 flex items-center justify-center text-[9px] font-bold flex-shrink-0">✗</span>
                   {m}
                 </p>
               ))}
             </div>
           ) : (
-            <div className="bg-emerald-50 rounded-xl p-2.5 mb-3">
-              <p className="text-xs text-emerald-600">✅ Semua data lengkap. Siap ditutup.</p>
+            <div className="bg-emerald-50 dark:bg-emerald-500/10 rounded-xl p-2.5 mb-3">
+              <p className="text-xs text-emerald-600 dark:text-emerald-400">✅ Semua data lengkap. Siap ditutup.</p>
             </div>
           )}
           <textarea value={closeCat} onChange={e => setCloseCat(e.target.value)} rows={2}
             placeholder="Catatan penutupan (opsional)..."
-            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none resize-none focus:border-emerald-400 mb-3 disabled:opacity-50"
+            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 text-sm outline-none resize-none focus:border-emerald-400 mb-3 disabled:opacity-50"
             disabled={!canClose}/>
           <Button variant="success" className="w-full" onClick={handleClose}
             loading={saving === 'close'} disabled={!canClose}>
@@ -693,12 +693,12 @@ function PaymentPanel({ sub, user, onRefresh }) {
 
       {/* Status Selesai */}
       {isSelesai && (
-        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-center">
+        <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 text-center">
           <p className="text-2xl mb-1">🏁</p>
-          <p className="text-sm font-black text-slate-700">Pengajuan Selesai</p>
-          <p className="text-xs text-slate-400 mt-1">Ditutup {fmtDateTime(sub.ditutup_at)}</p>
-          {sub.catatan_tutup && <p className="text-xs text-slate-500 mt-1">{sub.catatan_tutup}</p>}
-          <p className="text-xs font-bold text-emerald-600 mt-1.5">💰 {fmtCurrency(sub.jumlah_bayar)}</p>
+          <p className="text-sm font-black text-slate-700 dark:text-slate-200">Pengajuan Selesai</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Ditutup {fmtDateTime(sub.ditutup_at)}</p>
+          {sub.catatan_tutup && <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{sub.catatan_tutup}</p>}
+          <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mt-1.5">💰 {fmtCurrency(sub.jumlah_bayar)}</p>
         </div>
       )}
     </div>
@@ -901,14 +901,14 @@ export default function DetailPage() {
   };
 
   if (loading) return <Spinner size={32}/>;
-  if (!sub)    return <div className="text-center py-20 text-slate-400">Pengajuan tidak ditemukan</div>;
+  if (!sub)    return <div className="text-center py-20 text-slate-400 dark:text-slate-500">Pengajuan tidak ditemukan</div>;
 
   const isAlert      = ['Menunggu Verifikasi', 'Terverifikasi', 'Perlu Revisi'].includes(sub.status) && daysSince(sub.tanggal) > 2;
   const notaAlert    = sub.status === 'Disetujui' && !sub.nota_url && daysSince(sub.approval_at) >= 1;
   const photos       = sub.photos || [];
   const items1       = (sub.items || []).filter(i => i.vendor_num !== 2);
   const items2       = (sub.items || []).filter(i => i.vendor_num === 2);
-  const statusCls    = STATUS_COLOR[sub.status] || 'bg-slate-100 text-slate-500';
+  const statusCls    = STATUS_COLOR[sub.status] || 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400';
   const draftRevision = revisions.find(r => r.status === 'draft');
 
   // Cek apakah user adalah Kepala Operasional (berdasarkan jabatan)
@@ -948,50 +948,50 @@ export default function DetailPage() {
       {/* Banner status Dibatalkan */}
       {/* Peringatan pengajuan serupa — terlihat oleh verifikator/approval sebelum memutuskan */}
       {duplikat.length > 0 && (
-        <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4">
-          <p className="text-xs font-bold text-amber-800 mb-2">⚠ Mirip dengan pengajuan lain</p>
+        <div className="rounded-2xl border border-amber-300 dark:border-amber-500/40 bg-amber-50 dark:bg-amber-500/10 p-4">
+          <p className="text-xs font-bold text-amber-800 dark:text-amber-300 mb-2">⚠ Mirip dengan pengajuan lain</p>
           <div className="space-y-2">
             {duplikat.map(d => (
-              <div key={d.id} className="bg-white border border-amber-200 rounded-xl px-3 py-2.5 flex items-center justify-between gap-3">
+              <div key={d.id} className="bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-500/30 rounded-xl px-3 py-2.5 flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-xs font-bold text-slate-800 truncate">
+                  <p className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">
                     {d.nomor_pengajuan}
-                    <span className="ml-1.5 text-[10px] font-bold bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full">{d.status}</span>
+                    <span className="ml-1.5 text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-1.5 py-0.5 rounded-full">{d.status}</span>
                   </p>
-                  <p className="text-[11px] text-slate-500 truncate">
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
                     {d.item_mirip.join(' · ')} · {fmtCurrency(d.total_harga)} · {fmtDate(d.tanggal)}
                     {d.pemohon ? ` · ${d.pemohon}` : ''}
                   </p>
                 </div>
                 <Link to={`/submissions/${d.id}`}
-                  className="text-[11px] font-bold text-blue-600 hover:text-blue-700 whitespace-nowrap flex-shrink-0">
+                  className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 whitespace-nowrap flex-shrink-0">
                   Bandingkan →
                 </Link>
               </div>
             ))}
           </div>
-          <p className="text-[10px] text-amber-700/70 mt-2.5">
+          <p className="text-[10px] text-amber-700/70 dark:text-amber-300/70 mt-2.5">
             Pastikan bukan pengajuan ganda sebelum memverifikasi/menyetujui.
           </p>
         </div>
       )}
 
       {sub.status === 'Dibatalkan' && (
-        <div className="bg-slate-100 border border-slate-300 rounded-2xl p-4">
-          <p className="text-sm font-bold text-slate-700">Pengajuan Dibatalkan</p>
-          {sub.alasan_batal && <p className="text-xs text-slate-500 mt-1">Alasan: {sub.alasan_batal}</p>}
+        <div className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-2xl p-4">
+          <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Pengajuan Dibatalkan</p>
+          {sub.alasan_batal && <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Alasan: {sub.alasan_batal}</p>}
         </div>
       )}
 
       {/* Zona Admin */}
       {user.role === 'Admin' && !['Selesai', 'Dibatalkan'].includes(sub.status) && (
-        <div className="bg-white border border-red-200 rounded-2xl p-4">
-          <p className="text-[10px] font-bold text-red-600 uppercase tracking-wide mb-0.5">Zona Admin</p>
-          <p className="text-[11px] text-slate-400 mb-3">Tindakan di bawah ini tercatat permanen di log audit.</p>
+        <div className="bg-white dark:bg-slate-900 border border-red-200 dark:border-red-500/30 rounded-2xl p-4">
+          <p className="text-[10px] font-bold text-red-600 dark:text-red-400 uppercase tracking-wide mb-0.5">Zona Admin</p>
+          <p className="text-[11px] text-slate-400 dark:text-slate-500 mb-3">Tindakan di bawah ini tercatat permanen di log audit.</p>
           <div className="flex flex-wrap gap-2">
             {!(Number(sub.jumlah_bayar) > 0 || Number(sub.jumlah_dp) > 0) && (
               <button onClick={() => { setAdminModal('cancel'); setAdminAlasan(''); }}
-                className="text-xs font-bold text-red-600 border border-red-300 rounded-xl px-3.5 py-2 hover:bg-red-50 transition-colors">
+                className="text-xs font-bold text-red-600 dark:text-red-400 border border-red-300 dark:border-red-500/40 rounded-xl px-3.5 py-2 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors">
                 ✕ Batalkan Pengajuan
               </button>
             )}
@@ -999,7 +999,7 @@ export default function DetailPage() {
               onClick={() => { setAdminModal('delete'); setAdminAlasan(''); setAdminKonfirmasi(''); }}
               disabled={sub.status !== 'Menunggu Verifikasi'}
               title={sub.status !== 'Menunggu Verifikasi' ? 'Hanya untuk pengajuan yang belum diproses' : ''}
-              className="text-xs font-bold text-slate-500 border border-slate-200 rounded-xl px-3.5 py-2 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+              className="text-xs font-bold text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
               🗑 Hapus Permanen{sub.status !== 'Menunggu Verifikasi' ? ' — nonaktif (sudah diproses)' : ''}
             </button>
           </div>
@@ -1009,29 +1009,29 @@ export default function DetailPage() {
       {/* Modal Zona Admin */}
       {adminModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => !adminBusy && setAdminModal('')}>
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-5" onClick={e => e.stopPropagation()}>
-            <h3 className="text-base font-bold text-red-600 mb-1">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-md p-5" onClick={e => e.stopPropagation()}>
+            <h3 className="text-base font-bold text-red-600 dark:text-red-400 mb-1">
               {adminModal === 'cancel' ? `Batalkan ${sub.nomor_pengajuan}?` : `Hapus permanen ${sub.nomor_pengajuan}?`}
             </h3>
-            <p className="text-xs text-slate-500 leading-relaxed mb-3">
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-3">
               {adminModal === 'cancel'
                 ? 'Status menjadi "Dibatalkan" — keluar dari semua antrean, tapi dokumen & riwayat tetap tersimpan. Tidak bisa dibuka kembali dari UI.'
                 : 'Pengajuan beserta seluruh item, chat, dan notifikasinya DIHAPUS PERMANEN dan tidak bisa dikembalikan.'}
             </p>
-            <label className="block text-xs font-bold text-slate-600 mb-1.5">
+            <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">
               Alasan <span className="text-red-500">*wajib</span>
             </label>
             <textarea value={adminAlasan} onChange={e => setAdminAlasan(e.target.value)} rows={2}
               placeholder={adminModal === 'cancel' ? 'Contoh: dobel input — sudah diajukan di 021-PR' : 'Contoh: salah input nomor cabang'}
-              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100 resize-none mb-3"/>
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 text-sm text-slate-800 dark:text-slate-100 outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100 dark:focus:ring-red-500/20 resize-none mb-3"/>
             {adminModal === 'delete' && (
               <>
-                <label className="block text-xs font-bold text-slate-600 mb-1.5">
+                <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">
                   Ketik ulang nomor pengajuan untuk konfirmasi
                 </label>
                 <input value={adminKonfirmasi} onChange={e => setAdminKonfirmasi(e.target.value)}
                   placeholder={sub.nomor_pengajuan}
-                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100 mb-3 font-mono"/>
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 text-sm text-slate-800 dark:text-slate-100 outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100 dark:focus:ring-red-500/20 mb-3 font-mono"/>
               </>
             )}
             <div className="flex gap-2.5 justify-end">
@@ -1058,11 +1058,11 @@ export default function DetailPage() {
       {/* Reject pengajuan asli */}
       {showReject && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl">
-            <h3 className="text-base font-bold text-slate-800 mb-3">Alasan Penolakan</h3>
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+            <h3 className="text-base font-bold text-slate-800 dark:text-slate-100 mb-3">Alasan Penolakan</h3>
             <textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)}
               rows={4} placeholder="Tuliskan alasan penolakan..."
-              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none resize-none focus:border-red-400 mb-4"/>
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 text-sm outline-none resize-none focus:border-red-400 mb-4"/>
             <div className="flex gap-2.5">
               <Button variant="secondary" className="flex-1" onClick={() => setShowReject(false)}>Batal</Button>
               <Button variant="danger" className="flex-1"
@@ -1076,14 +1076,14 @@ export default function DetailPage() {
       {/* Modal minta revisi */}
       {reqRevModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl">
-            <h3 className="text-base font-bold text-slate-800 mb-1">Minta Revisi ke Pemohon</h3>
-            <p className="text-xs text-slate-400 mb-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+            <h3 className="text-base font-bold text-slate-800 dark:text-slate-100 mb-1">Minta Revisi ke Pemohon</h3>
+            <p className="text-xs text-slate-400 dark:text-slate-500 mb-4">
               Pemohon akan mendapat notifikasi dan bisa mengedit pengajuan ini.
             </p>
             <textarea value={reqRevCat} onChange={e => setReqRevCat(e.target.value)}
               rows={4} placeholder="Tuliskan apa yang perlu direvisi secara jelas..."
-              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none resize-none focus:border-purple-400 mb-4"/>
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 text-sm outline-none resize-none focus:border-purple-400 mb-4"/>
             <div className="flex gap-2.5">
               <Button variant="secondary" className="flex-1" onClick={() => { setReqRevModal(false); setReqRevCat(''); }}>
                 Batal
@@ -1099,26 +1099,26 @@ export default function DetailPage() {
 
       {/* ── HEADER ────────────────────────────────────────────── */}
       <div className="flex items-start gap-3">
-        <button onClick={() => navigate(-1)} className="p-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 flex-shrink-0">
-          <ChevronLeft size={18} className="text-slate-600"/>
+        <button onClick={() => navigate(-1)} className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/60 flex-shrink-0">
+          <ChevronLeft size={18} className="text-slate-600 dark:text-slate-300"/>
         </button>
         <div className="flex-1 min-w-0">
-          <p className="text-xs text-slate-400">Detail Pengajuan</p>
-          <h1 className="text-base font-black text-slate-800 truncate">{sub.nomor_pengajuan}</h1>
+          <p className="text-xs text-slate-400 dark:text-slate-500">Detail Pengajuan</p>
+          <h1 className="text-base font-black text-slate-800 dark:text-slate-100 truncate">{sub.nomor_pengajuan}</h1>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
-            <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-slate-100 text-slate-500">{sub.type}</span>
-            {sub.is_umum && <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-violet-100 text-violet-600">UMUM</span>}
+            <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">{sub.type}</span>
+            {sub.is_umum && <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-violet-100 dark:bg-violet-500/10 text-violet-600 dark:text-violet-400">UMUM</span>}
             <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${statusCls}`}>{sub.status}</span>
-            {notaAlert && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-600">⚠ Nota belum diunggah ({daysSince(sub.approval_at)}h)</span>}
+            {notaAlert && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-500/10 text-red-600 dark:text-red-400">⚠ Nota belum diunggah ({daysSince(sub.approval_at)}h)</span>}
             {sub.revisi_count > 0 && <RevisiBadge count={sub.revisi_count} />}
-            {sub.jumlah_dp > 0 && sub.status !== 'Selesai' && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">DP</span>}
+            {sub.jumlah_dp > 0 && sub.status !== 'Selesai' && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300">DP</span>}
             {isAlert && (
-              <span className="text-[10px] font-bold text-orange-500 bg-orange-50 px-2 py-0.5 rounded-full">
+              <span className="text-[10px] font-bold text-orange-500 bg-orange-50 dark:bg-orange-500/10 px-2 py-0.5 rounded-full">
                 ⚠ {daysSince(sub.tanggal)}h
               </span>
             )}
             {revisions.length > 0 && (
-              <span className="text-[10px] font-bold text-purple-500 bg-purple-50 px-2 py-0.5 rounded-full">
+              <span className="text-[10px] font-bold text-purple-500 bg-purple-50 dark:bg-purple-500/10 px-2 py-0.5 rounded-full">
                 🔄 {revisions.length}x revisi
               </span>
             )}
@@ -1137,9 +1137,9 @@ export default function DetailPage() {
       {/* PR — Verifikator: verifikasi */}
       {!isPAR && user.role === 'Verifikator' && sub.status === 'Menunggu Verifikasi' && (
         revisiAktif ? (
-          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-center justify-between gap-3">
+          <div className="bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-2xl p-4 flex items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-bold text-blue-800">Perlu Verifikasi Anda</p>
+              <p className="text-sm font-bold text-blue-800 dark:text-blue-300">Perlu Verifikasi Anda</p>
               <p className="text-xs text-blue-400 mt-0.5">
                 Ada Revisi ke-{revisiAktif.revision_number} — periksa & verifikasi di tab revisinya
               </p>
@@ -1149,9 +1149,9 @@ export default function DetailPage() {
             </Button>
           </div>
         ) : (
-          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-center justify-between gap-3">
+          <div className="bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-2xl p-4 flex items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-bold text-blue-800">Perlu Verifikasi Anda</p>
+              <p className="text-sm font-bold text-blue-800 dark:text-blue-300">Perlu Verifikasi Anda</p>
               <p className="text-xs text-blue-400 mt-0.5">Periksa data pengajuan</p>
             </div>
             <Button variant="info" onClick={() => doAction('verify')} loading={actLoading === 'verify'}>
@@ -1164,9 +1164,9 @@ export default function DetailPage() {
       {/* PR — Approval: setujui/tolak */}
       {!isPAR && user.role === 'Approval' && sub.status === 'Terverifikasi' && (
         revisiAktif ? (
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center justify-between gap-3">
+          <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-2xl p-4 flex items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-bold text-amber-800">Menunggu Keputusan Anda</p>
+              <p className="text-sm font-bold text-amber-800 dark:text-amber-300">Menunggu Keputusan Anda</p>
               <p className="text-xs text-amber-500 mt-0.5">
                 Ada Revisi ke-{revisiAktif.revision_number} — putuskan di tab revisinya
               </p>
@@ -1176,8 +1176,8 @@ export default function DetailPage() {
             </Button>
           </div>
         ) : (
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
-            <p className="text-sm font-bold text-amber-800 mb-3">Menunggu Keputusan Anda</p>
+          <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-2xl p-4">
+            <p className="text-sm font-bold text-amber-800 dark:text-amber-300 mb-3">Menunggu Keputusan Anda</p>
             <div className="flex gap-2.5">
               <Button variant="danger"  className="flex-1" onClick={() => setShowReject(true)}>✗ Tolak</Button>
               <Button variant="success" className="flex-1" onClick={() => doAction('approve')}
@@ -1190,10 +1190,10 @@ export default function DetailPage() {
       {/* PAR — Kepala Operasional: langsung setujui/tolak dari status Menunggu Verifikasi */}
       {isPAR && isKepalaOp && ['Menunggu Verifikasi', 'Terverifikasi'].includes(sub.status) && (
         revisiAktif ? (
-          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center justify-between gap-3">
+          <div className="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 rounded-2xl p-4 flex items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-bold text-emerald-800">Menunggu Keputusan Anda (PAR)</p>
-              <p className="text-xs text-emerald-600 mt-0.5">
+              <p className="text-sm font-bold text-emerald-800 dark:text-emerald-300">Menunggu Keputusan Anda (PAR)</p>
+              <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-0.5">
                 Ada Revisi ke-{revisiAktif.revision_number} — periksa & putuskan di tab revisinya
               </p>
             </div>
@@ -1202,9 +1202,9 @@ export default function DetailPage() {
             </Button>
           </div>
         ) : sub.status === 'Menunggu Verifikasi' ? (
-          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
-            <p className="text-sm font-bold text-emerald-800 mb-1">Menunggu Keputusan Anda (PAR)</p>
-            <p className="text-xs text-emerald-600 mb-3">Sebagai Kepala Operasional, Anda dapat langsung menyetujui atau menolak pengajuan PAR ini.</p>
+          <div className="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 rounded-2xl p-4">
+            <p className="text-sm font-bold text-emerald-800 dark:text-emerald-300 mb-1">Menunggu Keputusan Anda (PAR)</p>
+            <p className="text-xs text-emerald-600 dark:text-emerald-400 mb-3">Sebagai Kepala Operasional, Anda dapat langsung menyetujui atau menolak pengajuan PAR ini.</p>
             <div className="flex gap-2.5">
               <Button variant="danger"  className="flex-1" onClick={() => setShowReject(true)}>✗ Tolak</Button>
               <Button variant="success" className="flex-1" onClick={() => doAction('approve')}
@@ -1217,9 +1217,9 @@ export default function DetailPage() {
       {/* PAR — info untuk Verifikator/Approval (mereka hanya bisa LIHAT) */}
       {isPAR && !isKepalaOp && user.role !== 'Admin' && user.role !== 'Operasional' &&
        ['Menunggu Verifikasi', 'Perlu Revisi'].includes(sub.status) && (
-        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 flex items-center gap-2">
+        <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl p-3 flex items-center gap-2">
           <span className="text-base">👁</span>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-500 dark:text-slate-400">
             Pengajuan PAR ini menunggu persetujuan <strong>Kepala Operasional</strong>.
             Anda dapat melihat detailnya tetapi tidak perlu melakukan verifikasi/approval.
           </p>
@@ -1228,9 +1228,9 @@ export default function DetailPage() {
 
       {/* Pemohon: perlu revisi */}
       {sub.status === 'Perlu Revisi' && user.role === 'Operasional' && draftRevision && (
-        <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 flex items-center justify-between gap-3">
+        <div className="bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/30 rounded-2xl p-4 flex items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-bold text-purple-800">
+            <p className="text-sm font-bold text-purple-800 dark:text-purple-300">
               📝 Perlu Revisi ke-{draftRevision.revision_number}
             </p>
             <p className="text-xs text-purple-500 mt-0.5">{draftRevision.alasan_revisi}</p>
@@ -1246,18 +1246,18 @@ export default function DetailPage() {
       {/* Tombol minta revisi (Verifikator/Approval) */}
       {canRequestRevision && (
         <button onClick={() => setReqRevModal(true)}
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl border-2 border-dashed border-purple-300 hover:border-purple-500 text-purple-600 text-sm font-semibold transition-colors">
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl border-2 border-dashed border-purple-300 dark:border-purple-500/40 hover:border-purple-500 text-purple-600 dark:text-purple-400 text-sm font-semibold transition-colors">
           <RefreshCw size={14}/> Minta Revisi ke Pemohon
         </button>
       )}
 
       {/* ── TABS ──────────────────────────────────────────────── */}
       <div className="overflow-x-auto scrollbar-hide">
-        <div className="flex gap-1 bg-slate-100 p-1 rounded-2xl w-max min-w-full">
+        <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl w-max min-w-full">
           {tabs.map(t => (
             <button key={t.key} onClick={() => setActiveTab(t.key)}
               className={`flex-shrink-0 px-3 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap flex items-center gap-1.5 ${
-                activeTab === t.key ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+                activeTab === t.key ? 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 shadow-sm' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
               }`}>
               {t.label}
               {t.status && (
@@ -1265,7 +1265,7 @@ export default function DetailPage() {
                   t.status === 'disetujui'                                        ? 'bg-emerald-500' :
                   t.status === 'submitted' || t.status === 'terverifikasi'        ? 'bg-amber-400'   :
                   t.status === 'ditolak'                                          ? 'bg-red-500'     :
-                  'bg-slate-300'
+                  'bg-slate-300 dark:bg-slate-600'
                 }`}/>
               )}
             </button>
@@ -1278,7 +1278,7 @@ export default function DetailPage() {
         <div className="space-y-4">
           {/* Timeline */}
           <Card>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Status Alur</p>
+            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Status Alur</p>
             {[
               { label: 'Dibuat',              info: `${sub.pemohon?.name} · ${fmtDateTime(sub.tanggal)}`,                     done: true },
               { label: 'Menunggu Verifikasi', info: sub.verifikasi_at ? `Diterima ${fmtDate(sub.verifikasi_at)}` : 'Menunggu...', done: !!sub.verifikasi_at },
@@ -1293,17 +1293,17 @@ export default function DetailPage() {
               <div key={i} className="flex gap-3">
                 <div className="flex flex-col items-center w-5">
                   <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
-                    t.done ? t.isReject ? 'bg-red-500' : t.isRevisi ? 'bg-purple-500' : 'bg-emerald-500' : 'bg-slate-200'
+                    t.done ? t.isReject ? 'bg-red-500' : t.isRevisi ? 'bg-purple-500' : 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-700'
                   }`}>
                     {t.done && <Check size={10} className="text-white"/>}
                   </div>
                   {i < arr.length - 1 && (
-                    <div className={`w-0.5 flex-1 min-h-[14px] mt-1 mb-1 ${t.done ? 'bg-emerald-200' : 'bg-slate-200'}`}/>
+                    <div className={`w-0.5 flex-1 min-h-[14px] mt-1 mb-1 ${t.done ? 'bg-emerald-200 dark:bg-emerald-500/20' : 'bg-slate-200 dark:bg-slate-700'}`}/>
                   )}
                 </div>
                 <div className={`pb-3 ${i === arr.length - 1 ? 'pb-0' : ''}`}>
-                  <p className={`text-sm font-semibold ${t.done ? 'text-slate-800' : 'text-slate-400'}`}>{t.label}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">{t.info}</p>
+                  <p className={`text-sm font-semibold ${t.done ? 'text-slate-800 dark:text-slate-100' : 'text-slate-400 dark:text-slate-500'}`}>{t.label}</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{t.info}</p>
                 </div>
               </div>
             ))}
@@ -1311,7 +1311,7 @@ export default function DetailPage() {
 
           {/* Info Pengajuan */}
           <Card padding={false}>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-4 pt-3 pb-2">Informasi Pengajuan</p>
+            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-4 pt-3 pb-2">Informasi Pengajuan</p>
             {[
               ['Pemohon',          sub.pemohon?.name],
               ['Cabang',           sub.cabang_manual || sub.cabang],
@@ -1327,32 +1327,32 @@ export default function DetailPage() {
               ['Total',            fmtCurrency(sub.total_harga)],
               ...(sub.jumlah_bayar > 0 ? [['Dibayar', fmtCurrency(sub.jumlah_bayar)]] : []),
             ].map(([k, v], i, arr) => (
-              <div key={k} className={`flex justify-between gap-4 px-4 py-2.5 ${i < arr.length - 1 ? 'border-b border-slate-50' : ''}`}>
-                <span className="text-xs text-slate-400 flex-shrink-0">{k}</span>
-                <span className="text-xs font-semibold text-slate-700 text-right whitespace-pre-line">{v || '—'}</span>
+              <div key={k} className={`flex justify-between gap-4 px-4 py-2.5 ${i < arr.length - 1 ? 'border-b border-slate-50 dark:border-slate-800' : ''}`}>
+                <span className="text-xs text-slate-400 dark:text-slate-500 flex-shrink-0">{k}</span>
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 text-right whitespace-pre-line">{v || '—'}</span>
               </div>
             ))}
           </Card>
 
           {/* Items */}
           <Card padding={false}>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-4 pt-3 pb-2">Rincian Item</p>
+            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-4 pt-3 pb-2">Rincian Item</p>
             {[
               ...items1.map(i => ({ ...i, _v: 1 })),
               ...items2.map(i => ({ ...i, _v: 2 })),
             ].map((item, i, arr) => (
-              <div key={item.id || i} className={`px-4 py-3 ${i < arr.length - 1 ? 'border-b border-slate-50' : ''}`}>
+              <div key={item.id || i} className={`px-4 py-3 ${i < arr.length - 1 ? 'border-b border-slate-50 dark:border-slate-800' : ''}`}>
                 <div className="flex items-start gap-2 mb-1">
                   {items2.length > 0 && (
                     <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 mt-0.5 ${
-                      item._v === 1 ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'
+                      item._v === 1 ? 'bg-blue-100 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400' : 'bg-orange-100 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400'
                     }`}>V{item._v}</span>
                   )}
-                  <p className="text-sm font-medium text-slate-700 leading-relaxed">{item.penjelasan}</p>
+                  <p className="text-sm font-medium text-slate-700 dark:text-slate-200 leading-relaxed">{item.penjelasan}</p>
                 </div>
                 {Number(item.diskon) > 0 ? (
                   <>
-                    <div className="flex justify-between text-xs text-slate-500 mb-0.5">
+                    <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-0.5">
                       <span>{item.satuan} × {fmtCurrency(item.harga)}</span>
                       <span>{fmtCurrency((Number(item.total)||0) + (Number(item.diskon)||0))}</span>
                     </div>
@@ -1360,53 +1360,53 @@ export default function DetailPage() {
                       <span>Diskon</span>
                       <span>− {fmtCurrency(item.diskon)}</span>
                     </div>
-                    <div className="flex justify-between border-t border-slate-50 pt-1">
-                      <span className="text-xs text-slate-500">Subtotal</span>
-                      <span className="text-xs font-bold text-slate-600">{fmtCurrency(item.total || item.harga)}</span>
+                    <div className="flex justify-between border-t border-slate-50 dark:border-slate-800 pt-1">
+                      <span className="text-xs text-slate-500 dark:text-slate-400">Subtotal</span>
+                      <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{fmtCurrency(item.total || item.harga)}</span>
                     </div>
                   </>
                 ) : (
                   <div className="flex justify-between">
-                    <span className="text-xs text-slate-400">{Number(item.harga) > 0 ? `${item.satuan} × ${fmtCurrency(item.harga)}` : item.satuan}</span>
-                    <span className="text-xs font-bold text-slate-600">{fmtCurrency(item.total || item.harga)}</span>
+                    <span className="text-xs text-slate-400 dark:text-slate-500">{Number(item.harga) > 0 ? `${item.satuan} × ${fmtCurrency(item.harga)}` : item.satuan}</span>
+                    <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{fmtCurrency(item.total || item.harga)}</span>
                   </div>
                 )}
               </div>
             ))}
             {Number(sub.ppn) > 0 && (
-              <div className="flex justify-between px-4 py-2 border-t border-slate-50">
-                <span className="text-xs text-slate-500">Ppn</span>
-                <span className="text-xs font-bold text-emerald-600">+ {fmtCurrency(sub.ppn)}</span>
+              <div className="flex justify-between px-4 py-2 border-t border-slate-50 dark:border-slate-800">
+                <span className="text-xs text-slate-500 dark:text-slate-400">Ppn</span>
+                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">+ {fmtCurrency(sub.ppn)}</span>
               </div>
             )}
-            <div className="flex justify-between px-4 py-3 bg-amber-50 border-t border-amber-100">
-              <span className="text-sm font-extrabold text-amber-800">TOTAL</span>
+            <div className="flex justify-between px-4 py-3 bg-amber-50 dark:bg-amber-500/10 border-t border-amber-100 dark:border-amber-500/20">
+              <span className="text-sm font-extrabold text-amber-800 dark:text-amber-300">TOTAL</span>
               <span className="text-base font-black text-amber-500">{fmtCurrency(sub.total_harga)}</span>
             </div>
           </Card>
 
           {/* Keterangan */}
           <Card>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Keterangan</p>
+            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Keterangan</p>
             <div className="space-y-3">
               <div>
-                <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Alasan</p>
-                <p className="text-sm text-slate-700 leading-relaxed">{sub.alasan || '—'}</p>
+                <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Alasan</p>
+                <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">{sub.alasan || '—'}</p>
               </div>
               {sub.pph23?.trim() && (
                 <div>
-                  <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Pph23</p>
-                  <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{sub.pph23}</p>
+                  <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Pph23</p>
+                  <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-line">{sub.pph23}</p>
                 </div>
               )}
               <div>
-                <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Riwayat</p>
-                <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{sub.riwayat || '—'}</p>
+                <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Riwayat</p>
+                <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-line">{sub.riwayat || '—'}</p>
               </div>
               {sub.alasan_tolak && (
-                <div className="bg-red-50 border border-red-100 rounded-xl p-3">
+                <div className="bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 rounded-xl p-3">
                   <p className="text-[10px] font-bold text-red-500 uppercase mb-1">Alasan Penolakan</p>
-                  <p className="text-sm text-red-700">{sub.alasan_tolak}</p>
+                  <p className="text-sm text-red-700 dark:text-red-300">{sub.alasan_tolak}</p>
                 </div>
               )}
             </div>
@@ -1415,7 +1415,7 @@ export default function DetailPage() {
           {/* Foto */}
           <Card padding={false}>
             <div className="flex items-center justify-between px-4 pt-3 pb-2">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
                 Foto Lampiran ({photos.length})
               </p>
               {(user && (sub.pemohon_id === user.id || ['Admin', 'Verifikator', 'Approval'].includes(user.role))) && (
@@ -1429,14 +1429,14 @@ export default function DetailPage() {
               )}
             </div>
             {photos.length === 0 ? (
-              <p className="px-4 pb-4 text-xs text-slate-400">Belum ada lampiran. Klik "Tambah" untuk mengunggah foto atau PDF.</p>
+              <p className="px-4 pb-4 text-xs text-slate-400 dark:text-slate-500">Belum ada lampiran. Klik "Tambah" untuk mengunggah foto atau PDF.</p>
             ) : (
               <div className="p-3 grid grid-cols-2 gap-3">
                 {photos.map(p => {
                   const isImg = p.file_url?.match(/\.(jpg|jpeg|png|webp)/i);
                   return (
-                    <div key={p.id} className="rounded-xl overflow-hidden border border-slate-200">
-                      <div className="relative aspect-square bg-slate-100 cursor-pointer group" onClick={() => setLightbox(p)}>
+                    <div key={p.id} className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
+                      <div className="relative aspect-square bg-slate-100 dark:bg-slate-800 cursor-pointer group" onClick={() => setLightbox(p)}>
                         {isImg
                           ? <img src={p.file_url} alt={p.file_name} className="w-full h-full object-cover"/>
                           : <div className="w-full h-full flex items-center justify-center"><p className="text-3xl">📄</p></div>
@@ -1446,10 +1446,10 @@ export default function DetailPage() {
                         </div>
                       </div>
                       <div className="p-2">
-                        <p className="text-[10px] text-slate-600 truncate mb-1.5">{p.file_name}</p>
+                        <p className="text-[10px] text-slate-600 dark:text-slate-300 truncate mb-1.5">{p.file_name}</p>
                         <div className="flex gap-1.5">
                           <button onClick={() => setLightbox(p)}
-                            className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-slate-100 text-slate-600 text-[10px] font-semibold">
+                            className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-semibold">
                             <Eye size={10}/> Lihat
                           </button>
                           <a href={p.file_url} download={p.file_name} target="_blank" rel="noreferrer"
@@ -1467,7 +1467,7 @@ export default function DetailPage() {
 
           {/* Tanda tangan */}
           <Card>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Tanda Tangan</p>
+            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Tanda Tangan</p>
             <div className="grid grid-cols-3 gap-2">
               {[
                 { label: 'Dibuat',      name: sub.pemohon?.name,    jabatan: sub.pemohon?.jabatan,    done: true },
@@ -1475,19 +1475,19 @@ export default function DetailPage() {
                 { label: 'Approval',    name: sub.approver?.name,   jabatan: sub.approver?.jabatan,   done: !!sub.approver_id, isReject: sub.status === 'Ditolak' },
               ].map((sig, i) => (
                 <div key={i} className={`text-center p-2.5 rounded-xl border ${
-                  sig.done ? sig.isReject ? 'bg-red-50 border-red-100' : 'bg-emerald-50 border-emerald-100'
-                           : 'bg-slate-50 border-slate-100'
+                  sig.done ? sig.isReject ? 'bg-red-50 dark:bg-red-500/10 border-red-100 dark:border-red-500/20' : 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-100 dark:border-emerald-500/20'
+                           : 'bg-slate-50 dark:bg-slate-800/60 border-slate-100 dark:border-slate-800'
                 }`}>
-                  <p className="text-[9px] text-slate-400 mb-1.5 leading-tight">{sig.label}</p>
+                  <p className="text-[9px] text-slate-400 dark:text-slate-500 mb-1.5 leading-tight">{sig.label}</p>
                   <div className={`w-8 h-8 rounded-full mx-auto mb-1.5 flex items-center justify-center ${
-                    sig.done ? sig.isReject ? 'bg-red-500' : 'bg-emerald-500' : 'bg-slate-200'
+                    sig.done ? sig.isReject ? 'bg-red-500' : 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-700'
                   }`}>
-                    {sig.done ? <Check size={12} className="text-white"/> : <User size={10} className="text-slate-400"/>}
+                    {sig.done ? <Check size={12} className="text-white"/> : <User size={10} className="text-slate-400 dark:text-slate-500"/>}
                   </div>
                   <p className={`text-[10px] font-bold ${
-                    sig.done ? sig.isReject ? 'text-red-700' : 'text-emerald-700' : 'text-slate-400'
+                    sig.done ? sig.isReject ? 'text-red-700 dark:text-red-300' : 'text-emerald-700 dark:text-emerald-300' : 'text-slate-400 dark:text-slate-500'
                   }`}>{sig.name || 'Menunggu...'}</p>
-                  <p className="text-[9px] text-slate-400 mt-0.5">{sig.jabatan || ''}</p>
+                  <p className="text-[9px] text-slate-400 dark:text-slate-500 mt-0.5">{sig.jabatan || ''}</p>
                 </div>
               ))}
             </div>
@@ -1513,13 +1513,13 @@ export default function DetailPage() {
       {/* ── TAB: CHAT ─────────────────────────────────────────── */}
       {activeTab === 'chat' && (
         <Card padding={false} className="flex flex-col">
-          <div className="px-4 py-3 border-b border-slate-50">
-            <p className="text-sm font-bold text-slate-700">Diskusi Pengajuan</p>
-            <p className="text-xs text-slate-400 mt-0.5">Antara Pemohon, Verifikator & Approval</p>
+          <div className="px-4 py-3 border-b border-slate-50 dark:border-slate-800">
+            <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Diskusi Pengajuan</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Antara Pemohon, Verifikator & Approval</p>
           </div>
           <div ref={chatRef} className="px-4 py-3 space-y-3 min-h-[240px] max-h-[400px] overflow-y-auto">
             {msgs.length === 0 && (
-              <div className="flex items-center justify-center h-32 text-slate-400 text-sm">
+              <div className="flex items-center justify-center h-32 text-slate-400 dark:text-slate-500 text-sm">
                 Belum ada pesan
               </div>
             )}
@@ -1527,7 +1527,7 @@ export default function DetailPage() {
               const isMe = m.user?.id === user.id;
               if (m.is_system) return (
                 <div key={i} className="text-center">
-                  <span className="text-[11px] text-slate-500 bg-slate-100 px-3 py-1 rounded-full inline-block">
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full inline-block">
                     {m.message}
                   </span>
                 </div>
@@ -1542,17 +1542,17 @@ export default function DetailPage() {
                     {m.user?.avatar_initials || '?'}
                   </div>
                   <div className={`max-w-[72%] flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                    <p className="text-[10px] text-slate-400 mb-1">{m.user?.name}</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-1">{m.user?.name}</p>
                     <div className={`px-3 py-2 text-sm rounded-2xl leading-relaxed ${
-                      isMe ? 'bg-amber-500 text-white rounded-br-sm' : 'bg-slate-100 text-slate-700 rounded-bl-sm'
+                      isMe ? 'bg-amber-500 text-white rounded-br-sm' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-bl-sm'
                     }`}>{m.message}</div>
-                    <p className="text-[9px] text-slate-300 mt-1">{fmtDateTime(m.created_at)}</p>
+                    <p className="text-[9px] text-slate-300 dark:text-slate-600 mt-1">{fmtDateTime(m.created_at)}</p>
                   </div>
                 </div>
               );
             })}
           </div>
-          <div className="px-4 py-3 border-t border-slate-50 flex gap-2">
+          <div className="px-4 py-3 border-t border-slate-50 dark:border-slate-800 flex gap-2">
             <textarea value={msg} onChange={e => setMsg(e.target.value)}
               onKeyDown={e => { 
                 if (e.key === 'Enter' && !e.shiftKey) { 
@@ -1560,10 +1560,10 @@ export default function DetailPage() {
                   sendMsg(); 
               } }}
               placeholder="Ketik pesan... (Enter untuk kirim)"
-              className="flex-1 px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-amber-400"/>
+              className="flex-1 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 text-sm text-slate-800 dark:text-slate-100 outline-none focus:border-amber-400"/>
             <button onClick={sendMsg} disabled={!msg.trim()}
-              className="w-10 h-10 rounded-xl bg-amber-500 disabled:bg-slate-200 flex items-center justify-center transition-colors flex-shrink-0">
-              <Send size={15} className={msg.trim() ? 'text-white' : 'text-slate-400'}/>
+              className="w-10 h-10 rounded-xl bg-amber-500 disabled:bg-slate-200 dark:disabled:bg-slate-800 flex items-center justify-center transition-colors flex-shrink-0">
+              <Send size={15} className={msg.trim() ? 'text-white' : 'text-slate-400 dark:text-slate-500'}/>
             </button>
           </div>
         </Card>
