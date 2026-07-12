@@ -1,4 +1,4 @@
-// src/components/RevisiEditor.jsx  — BUGFIX item form focus loss
+// src/components/RevisiEditor.jsx  — Dark Mode Tahap 4: hanya penambahan varian dark:, tanpa perubahan fitur (basis: BUGFIX item form focus loss)
 // v11: form revisi kini membawa km_pengajuan & kategori_biaya per item
 //      agar tidak hilang saat pengajuan direvisi.
 // Fix: stable key untuk item rows, hapus onInput auto-resize yang menyebabkan re-render
@@ -28,7 +28,7 @@ const KATEGORI_BIAYA = ['Sewa', 'Service', 'Ban', 'Izin Kendaraan', 'Jasa', 'Lai
 
 function ItemRow({ item, onUpdate, onRemove, canRemove, vendorLabel, vendorColor, isUmum }) {
   return (
-    <div className="border border-slate-200 rounded-xl p-3 space-y-2 bg-white">
+    <div className="border border-slate-200 dark:border-slate-700 rounded-xl p-3 space-y-2 bg-white dark:bg-slate-900">
       <div className="flex justify-between items-center">
         <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${vendorColor}`}>
           {vendorLabel}
@@ -38,7 +38,7 @@ function ItemRow({ item, onUpdate, onRemove, canRemove, vendorLabel, vendorColor
             type="button"
             onMouseDown={e => e.preventDefault()} // ← mencegah blur sebelum klik
             onClick={onRemove}
-            className="text-red-400 hover:text-red-600 p-1">
+            className="text-red-400 hover:text-red-600 dark:hover:text-red-400 p-1">
             <Trash2 size={13}/>
           </button>
         )}
@@ -50,9 +50,9 @@ function ItemRow({ item, onUpdate, onRemove, canRemove, vendorLabel, vendorColor
         onChange={e => onUpdate('penjelasan', e.target.value)}
         rows={2}
         placeholder="Penjelasan item: nama barang, merek, ukuran, kondisi..."
-        className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800
-                   outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100
-                   resize-none placeholder:text-slate-300 leading-relaxed transition-colors"
+        className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 text-sm text-slate-800 dark:text-slate-100
+                   outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 dark:focus:ring-amber-500/20
+                   resize-none placeholder:text-slate-300 dark:placeholder:text-slate-600 leading-relaxed transition-colors"
       />
 
       {/* Satuan + Harga dalam satu baris */}
@@ -61,20 +61,20 @@ function ItemRow({ item, onUpdate, onRemove, canRemove, vendorLabel, vendorColor
           value={item.satuan}
           onChange={e => onUpdate('satuan', e.target.value)}
           placeholder="Satuan"
-          className="col-span-2 px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800
-                     outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100
-                     placeholder:text-slate-300 transition-colors"
+          className="col-span-2 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 text-sm text-slate-800 dark:text-slate-100
+                     outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 dark:focus:ring-amber-500/20
+                     placeholder:text-slate-300 dark:placeholder:text-slate-600 transition-colors"
         />
         <div className="col-span-3 relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">Rp</span>
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 dark:text-slate-500 pointer-events-none">Rp</span>
           <input
             type="number"
             value={item.harga}
             onChange={e => onUpdate('harga', e.target.value)}
             placeholder="0"
-            className="w-full pl-8 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800
-                       outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100
-                       placeholder:text-slate-300 transition-colors"
+            className="w-full pl-8 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 text-sm text-slate-800 dark:text-slate-100
+                       outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 dark:focus:ring-amber-500/20
+                       placeholder:text-slate-300 dark:placeholder:text-slate-600 transition-colors"
           />
         </div>
       </div>
@@ -87,9 +87,9 @@ function ItemRow({ item, onUpdate, onRemove, canRemove, vendorLabel, vendorColor
           value={item.diskon || ''}
           onChange={e => onUpdate('diskon', e.target.value)}
           placeholder="0"
-          className="w-full pl-16 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800
-                     outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100
-                     placeholder:text-slate-300 transition-colors"
+          className="w-full pl-16 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 text-sm text-slate-800 dark:text-slate-100
+                     outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 dark:focus:ring-amber-500/20
+                     placeholder:text-slate-300 dark:placeholder:text-slate-600 transition-colors"
         />
       </div>
 
@@ -99,7 +99,7 @@ function ItemRow({ item, onUpdate, onRemove, canRemove, vendorLabel, vendorColor
         <select
           value={item.kategori_biaya || ''}
           onChange={e => onUpdate('kategori_biaya', e.target.value)}
-          className={`col-span-3 px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 ${item.kategori_biaya ? 'text-slate-800' : 'text-slate-400'}`}>
+          className={`col-span-3 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 text-sm outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 dark:focus:ring-amber-500/20 ${item.kategori_biaya ? 'text-slate-800 dark:text-slate-100' : 'text-slate-400 dark:text-slate-500'}`}>
           <option value="">— Kategori biaya —</option>
           {KATEGORI_BIAYA.map(k => <option key={k} value={k}>{k}</option>)}
         </select>
@@ -108,7 +108,7 @@ function ItemRow({ item, onUpdate, onRemove, canRemove, vendorLabel, vendorColor
           value={item.km_pengajuan || ''}
           onChange={e => onUpdate('km_pengajuan', e.target.value)}
           placeholder="KM"
-          className="col-span-2 px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 placeholder:text-slate-300"
+          className="col-span-2 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 text-sm text-slate-800 dark:text-slate-100 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 dark:focus:ring-amber-500/20 placeholder:text-slate-300 dark:placeholder:text-slate-600"
         />
       </div>
       )}
@@ -119,7 +119,7 @@ function ItemRow({ item, onUpdate, onRemove, canRemove, vendorLabel, vendorColor
         return (
           <p className="text-xs font-semibold text-right">
             {Number(item.diskon) > 0 && (
-              <span className="text-slate-400 mr-1.5">{fmtCurrency(gross)} − {fmtCurrency(parseFloat(item.diskon) || 0)} =</span>
+              <span className="text-slate-400 dark:text-slate-500 mr-1.5">{fmtCurrency(gross)} − {fmtCurrency(parseFloat(item.diskon) || 0)} =</span>
             )}
             <span className="text-amber-500">{fmtCurrency(net)}</span>
           </p>
@@ -143,12 +143,12 @@ function ItemsSection({ items, vendorNum, vendorLabel, vendorColor, onUpdate, on
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-bold text-slate-600">{vendorLabel}</p>
+        <p className="text-xs font-bold text-slate-600 dark:text-slate-300">{vendorLabel}</p>
         <button
           type="button"
           onMouseDown={e => e.preventDefault()}
           onClick={() => onAdd(vendorNum)}
-          className="flex items-center gap-1 text-[10px] font-bold text-amber-500 hover:text-amber-600 transition-colors">
+          className="flex items-center gap-1 text-[10px] font-bold text-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition-colors">
           <Plus size={11}/> Tambah Item
         </button>
       </div>
@@ -166,8 +166,8 @@ function ItemsSection({ items, vendorNum, vendorLabel, vendorColor, onUpdate, on
         />
       ))}
 
-      <div className="flex justify-between items-center bg-amber-50 rounded-xl px-3 py-2 mt-1">
-        <span className="text-xs font-bold text-amber-800">Total {vendorLabel}</span>
+      <div className="flex justify-between items-center bg-amber-50 dark:bg-amber-500/10 rounded-xl px-3 py-2 mt-1">
+        <span className="text-xs font-bold text-amber-800 dark:text-amber-300">Total {vendorLabel}</span>
         <span className="text-sm font-black text-amber-500">{fmtCurrency(total)}</span>
       </div>
     </div>
@@ -325,23 +325,23 @@ export default function RevisiEditor({ snapshot, onClose, onSubmitted, isUmum = 
     setSubmitting(false);
   };
 
-  const inputCls = `w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800
-                    outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100
-                    transition-colors placeholder:text-slate-300`;
+  const inputCls = `w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-sm text-slate-800 dark:text-slate-100 dark:bg-slate-900
+                    outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 dark:focus:ring-amber-500/20
+                    transition-colors placeholder:text-slate-300 dark:placeholder:text-slate-600`;
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 overflow-y-auto">
       <div className="min-h-screen p-4 flex items-start justify-center">
-        <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl my-4">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl my-4">
 
           {/* Header */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 sticky top-0 bg-white rounded-t-2xl z-10">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800 sticky top-0 bg-white dark:bg-slate-900 rounded-t-2xl z-10">
             <div>
-              <h3 className="text-base font-black text-slate-800">
+              <h3 className="text-base font-black text-slate-800 dark:text-slate-100">
                 Edit Revisi ke-{snapshot.revision_number}
               </h3>
               {snapshot.alasan_revisi && (
-                <p className="text-xs text-purple-600 mt-0.5 font-medium">
+                <p className="text-xs text-purple-600 dark:text-purple-400 mt-0.5 font-medium">
                   📋 {snapshot.alasan_revisi}
                 </p>
               )}
@@ -349,8 +349,8 @@ export default function RevisiEditor({ snapshot, onClose, onSubmitted, isUmum = 
             <button
               onMouseDown={e => e.preventDefault()}
               onClick={onClose}
-              className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50">
-              <X size={16} className="text-slate-500"/>
+              className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/60">
+              <X size={16} className="text-slate-500 dark:text-slate-400"/>
             </button>
           </div>
 
@@ -359,7 +359,7 @@ export default function RevisiEditor({ snapshot, onClose, onSubmitted, isUmum = 
 
             {/* Alasan */}
             <div>
-              <label className="block text-xs font-bold text-slate-600 mb-1.5">
+              <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">
                 Alasan Pengajuan <span className="text-red-500">*</span>
               </label>
               <textarea
@@ -373,10 +373,10 @@ export default function RevisiEditor({ snapshot, onClose, onSubmitted, isUmum = 
             {/* Riwayat */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-bold text-slate-600">Riwayat</label>
+                <label className="block text-xs font-bold text-slate-600 dark:text-slate-300">Riwayat</label>
                 {!isUmum && (
                   <button type="button" onClick={susunRiwayat} disabled={buildingRiwayat}
-                    className="text-[11px] font-bold text-blue-600 hover:text-blue-700 disabled:opacity-50">
+                    className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 disabled:opacity-50">
                     {buildingRiwayat ? 'Menyusun…' : '↻ Susun Riwayat Otomatis'}
                   </button>
                 )}
@@ -387,7 +387,7 @@ export default function RevisiEditor({ snapshot, onClose, onSubmitted, isUmum = 
                 rows={4}
                 className={inputCls + ' resize-none leading-relaxed'}
                 placeholder="Riwayat service/penggantian sebelumnya..."/>
-              <p className="text-[10px] text-slate-400 mt-1">
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">
                 {isUmum ? '💡 Tekan Enter untuk baris baru'
                         : '💡 Isi KM Sekarang tiap item, lalu klik "Susun Riwayat Otomatis" agar formatnya sama persis dengan pengajuan asli — atau ketik manual.'}
               </p>
@@ -396,9 +396,9 @@ export default function RevisiEditor({ snapshot, onClose, onSubmitted, isUmum = 
             {/* Ppn & Pph23 */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1.5">Ppn (Rp)</label>
+                <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Ppn (Rp)</label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">Rp</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 dark:text-slate-500 pointer-events-none">Rp</span>
                   <input
                     type="number"
                     value={form.ppn}
@@ -406,24 +406,24 @@ export default function RevisiEditor({ snapshot, onClose, onSubmitted, isUmum = 
                     placeholder="0"
                     className={inputCls + ' pl-8'}/>
                 </div>
-                <p className="text-[10px] text-slate-400 mt-1">Menambah total. Kosongkan jika tidak ada.</p>
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">Menambah total. Kosongkan jika tidak ada.</p>
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1.5">Pph23 (keterangan)</label>
+                <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Pph23 (keterangan)</label>
                 <textarea
                   value={form.pph23}
                   onChange={e => setField('pph23', e.target.value)}
                   rows={2}
                   className={inputCls + ' resize-none leading-relaxed'}
                   placeholder="Contoh: Rp 1.695.330 × 2% = Rp 33.907"/>
-                <p className="text-[10px] text-slate-400 mt-1">Informatif — tidak mengubah total.</p>
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">Informatif — tidak mengubah total.</p>
               </div>
             </div>
 
             {/* Vendor 1 */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1.5">
+                <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">
                   Vendor 1 <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -433,7 +433,7 @@ export default function RevisiEditor({ snapshot, onClose, onSubmitted, isUmum = 
                   placeholder="Nama vendor/bengkel"/>
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1.5">NPWP Vendor 1</label>
+                <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">NPWP Vendor 1</label>
                 <input
                   value={form.npwp}
                   onChange={e => setField('npwp', e.target.value)}
@@ -444,7 +444,7 @@ export default function RevisiEditor({ snapshot, onClose, onSubmitted, isUmum = 
 
             {/* Rekening */}
             <div>
-              <label className="block text-xs font-bold text-slate-600 mb-1.5">Rekening Tujuan Pembayaran</label>
+              <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Rekening Tujuan Pembayaran</label>
               <textarea
                 value={form.rekening_tujuan}
                 onChange={e => setField('rekening_tujuan', e.target.value)}
@@ -459,7 +459,7 @@ export default function RevisiEditor({ snapshot, onClose, onSubmitted, isUmum = 
               items={form.items}
               vendorNum={1}
               vendorLabel="Vendor 1"
-              vendorColor="bg-blue-100 text-blue-600"
+              vendorColor="bg-blue-100 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400"
               onUpdate={updateItem}
               onAdd={addItem}
               onRemove={removeItem}
@@ -468,10 +468,10 @@ export default function RevisiEditor({ snapshot, onClose, onSubmitted, isUmum = 
             {/* Vendor 2 jika ada */}
             {hasVendor2 && (
               <>
-                <div className="border-t border-slate-100 pt-3">
+                <div className="border-t border-slate-100 dark:border-slate-800 pt-3">
                   <div className="grid grid-cols-2 gap-3 mb-3">
                     <div>
-                      <label className="block text-xs font-bold text-slate-600 mb-1.5">Vendor 2</label>
+                      <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Vendor 2</label>
                       <input
                         value={form.vendor2}
                         onChange={e => setField('vendor2', e.target.value)}
@@ -479,7 +479,7 @@ export default function RevisiEditor({ snapshot, onClose, onSubmitted, isUmum = 
                         placeholder="Nama vendor 2"/>
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-600 mb-1.5">NPWP Vendor 2</label>
+                      <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">NPWP Vendor 2</label>
                       <input
                         value={form.npwp2}
                         onChange={e => setField('npwp2', e.target.value)}
@@ -492,7 +492,7 @@ export default function RevisiEditor({ snapshot, onClose, onSubmitted, isUmum = 
                     items={form.items}
                     vendorNum={2}
                     vendorLabel="Vendor 2"
-                    vendorColor="bg-orange-100 text-orange-600"
+                    vendorColor="bg-orange-100 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400"
                     onUpdate={updateItem}
                     onAdd={addItem}
                     onRemove={removeItem}
@@ -503,7 +503,7 @@ export default function RevisiEditor({ snapshot, onClose, onSubmitted, isUmum = 
           </div>
 
           {/* Footer actions */}
-          <div className="px-5 py-4 border-t border-slate-100 flex gap-2.5 sticky bottom-0 bg-white rounded-b-2xl">
+          <div className="px-5 py-4 border-t border-slate-100 dark:border-slate-800 flex gap-2.5 sticky bottom-0 bg-white dark:bg-slate-900 rounded-b-2xl">
             <Button variant="secondary" className="flex-1" onClick={handleSave} loading={saving}>
               💾 Simpan Draft
             </Button>
