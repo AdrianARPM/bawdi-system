@@ -473,10 +473,10 @@ try {                                                               // ✅ try a
   doc.setFont('helvetica', 'bold');
   doc.text(fmtDateExport(sub.batas_akhir_pembayaran), margin + 103, currentY);
 
-  currentY += 10;
+  currentY += 6;
 
   // ── Tanda Tangan ──────────────────────────────────────────────
-  if (currentY + 22 > pageH - 13) {
+  if (currentY + 22 > pageH - 10) {
     doc.addPage();
     currentY = margin;
   }
@@ -550,15 +550,9 @@ try {                                                               // ✅ try a
   for (let pg = 1; pg <= totalPages; pg++) {
     doc.setPage(pg);
     
-    // Garis Footer
-    // doc.setDrawColor(200, 200, 200);
-    // doc.setLineWidth(0.5);
-    // doc.line(margin, pageH - 12, pageW - margin, pageH - 12);
-    
-    // doc.setFontSize(7);
-    // doc.setTextColor(150, 150, 150);
-    // doc.setFont('helvetica', 'normal');
-    // doc.text('Dokumen digenerate otomatis BAWDI Maintenance System', margin, pageH - 8);
+    doc.setFontSize(7);
+    doc.setTextColor(150, 150, 150);
+    doc.setFont('helvetica', 'normal');
     doc.text(`Hal. ${pg}/${totalPages}`, pageW - margin, pageH - 8, { align: 'right' });
   }
 
