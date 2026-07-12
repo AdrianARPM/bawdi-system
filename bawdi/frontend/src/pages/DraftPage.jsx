@@ -1,4 +1,4 @@
-// src/pages/DraftPage.jsx  — v8 (arsip per cabang, format Form Rekap PR + Export Excel)
+// src/pages/DraftPage.jsx  — v9 (Dark Mode Tahap 2: hanya penambahan varian dark:, tanpa perubahan fitur — basis v8 arsip per cabang, format Form Rekap PR + Export Excel)
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -16,10 +16,10 @@ const ALLOWED_ROLES = ['Admin', 'Verifikator', 'Approval', 'Operasional'];
 // Status tagihan dari pembayaran (selaras rumus Excel)
 function statusTagihan(total, bayar) {
   const sisa = Math.max(0, (Number(total) || 0) - (Number(bayar) || 0));
-  let label = 'Belum Lunas', cls = 'bg-red-100 text-red-600';
+  let label = 'Belum Lunas', cls = 'bg-red-100 text-red-600 dark:bg-red-500/10 dark:text-red-400';
   if (Number(bayar) > 0) {
-    if (Number(bayar) >= Number(total)) { label = 'Lunas'; cls = 'bg-emerald-100 text-emerald-700'; }
-    else                                { label = 'DP';    cls = 'bg-amber-100 text-amber-700'; }
+    if (Number(bayar) >= Number(total)) { label = 'Lunas'; cls = 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'; }
+    else                                { label = 'DP';    cls = 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300'; }
   }
   return { sisa, label, cls };
 }
@@ -30,11 +30,11 @@ export default function DraftPage() {
   if (!ALLOWED_ROLES.includes(user?.role)) {
     return (
       <div className="max-w-md mx-auto mt-20 text-center px-4">
-        <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+        <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-500/10 flex items-center justify-center mx-auto mb-4">
           <ShieldOff size={28} className="text-red-400"/>
         </div>
-        <h2 className="text-lg font-black text-slate-800 mb-2">Akses Ditolak</h2>
-        <p className="text-sm text-slate-400">
+        <h2 className="text-lg font-black text-slate-800 dark:text-slate-100 mb-2">Akses Ditolak</h2>
+        <p className="text-sm text-slate-400 dark:text-slate-500">
           Halaman Draft/Arsip hanya dapat diakses oleh Admin, Verifikator, dan Approval.
         </p>
       </div>
@@ -110,10 +110,10 @@ export default function DraftPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-xl font-black text-slate-800 flex items-center gap-2">
-            <Archive size={20} className="text-slate-500"/> Draft / Arsip
+          <h1 className="text-xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
+            <Archive size={20} className="text-slate-500 dark:text-slate-400"/> Draft / Arsip
           </h1>
-          <p className="text-sm text-slate-400 mt-0.5">Pengajuan disetujui &amp; selesai · dikelompokkan per cabang</p>
+          <p className="text-sm text-slate-400 dark:text-slate-500 mt-0.5">Pengajuan disetujui &amp; selesai · dikelompokkan per cabang</p>
         </div>
         {user?.role !== 'Operasional' && (
           <button onClick={handleExportExcel} disabled={exporting || loading}
@@ -125,8 +125,8 @@ export default function DraftPage() {
       </div>
 
       {/* Info akses */}
-      <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-2.5">
-        <p className="text-xs text-blue-600 font-medium">
+      <div className="bg-blue-50 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/30 rounded-xl px-4 py-2.5">
+        <p className="text-xs text-blue-600 dark:text-blue-300 font-medium">
           {user?.role === 'Operasional'
             ? <>🔒 Anda melihat <strong>arsip pengajuan Anda sendiri</strong> (disetujui &amp; selesai), dikelompokkan per cabang.</>
             : <>🔒 Halaman ini dapat dilihat oleh <strong>Admin, Verifikator, dan Approval</strong> (seluruh arsip) serta <strong>Pemohon</strong> (arsip miliknya sendiri). Export Excel mengunduh rekap per cabang (satu sheet per cabang) untuk tahun terpilih.</>}
@@ -136,14 +136,14 @@ export default function DraftPage() {
       {/* Summary */}
       <div className="grid grid-cols-2 gap-3">
         <Card className="!p-4">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Total Arsip</p>
-          <p className="text-3xl font-black text-slate-800">{filtered.length}</p>
-          <p className="text-xs text-slate-400 mt-1">pengajuan disetujui &amp; selesai</p>
+          <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Total Arsip</p>
+          <p className="text-3xl font-black text-slate-800 dark:text-slate-100">{filtered.length}</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">pengajuan disetujui &amp; selesai</p>
         </Card>
         <Card className="!p-4">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Total Dibayar</p>
-          <p className="text-lg font-black text-emerald-600">{fmtCurrency(totalBayar)}</p>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Total Dibayar</p>
+          <p className="text-lg font-black text-emerald-600 dark:text-emerald-400">{fmtCurrency(totalBayar)}</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
             {filterBulan ? bulanList.find(b => b.bulan === Number(filterBulan))?.label || 'bulan dipilih' : 'semua periode'}
           </p>
         </Card>
@@ -151,17 +151,17 @@ export default function DraftPage() {
 
       {/* Search */}
       <div className="relative">
-        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
+        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500"/>
         <input value={q} onChange={e => setQ(e.target.value)}
           placeholder="Cari nomor, kendaraan, cabang, pemohon..."
-          className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100"/>
+          className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 text-sm outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 dark:focus:ring-amber-500/20"/>
       </div>
 
       {/* Filter */}
       <Card className="!p-4">
         <div className="flex items-center gap-2 mb-3">
-          <Filter size={14} className="text-slate-500"/>
-          <p className="text-sm font-bold text-slate-700">Filter</p>
+          <Filter size={14} className="text-slate-500 dark:text-slate-400"/>
+          <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Filter</p>
           {hasFilter && (
             <button onClick={resetFilter} className="ml-auto flex items-center gap-1 text-xs font-semibold text-red-500">
               <X size={12}/> Reset
@@ -169,31 +169,31 @@ export default function DraftPage() {
           )}
         </div>
         <div className="mb-3">
-          <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 mb-1.5"><Truck size={12}/> Plat Kendaraan</label>
+          <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5"><Truck size={12}/> Plat Kendaraan</label>
           <div className="flex flex-wrap gap-1.5">
             <button onClick={() => setFilterKendaraan('')}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${!filterKendaraan ? 'bg-amber-500 border-amber-500 text-white' : 'bg-white border-slate-200 text-slate-500'}`}>
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${!filterKendaraan ? 'bg-amber-500 border-amber-500 text-white' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400'}`}>
               Semua
             </button>
             {kendaraanList.map(k => (
               <button key={k} onClick={() => setFilterKendaraan(k)}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${filterKendaraan===k ? 'bg-amber-500 border-amber-500 text-white' : 'bg-white border-slate-200 text-slate-500'}`}>
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${filterKendaraan===k ? 'bg-amber-500 border-amber-500 text-white' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400'}`}>
                 {k}
               </button>
             ))}
           </div>
         </div>
         <div>
-          <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 mb-1.5"><Calendar size={12}/> Bulan</label>
+          <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5"><Calendar size={12}/> Bulan</label>
           <div className="flex flex-wrap gap-1.5">
             <button onClick={() => { setFilterBulan(''); setFilterTahun(''); }}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${!filterBulan ? 'bg-blue-500 border-blue-500 text-white' : 'bg-white border-slate-200 text-slate-500'}`}>
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${!filterBulan ? 'bg-blue-500 border-blue-500 text-white' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400'}`}>
               Semua
             </button>
             {bulanList.map(b => (
               <button key={`${b.bulan}-${b.tahun}`}
                 onClick={() => { setFilterBulan(String(b.bulan)); setFilterTahun(String(b.tahun)); }}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${filterBulan===String(b.bulan)&&filterTahun===String(b.tahun) ? 'bg-blue-500 border-blue-500 text-white' : 'bg-white border-slate-200 text-slate-500'}`}>
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${filterBulan===String(b.bulan)&&filterTahun===String(b.tahun) ? 'bg-blue-500 border-blue-500 text-white' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400'}`}>
                 {b.label}
               </button>
             ))}
@@ -203,17 +203,17 @@ export default function DraftPage() {
 
       {/* Count */}
       {!loading && (
-        <p className="text-xs text-slate-400">
-          Menampilkan <strong className="text-slate-600">{filtered.length}</strong> arsip
-          dalam <strong className="text-slate-600">{cabangNames.length}</strong> cabang
+        <p className="text-xs text-slate-400 dark:text-slate-500">
+          Menampilkan <strong className="text-slate-600 dark:text-slate-300">{filtered.length}</strong> arsip
+          dalam <strong className="text-slate-600 dark:text-slate-300">{cabangNames.length}</strong> cabang
         </p>
       )}
 
       {/* Tabel per cabang */}
       {loading ? <Spinner size={28}/> : cabangNames.length === 0 ? (
         <div className="py-20 text-center">
-          <Archive size={32} className="text-slate-300 mx-auto mb-3"/>
-          <p className="text-sm text-slate-400">Belum ada arsip pengajuan</p>
+          <Archive size={32} className="text-slate-300 dark:text-slate-700 mx-auto mb-3"/>
+          <p className="text-sm text-slate-400 dark:text-slate-500">Belum ada arsip pengajuan</p>
         </div>
       ) : (
         <div className="space-y-6">
@@ -225,18 +225,18 @@ export default function DraftPage() {
             const noNota   = rows.filter(d => !d.nota_url).length;
             return (
               <Card key={cabang} className="!p-0 overflow-hidden">
-                <div className="flex items-center gap-2 px-4 py-3 bg-slate-50 border-b border-slate-100">
+                <div className="flex items-center gap-2 px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-100 dark:border-slate-800">
                   <Building2 size={15} className="text-amber-500"/>
-                  <p className="text-sm font-black text-slate-800">{cabang}</p>
-                  <span className="text-[10px] font-bold text-slate-400">{rows.length} pengajuan</span>
+                  <p className="text-sm font-black text-slate-800 dark:text-slate-100">{cabang}</p>
+                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500">{rows.length} pengajuan</span>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs whitespace-nowrap">
                     <thead>
-                      <tr className="bg-emerald-50 text-slate-600 text-left">
+                      <tr className="bg-emerald-50 dark:bg-emerald-500/10 text-slate-600 dark:text-slate-300 text-left">
                         {['No.','Nopol','Tgl Pengajuan','Tgl App','Tgl Bayar','Nomor PR/PAR','Rincian/Jenis Pembelian','Total Tagihan','Total Dibayar','Sisa','Status','Nota']
                           .map((h,i) => (
-                            <th key={i} className={`px-2.5 py-2 font-bold border-b border-slate-200 ${i>=7&&i<=9?'text-right':''}`}>{h}</th>
+                            <th key={i} className={`px-2.5 py-2 font-bold border-b border-slate-200 dark:border-slate-700 ${i>=7&&i<=9?'text-right':''}`}>{h}</th>
                           ))}
                       </tr>
                     </thead>
@@ -244,16 +244,16 @@ export default function DraftPage() {
                       {rows.map((d, i) => {
                         const st = statusTagihan(d.total_harga, d.dibayar);
                         return (
-                          <tr key={d.id} className="border-b border-slate-50 hover:bg-slate-50/60">
-                            <td className="px-2.5 py-2 text-center text-slate-400">{i+1}</td>
-                            <td className="px-2.5 py-2 font-semibold text-amber-600">{d.kendaraan}</td>
-                            <td className="px-2.5 py-2 text-slate-500">{fmtDate(d.tanggal)}</td>
-                            <td className="px-2.5 py-2 text-slate-500">{d.approval_at ? fmtDate(d.approval_at) : '—'}</td>
-                            <td className="px-2.5 py-2 text-slate-500">{d.tanggal_bayar ? fmtDate(d.tanggal_bayar) : '—'}</td>
-                            <td className="px-2.5 py-2 font-semibold text-slate-700">
-                              <Link to={`/submissions/${d.id}`} className="hover:text-amber-600 hover:underline">{d.nomor_pengajuan}</Link>
+                          <tr key={d.id} className="border-b border-slate-50 dark:border-slate-800 hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                            <td className="px-2.5 py-2 text-center text-slate-400 dark:text-slate-500">{i+1}</td>
+                            <td className="px-2.5 py-2 font-semibold text-amber-600 dark:text-amber-400">{d.kendaraan}</td>
+                            <td className="px-2.5 py-2 text-slate-500 dark:text-slate-400">{fmtDate(d.tanggal)}</td>
+                            <td className="px-2.5 py-2 text-slate-500 dark:text-slate-400">{d.approval_at ? fmtDate(d.approval_at) : '—'}</td>
+                            <td className="px-2.5 py-2 text-slate-500 dark:text-slate-400">{d.tanggal_bayar ? fmtDate(d.tanggal_bayar) : '—'}</td>
+                            <td className="px-2.5 py-2 font-semibold text-slate-700 dark:text-slate-200">
+                              <Link to={`/submissions/${d.id}`} className="hover:text-amber-600 dark:hover:text-amber-400 hover:underline">{d.nomor_pengajuan}</Link>
                             </td>
-                            <td className="px-2.5 py-2 text-slate-600 whitespace-normal min-w-[180px]">{d.jenis_pembelian || '—'}</td>
+                            <td className="px-2.5 py-2 text-slate-600 dark:text-slate-300 whitespace-normal min-w-[180px]">{d.jenis_pembelian || '—'}</td>
                             <td className="px-2.5 py-2 text-right tabular-nums">{fmtCurrency(d.total_harga)}</td>
                             <td className="px-2.5 py-2 text-right tabular-nums">{fmtCurrency(d.dibayar)}</td>
                             <td className="px-2.5 py-2 text-right tabular-nums">{st.sisa ? fmtCurrency(st.sisa) : '—'}</td>
@@ -262,15 +262,15 @@ export default function DraftPage() {
                             </td>
                            <td className="px-2.5 py-2">
                               {d.nota_url
-                                ? <span className="text-[10px] font-bold text-emerald-600">✓ {d.nota_uploaded_at ? fmtDate(d.nota_uploaded_at) : 'Ada'}</span>
-                                : <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-600">Belum ada</span>}
+                                ? <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">✓ {d.nota_uploaded_at ? fmtDate(d.nota_uploaded_at) : 'Ada'}</span>
+                                : <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-600 dark:bg-red-500/10 dark:text-red-400">Belum ada</span>}
                             </td>
                           </tr>
                         );
                       })}
                     </tbody>
                     <tfoot>
-                      <tr className="bg-emerald-50/60 font-black text-slate-700 border-t-2 border-slate-200">
+                      <tr className="bg-emerald-50/60 dark:bg-emerald-500/10 font-black text-slate-700 dark:text-slate-200 border-t-2 border-slate-200 dark:border-slate-700">
                         <td colSpan={7} className="px-2.5 py-2.5">TOTAL</td>
                         <td className="px-2.5 py-2.5 text-right tabular-nums">{fmtCurrency(tTagihan)}</td>
                         <td className="px-2.5 py-2.5 text-right tabular-nums">{fmtCurrency(tBayar)}</td>
@@ -282,11 +282,11 @@ export default function DraftPage() {
                   </table>
                 </div>
                 {/* Ringkasan cabang */}
-                <div className="px-4 py-3 border-t border-slate-100 flex flex-wrap gap-x-6 gap-y-1 text-xs">
-                  <span className="text-slate-500">Total Tagihan: <strong className="text-slate-800">{fmtCurrency(tTagihan)}</strong></span>
-                  <span className="text-slate-500">Sudah Dibayar: <strong className="text-emerald-600">{fmtCurrency(tBayar)}</strong></span>
-                  <span className="text-slate-500">Belum Dibayar: <strong className="text-red-500">{fmtCurrency(tTagihan - tBayar)}</strong></span>
-                  {noNota > 0 && <span className="text-slate-500">Belum ada nota: <strong className="text-red-500">{noNota} pengajuan</strong></span>}
+                <div className="px-4 py-3 border-t border-slate-100 dark:border-slate-800 flex flex-wrap gap-x-6 gap-y-1 text-xs">
+                  <span className="text-slate-500 dark:text-slate-400">Total Tagihan: <strong className="text-slate-800 dark:text-slate-100">{fmtCurrency(tTagihan)}</strong></span>
+                  <span className="text-slate-500 dark:text-slate-400">Sudah Dibayar: <strong className="text-emerald-600 dark:text-emerald-400">{fmtCurrency(tBayar)}</strong></span>
+                  <span className="text-slate-500 dark:text-slate-400">Belum Dibayar: <strong className="text-red-500 dark:text-red-400">{fmtCurrency(tTagihan - tBayar)}</strong></span>
+                  {noNota > 0 && <span className="text-slate-500 dark:text-slate-400">Belum ada nota: <strong className="text-red-500 dark:text-red-400">{noNota} pengajuan</strong></span>}
                 </div>
               </Card>
             );
