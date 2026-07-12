@@ -211,6 +211,10 @@ const JENIS_UMUM = [
   'Beban Bongkar',
   'Beban Parkir',
 ];
+// Daftar Cabang/Project — tambah manual di sini jika ada cabang baru
+const CABANG_LIST = [
+  'APLPKU','APLBDO','APLPDG','APLDJB','APLMES','APLPLM','PVPLM','PVMES','PVPKU','PVTKG','DHSCBT','NIC'
+];
 
 function ItemRow({ item, idx, totalItems, vendorNum, onUpdate, onRemove, onBlurPenjelasan, kmCache, errors, isUmum, suggestions = [] }) {
   const eb = `item${vendorNum}_${idx}`;
@@ -820,7 +824,7 @@ export default function NewFormPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Nomor Urut" required error={errors.nomorUrut} hint="Contoh: 009"><input value={form.nomorUrut} onChange={e=>set('nomorUrut',e.target.value)} placeholder="009" className={ic('nomorUrut')}/></Field>
-              <Field label="Cabang / Project" required error={errors.cabangManual} hint="Contoh: APLPKU"><input value={form.cabangManual} onChange={e=>set('cabangManual',e.target.value)} placeholder="APLPKU" className={ic('cabangManual')}/></Field>
+              <Field label="Cabang / Project" required error={errors.cabangManual}><select value={CABANG_LIST.includes(form.cabangManual) ? form.cabangManual : ''} onChange={e=>set('cabangManual',e.target.value)} className={ic('cabangManual')}><option value="" disabled>Pilih cabang...</option>{CABANG_LIST.map(c=><option key={c} value={c}>{c}</option>)}</select></Field>
             </div>
           </div>
         </Card>
