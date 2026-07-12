@@ -1,4 +1,4 @@
-// src/components/NotificationBell.jsx — bell + dropdown daftar notifikasi
+// src/components/NotificationBell.jsx — bell + dropdown daftar notifikasi — Dark Mode Tahap 5 (hanya varian dark:)
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, BellRing, Check, X } from 'lucide-react';
@@ -135,8 +135,8 @@ export default function NotificationBell({ variant = 'light' }) {
   };
 
   const btnCls = variant === 'dark'
-    ? 'text-slate-300 hover:bg-slate-800'
-    : 'text-slate-600 hover:bg-slate-100';
+    ? 'text-slate-300 dark:text-slate-600 hover:bg-slate-800'
+    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800';
   const panelPos = variant === 'dark'
     ? 'top-20 left-[13.5rem]'
     : 'top-14 right-3';
@@ -156,31 +156,31 @@ export default function NotificationBell({ variant = 'light' }) {
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)}/>
-          <div className={`fixed z-50 ${panelPos} w-[min(360px,calc(100vw-1.5rem))] max-h-[70vh] bg-white rounded-2xl border border-slate-200 shadow-xl flex flex-col overflow-hidden`}>
-            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 flex-shrink-0">
-              <p className="text-sm font-black text-slate-800">Notifikasi{unread > 0 ? ` (${unread})` : ''}</p>
+          <div className={`fixed z-50 ${panelPos} w-[min(360px,calc(100vw-1.5rem))] max-h-[70vh] bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl flex flex-col overflow-hidden`}>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
+              <p className="text-sm font-black text-slate-800 dark:text-slate-100">Notifikasi{unread > 0 ? ` (${unread})` : ''}</p>
               <div className="flex items-center gap-2">
                 {unread > 0 && (
-                  <button onClick={markAll} className="flex items-center gap-1 text-[11px] font-semibold text-amber-600 hover:text-amber-700">
+                  <button onClick={markAll} className="flex items-center gap-1 text-[11px] font-semibold text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300">
                     <Check size={12}/> Tandai semua
                   </button>
                 )}
-                <button onClick={() => setOpen(false)} className="p-1 text-slate-400 hover:text-slate-600" aria-label="Tutup"><X size={14}/></button>
+                <button onClick={() => setOpen(false)} className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300" aria-label="Tutup"><X size={14}/></button>
               </div>
             </div>
             <div className="overflow-y-auto">
               {items.length === 0 ? (
                 <div className="py-12 text-center">
-                  <Bell size={26} className="text-slate-300 mx-auto mb-2"/>
-                  <p className="text-xs text-slate-400">Belum ada notifikasi</p>
+                  <Bell size={26} className="text-slate-300 dark:text-slate-600 mx-auto mb-2"/>
+                  <p className="text-xs text-slate-400 dark:text-slate-500">Belum ada notifikasi</p>
                 </div>
               ) : items.map(n => (
                 <button key={n.id} onClick={() => openNotif(n)}
-                  className={`w-full text-left px-4 py-3 border-b border-slate-50 hover:bg-slate-50 transition-colors flex gap-2.5 ${n.is_read ? '' : 'bg-amber-50/40'}`}>
+                  className={`w-full text-left px-4 py-3 border-b border-slate-50 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors flex gap-2.5 ${n.is_read ? '' : 'bg-amber-50/40 dark:bg-amber-500/5'}`}>
                   <span className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${n.is_read ? 'bg-transparent' : 'bg-amber-500'}`}/>
                   <div className="min-w-0 flex-1">
-                    <p className={`text-xs leading-snug ${n.is_read ? 'text-slate-500' : 'text-slate-700 font-medium'}`}>{n.message}</p>
-                    <p className="text-[10px] text-slate-400 mt-1">
+                    <p className={`text-xs leading-snug ${n.is_read ? 'text-slate-500 dark:text-slate-400' : 'text-slate-700 dark:text-slate-200 font-medium'}`}>{n.message}</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">
                       {n.submission?.nomor_pengajuan ? `${n.submission.nomor_pengajuan} · ` : ''}{timeAgo(n.created_at)}
                     </p>
                   </div>
@@ -188,12 +188,12 @@ export default function NotificationBell({ variant = 'light' }) {
               ))}
             </div>
             {push !== 'hidden' && (
-              <div className="px-4 py-2.5 border-t border-slate-100 flex-shrink-0 bg-slate-50/60">
+              <div className="px-4 py-2.5 border-t border-slate-100 dark:border-slate-800 flex-shrink-0 bg-slate-50/60 dark:bg-slate-800/40">
                 <button onClick={togglePush} disabled={push === 'busy'}
                   className={`w-full flex items-center justify-center gap-1.5 text-[11px] font-bold rounded-lg py-2 transition-colors ${
                     push === 'on'
-                      ? 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100'
-                      : 'text-slate-600 bg-white border border-slate-200 hover:bg-slate-100'
+                      ? 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20'
+                      : 'text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'
                   }`}>
                   <BellRing size={12}/>
                   {push === 'on' ? 'Notifikasi perangkat aktif — ketuk untuk matikan'
