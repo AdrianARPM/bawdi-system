@@ -1,4 +1,4 @@
-// src/pages/NewFormPage.jsx  — v18
+// src/pages/NewFormPage.jsx  — v25 (Dark Mode Tahap 4: hanya penambahan varian dark:, tanpa perubahan fitur — basis isi kode v24; catatan: komentar header di file produksi masih tertulis v18)
 // v18: diskon nominal per item (opsional). Total item = (qty × harga) − diskon.
 // v17: penjelasan item jadi COMBOBOX autocomplete dari item yg pernah diajukan
 //      untuk kendaraan terpilih (tiap saran tampil dgn nomor pengajuan). Tetap
@@ -64,21 +64,21 @@ function PhotoUploader({ photos, onAdd, onRemove }) {
     <div>
       <input ref={ref} type="file" accept="image/*,.pdf" multiple className="hidden" onChange={handleFile}/>
       <button type="button" onClick={() => ref.current?.click()}
-        className="w-full border-2 border-dashed border-slate-300 hover:border-amber-400 rounded-2xl p-6 flex flex-col items-center gap-2 transition-colors">
+        className="w-full border-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-amber-400 rounded-2xl p-6 flex flex-col items-center gap-2 transition-colors">
         <Upload size={20} className="text-amber-400"/>
-        <p className="text-sm font-semibold text-slate-600">Klik untuk upload foto / PDF</p>
-        <p className="text-xs text-slate-400">JPG, PNG, PDF • Maks 10MB</p>
+        <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Klik untuk upload foto / PDF</p>
+        <p className="text-xs text-slate-400 dark:text-slate-500">JPG, PNG, PDF • Maks 10MB</p>
       </button>
       {photos.length > 0 && (
         <div className="mt-3 space-y-2">
           {photos.map(p => (
-            <div key={p.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
-              {p.type?.startsWith('image/') ? <img src={p.data} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" alt={p.name}/> : <div className="w-10 h-10 rounded-lg bg-red-50 border border-red-100 flex items-center justify-center flex-shrink-0 text-xs font-bold text-red-400">PDF</div>}
+            <div key={p.id} className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700">
+              {p.type?.startsWith('image/') ? <img src={p.data} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" alt={p.name}/> : <div className="w-10 h-10 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 flex items-center justify-center flex-shrink-0 text-xs font-bold text-red-400">PDF</div>}
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-slate-700 truncate">{p.name}</p>
-                <p className="text-[10px] text-slate-400">{(p.size/1024).toFixed(0)} KB</p>
+                <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">{p.name}</p>
+                <p className="text-[10px] text-slate-400 dark:text-slate-500">{(p.size/1024).toFixed(0)} KB</p>
               </div>
-              <button type="button" onClick={() => onRemove(p.id)} className="text-red-400 hover:text-red-600 flex-shrink-0"><X size={15}/></button>
+              <button type="button" onClick={() => onRemove(p.id)} className="text-red-400 hover:text-red-600 dark:hover:text-red-400 flex-shrink-0"><X size={15}/></button>
             </div>
           ))}
         </div>
@@ -90,9 +90,9 @@ function PhotoUploader({ photos, onAdd, onRemove }) {
 function Field({ label, required, error, hint, children }) {
   return (
     <div>
-      {label && <label className="block text-xs font-bold text-slate-600 mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>}
+      {label && <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>}
       {children}
-      {hint && !error && <p className="text-[10px] text-slate-400 mt-1">{hint}</p>}
+      {hint && !error && <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">{hint}</p>}
       {error && <p className="flex items-center gap-1 text-xs text-red-500 mt-1"><AlertCircle size={10}/> {error}</p>}
     </div>
   );
@@ -112,68 +112,68 @@ function ItemKMSection({ item, kmCache, onItemUpdate }) {
   const selisih      = kmSekarang && kmTerakhirEf != null ? kmSekarang - kmTerakhirEf : null;
 
   return (
-    <div className="border-t border-slate-200 pt-2.5 mt-2">
+    <div className="border-t border-slate-200 dark:border-slate-700 pt-2.5 mt-2">
       <div className="flex items-center justify-between mb-1.5">
-        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Riwayat KM (opsional)</span>
+        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Riwayat KM (opsional)</span>
         {loading && <Loader size={11} className="text-amber-400 animate-spin"/>}
       </div>
-      <div className="space-y-1 text-xs bg-slate-50 rounded-lg px-2.5 py-2 border border-slate-100">
+      <div className="space-y-1 text-xs bg-slate-50 dark:bg-slate-800/60 rounded-lg px-2.5 py-2 border border-slate-100 dark:border-slate-800">
         {/* a. Tanggal terakhir */}
         <div className="flex items-center gap-2">
-          <span className="w-28 text-slate-500 flex-shrink-0 text-[11px]">a. Tgl Terakhir</span>
+          <span className="w-28 text-slate-500 dark:text-slate-400 flex-shrink-0 text-[11px]">a. Tgl Terakhir</span>
           {hasArsip ? (
             <>
-              <span className="flex-1 font-semibold text-slate-700 truncate text-[11px]">
+              <span className="flex-1 font-semibold text-slate-700 dark:text-slate-200 truncate text-[11px]">
                 {fmtTanggal(tglTerakhirEf)}{kmCache?.nomorTerakhir ? ` (${kmCache.nomorTerakhir})` : ''}
               </span>
-              <span className="bg-blue-100 text-blue-600 rounded px-1.5 py-0.5 font-bold text-[9px] flex-shrink-0">AUTO</span>
+              <span className="bg-blue-100 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded px-1.5 py-0.5 font-bold text-[9px] flex-shrink-0">AUTO</span>
             </>
           ) : (
             <>
               <input type="date" value={item.tgl_manual || ''} onChange={e => onItemUpdate(item.id, 'tgl_manual', e.target.value)}
-                className="flex-1 px-2 py-1 rounded border border-slate-200 text-[11px] text-slate-800 outline-none focus:border-amber-400"/>
-              <span className="bg-amber-100 text-amber-700 rounded px-1.5 py-0.5 font-bold text-[9px] flex-shrink-0">ISI</span>
+                className="flex-1 px-2 py-1 rounded border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 text-[11px] text-slate-800 dark:text-slate-100 outline-none focus:border-amber-400"/>
+              <span className="bg-amber-100 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 rounded px-1.5 py-0.5 font-bold text-[9px] flex-shrink-0">ISI</span>
             </>
           )}
         </div>
 
         {/* b. KM terakhir */}
         <div className="flex items-center gap-2">
-          <span className="w-28 text-slate-500 flex-shrink-0 text-[11px]">b. KM Terakhir</span>
+          <span className="w-28 text-slate-500 dark:text-slate-400 flex-shrink-0 text-[11px]">b. KM Terakhir</span>
           {hasArsip ? (
             <>
-              <span className="flex-1 font-semibold text-slate-700 text-[11px]">{fmtKM(kmCache.kmTerakhir)}</span>
-              <span className="bg-blue-100 text-blue-600 rounded px-1.5 py-0.5 font-bold text-[9px] flex-shrink-0">AUTO</span>
+              <span className="flex-1 font-semibold text-slate-700 dark:text-slate-200 text-[11px]">{fmtKM(kmCache.kmTerakhir)}</span>
+              <span className="bg-blue-100 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded px-1.5 py-0.5 font-bold text-[9px] flex-shrink-0">AUTO</span>
             </>
           ) : (
             <>
               <input type="number" value={item.km_manual || ''} onChange={e => onItemUpdate(item.id, 'km_manual', e.target.value)} placeholder="Contoh: 15000"
-                className="flex-1 px-2 py-1 rounded border border-slate-200 text-[11px] text-slate-800 outline-none focus:border-amber-400 placeholder:text-slate-300"/>
-              <span className="bg-amber-100 text-amber-700 rounded px-1.5 py-0.5 font-bold text-[9px] flex-shrink-0">ISI</span>
+                className="flex-1 px-2 py-1 rounded border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 text-[11px] text-slate-800 dark:text-slate-100 outline-none focus:border-amber-400 placeholder:text-slate-300 dark:placeholder:text-slate-600"/>
+              <span className="bg-amber-100 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 rounded px-1.5 py-0.5 font-bold text-[9px] flex-shrink-0">ISI</span>
             </>
           )}
         </div>
 
         {/* c. KM saat pengajuan (selalu input) */}
         <div className="flex items-center gap-2">
-          <span className="w-28 text-slate-500 flex-shrink-0 text-[11px]">c. KM Sekarang</span>
+          <span className="w-28 text-slate-500 dark:text-slate-400 flex-shrink-0 text-[11px]">c. KM Sekarang</span>
           <input type="number" value={item.km_pengajuan || ''} onChange={e => onItemUpdate(item.id, 'km_pengajuan', e.target.value)} placeholder="opsional"
-            className="flex-1 px-2 py-1 rounded border border-slate-200 text-[11px] text-slate-800 outline-none focus:border-amber-400 placeholder:text-slate-300"/>
-          <span className="bg-amber-100 text-amber-700 rounded px-1.5 py-0.5 font-bold text-[9px] flex-shrink-0">ISI</span>
+            className="flex-1 px-2 py-1 rounded border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 text-[11px] text-slate-800 dark:text-slate-100 outline-none focus:border-amber-400 placeholder:text-slate-300 dark:placeholder:text-slate-600"/>
+          <span className="bg-amber-100 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 rounded px-1.5 py-0.5 font-bold text-[9px] flex-shrink-0">ISI</span>
         </div>
 
         {/* d. Selisih */}
         <div className="flex items-center gap-2">
-          <span className="w-28 text-slate-500 flex-shrink-0 text-[11px]">d. Selisih KM</span>
-          <span className={`flex-1 font-bold text-[11px] ${selisih != null ? selisih >= 0 ? 'text-emerald-600' : 'text-red-500' : 'text-slate-400 italic'}`}>
+          <span className="w-28 text-slate-500 dark:text-slate-400 flex-shrink-0 text-[11px]">d. Selisih KM</span>
+          <span className={`flex-1 font-bold text-[11px] ${selisih != null ? selisih >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500' : 'text-slate-400 dark:text-slate-500 italic'}`}>
             {selisih != null ? `${selisih >= 0 ? '+' : ''}${selisih.toLocaleString('id-ID')} KM` : '—'}
           </span>
-          <span className="bg-blue-100 text-blue-600 rounded px-1.5 py-0.5 font-bold text-[9px] flex-shrink-0">AUTO</span>
+          <span className="bg-blue-100 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded px-1.5 py-0.5 font-bold text-[9px] flex-shrink-0">AUTO</span>
         </div>
 
         {/* Info banner jika arsip kosong */}
         {!loading && !hasArsip && item.penjelasan?.trim() && (
-          <p className="text-[9.5px] text-amber-600 italic pt-1">
+          <p className="text-[9.5px] text-amber-600 dark:text-amber-400 italic pt-1">
             Tidak ada riwayat di arsip untuk item serupa di plat ini. Bisa diisi manual atau dibiarkan kosong.
           </p>
         )}
@@ -248,10 +248,10 @@ function ItemRow({ item, idx, totalItems, vendorNum, onUpdate, onRemove, onBlurP
   const itemTotal = calcItemTotal(item);
 
   return (
-    <div className={`border rounded-xl p-3 space-y-2 ${errors[`${eb}_pen`]||errors[`${eb}_sat`]||errors[`${eb}_hrg`]?'border-red-300 bg-red-50':'border-slate-200 bg-white'}`}>
+    <div className={`border rounded-xl p-3 space-y-2 ${errors[`${eb}_pen`]||errors[`${eb}_sat`]||errors[`${eb}_hrg`]?'border-red-300 dark:border-red-500/40 bg-red-50 dark:bg-red-500/10':'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900'}`}>
       <div className="flex justify-between items-center">
-        <span className="text-[10px] font-bold text-slate-400">ITEM {idx + 1}</span>
-        {totalItems > 1 && <button type="button" onMouseDown={e=>e.preventDefault()} onClick={() => onRemove(item.id)} className="text-red-400 hover:text-red-600"><Trash2 size={13}/></button>}
+        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500">ITEM {idx + 1}</span>
+        {totalItems > 1 && <button type="button" onMouseDown={e=>e.preventDefault()} onClick={() => onRemove(item.id)} className="text-red-400 hover:text-red-600 dark:hover:text-red-400"><Trash2 size={13}/></button>}
       </div>
       <div className="relative">
         <textarea
@@ -261,17 +261,17 @@ function ItemRow({ item, idx, totalItems, vendorNum, onUpdate, onRemove, onBlurP
           onBlur={()=>{ setTimeout(()=>setOpenSug(false), 120); handleBlur(); }}
           rows={2}
           placeholder="Ketik / pilih item..."
-          className={`w-full px-3 py-2.5 rounded-xl border text-sm text-slate-800 outline-none resize-none placeholder:text-slate-300 focus:ring-2 focus:ring-amber-100 transition-colors leading-relaxed ${errors[`${eb}_pen`]?'border-red-300':'border-slate-200 focus:border-amber-400'}`}/>
+          className={`w-full px-3 py-2.5 rounded-xl border text-sm text-slate-800 dark:text-slate-100 dark:bg-slate-900 outline-none resize-none placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:ring-2 focus:ring-amber-100 dark:focus:ring-amber-500/20 transition-colors leading-relaxed ${errors[`${eb}_pen`]?'border-red-300 dark:border-red-500/40':'border-slate-200 dark:border-slate-700 focus:border-amber-400'}`}/>
         {openSug && !isUmum && filteredSug.length > 0 && (
-          <div className="absolute z-30 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden max-h-56 overflow-y-auto">
+          <div className="absolute z-30 left-0 right-0 mt-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg overflow-hidden max-h-56 overflow-y-auto">
             {filteredSug.map((sg, i) => (
               <button
                 key={i} type="button"
                 onMouseDown={e=>e.preventDefault()}
                 onClick={()=>pickSug(sg)}
-                className="w-full text-left px-3 py-2 hover:bg-amber-50 border-b border-slate-50 last:border-0">
-                <p className="text-sm text-slate-700 leading-snug">{sg.penjelasan}</p>
-                <p className="text-[10px] text-slate-400 mt-0.5">
+                className="w-full text-left px-3 py-2 hover:bg-amber-50 dark:hover:bg-amber-500/10 border-b border-slate-50 dark:border-slate-800 last:border-0">
+                <p className="text-sm text-slate-700 dark:text-slate-200 leading-snug">{sg.penjelasan}</p>
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
                   {sg.nomor_pengajuan}{sg.km_pengajuan != null ? ` · KM ${fmtKM(sg.km_pengajuan)}` : ''}
                 </p>
               </button>
@@ -281,25 +281,25 @@ function ItemRow({ item, idx, totalItems, vendorNum, onUpdate, onRemove, onBlurP
       </div>
       <div className="grid grid-cols-5 gap-2">
         <input value={item.satuan} onChange={handleSatuan} placeholder="Jumlah"
-          className={`col-span-2 px-3 py-2.5 rounded-xl border text-sm text-slate-800 outline-none placeholder:text-slate-300 focus:ring-2 focus:ring-amber-100 ${errors[`${eb}_sat`]?'border-red-300':'border-slate-200 focus:border-amber-400'}`}/>
+          className={`col-span-2 px-3 py-2.5 rounded-xl border text-sm text-slate-800 dark:text-slate-100 dark:bg-slate-900 outline-none placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:ring-2 focus:ring-amber-100 dark:focus:ring-amber-500/20 ${errors[`${eb}_sat`]?'border-red-300 dark:border-red-500/40':'border-slate-200 dark:border-slate-700 focus:border-amber-400'}`}/>
         <div className="col-span-3 relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">Rp</span>
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 dark:text-slate-500 pointer-events-none">Rp</span>
           <input type="number" value={item.harga} onChange={handleHarga} placeholder="0"
-            className={`w-full pl-8 pr-3 py-2.5 rounded-xl border text-sm text-slate-800 outline-none placeholder:text-slate-300 focus:ring-2 focus:ring-amber-100 ${errors[`${eb}_hrg`]?'border-red-300':'border-slate-200 focus:border-amber-400'}`}/>
+            className={`w-full pl-8 pr-3 py-2.5 rounded-xl border text-sm text-slate-800 dark:text-slate-100 dark:bg-slate-900 outline-none placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:ring-2 focus:ring-amber-100 dark:focus:ring-amber-500/20 ${errors[`${eb}_hrg`]?'border-red-300 dark:border-red-500/40':'border-slate-200 dark:border-slate-700 focus:border-amber-400'}`}/>
         </div>
       </div>
       {/* Diskon nominal per item (opsional) */}
       <div className="relative">
-        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">Diskon Rp</span>
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 dark:text-slate-500 pointer-events-none">Diskon Rp</span>
         <input type="number" value={item.diskon || ''} onChange={handleDiskon} placeholder="0 (opsional)"
-          className="w-full pl-20 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none placeholder:text-slate-300 focus:ring-2 focus:ring-amber-100 focus:border-amber-400"/>
+          className="w-full pl-20 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 text-sm text-slate-800 dark:text-slate-100 outline-none placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:ring-2 focus:ring-amber-100 dark:focus:ring-amber-500/20 focus:border-amber-400"/>
       </div>
       {/* Kategori biaya — memetakan ke kolom laporan Excel perusahaan (disembunyikan utk pengajuan umum) */}
       {!isUmum && (
       <select
         value={item.kategori_biaya || ''}
         onChange={e => onUpdate(item.id, 'kategori_biaya', e.target.value)}
-        className={`w-full px-3 py-2 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-amber-100 ${item.kategori_biaya ? 'text-slate-800' : 'text-slate-400'} ${errors[`${eb}_kat`] ? 'border-red-300' : 'border-slate-200 focus:border-amber-400'}`}>
+        className={`w-full px-3 py-2 rounded-xl border text-sm dark:bg-slate-900 outline-none focus:ring-2 focus:ring-amber-100 dark:focus:ring-amber-500/20 ${item.kategori_biaya ? 'text-slate-800 dark:text-slate-100' : 'text-slate-400 dark:text-slate-500'} ${errors[`${eb}_kat`] ? 'border-red-300 dark:border-red-500/40' : 'border-slate-200 dark:border-slate-700 focus:border-amber-400'}`}>
         <option value="">— Pilih kategori biaya —</option>
         {KATEGORI_BIAYA.map(k => <option key={k} value={k}>{k}</option>)}
       </select>
@@ -307,7 +307,7 @@ function ItemRow({ item, idx, totalItems, vendorNum, onUpdate, onRemove, onBlurP
       {(parseFloat(item.harga) > 0) && (
         <div className="text-xs space-y-0.5">
           {parseFloat(item.diskon) > 0 && (
-            <div className="flex items-center justify-between text-slate-400">
+            <div className="flex items-center justify-between text-slate-400 dark:text-slate-500">
               <span>{`${parseFloat(item.satuan)||1} × ${fmtCurrency(parseFloat(item.harga)||0)}`}</span>
               <span>{fmtCurrency((parseFloat(item.satuan)||1)*(parseFloat(item.harga)||0))}</span>
             </div>
@@ -319,7 +319,7 @@ function ItemRow({ item, idx, totalItems, vendorNum, onUpdate, onRemove, onBlurP
             </div>
           )}
           <div className="flex items-center justify-between">
-            <span className="text-slate-400">{parseFloat(item.diskon) > 0 ? 'Harga akhir' : (parseFloat(item.satuan) > 1 ? `${parseFloat(item.satuan)} × ${fmtCurrency(parseFloat(item.harga)||0)} =` : '')}</span>
+            <span className="text-slate-400 dark:text-slate-500">{parseFloat(item.diskon) > 0 ? 'Harga akhir' : (parseFloat(item.satuan) > 1 ? `${parseFloat(item.satuan)} × ${fmtCurrency(parseFloat(item.harga)||0)} =` : '')}</span>
             <span className="text-amber-500 font-semibold">{fmtCurrency(itemTotal)}</span>
           </div>
         </div>
@@ -335,16 +335,16 @@ function ItemsSection({ items, total, vendorNum, errors, onUpdate, onAdd, onRemo
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <label className="text-xs font-bold text-slate-600">Item / Rincian <span className="text-red-500">*</span></label>
-        <button type="button" onMouseDown={e=>e.preventDefault()} onClick={onAdd} className="flex items-center gap-1 text-xs font-bold text-amber-500 hover:text-amber-600"><Plus size={13}/> Tambah Item</button>
+        <label className="text-xs font-bold text-slate-600 dark:text-slate-300">Item / Rincian <span className="text-red-500">*</span></label>
+        <button type="button" onMouseDown={e=>e.preventDefault()} onClick={onAdd} className="flex items-center gap-1 text-xs font-bold text-amber-500 hover:text-amber-600 dark:hover:text-amber-400"><Plus size={13}/> Tambah Item</button>
       </div>
       {items.map((item, idx) => (
         <ItemRow key={item.id} item={item} idx={idx} totalItems={items.length} vendorNum={vendorNum}
           errors={errors} onUpdate={onUpdate} onRemove={onRemove} onBlurPenjelasan={onBlurPenjelasan}
           kmCache={itemKMCache[item.id]} isUmum={isUmum} suggestions={suggestions}/>
       ))}
-      <div className="flex justify-between items-center bg-amber-50 rounded-xl px-3 py-2.5">
-        <span className="text-sm font-extrabold text-amber-800">TOTAL</span>
+      <div className="flex justify-between items-center bg-amber-50 dark:bg-amber-500/10 rounded-xl px-3 py-2.5">
+        <span className="text-sm font-extrabold text-amber-800 dark:text-amber-300">TOTAL</span>
         <span className="text-base font-black text-amber-500">{fmtCurrency(total)}</span>
       </div>
     </div>
@@ -723,17 +723,17 @@ export default function NewFormPage() {
     setLoading(false);
   };
 
-  const ic = ek => `w-full px-3 py-2.5 rounded-xl border text-sm text-slate-800 outline-none transition-colors placeholder:text-slate-300 disabled:bg-slate-50 focus:ring-2 ${errors[ek]?'border-red-300 focus:border-red-400 focus:ring-red-50':'border-slate-200 focus:border-amber-400 focus:ring-amber-100'}`;
+  const ic = ek => `w-full px-3 py-2.5 rounded-xl border text-sm text-slate-800 dark:text-slate-100 dark:bg-slate-900 outline-none transition-colors placeholder:text-slate-300 dark:placeholder:text-slate-600 disabled:bg-slate-50 dark:disabled:bg-slate-800 focus:ring-2 ${errors[ek]?'border-red-300 dark:border-red-500/40 focus:border-red-400 focus:ring-red-50 dark:focus:ring-red-500/15':'border-slate-200 dark:border-slate-700 focus:border-amber-400 focus:ring-amber-100 dark:focus:ring-amber-500/20'}`;
 
   if (revLoading) return <div className="flex justify-center py-20"><Spinner size={32}/></div>;
 
   return (
     <div className="max-w-2xl mx-auto space-y-5">
       <div className="flex items-center gap-3">
-        <button onClick={()=>navigate(-1)} className="p-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50"><ChevronLeft size={18} className="text-slate-600"/></button>
+        <button onClick={()=>navigate(-1)} className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/60"><ChevronLeft size={18} className="text-slate-600 dark:text-slate-300"/></button>
         <div>
-          <h1 className="text-xl font-black text-slate-800">{isRevision ? `Edit Revisi ke-${revNumber||''}` : 'Buat Pengajuan Baru'}</h1>
-          <p className="text-xs text-slate-400">{isRevision ? `Langkah ${step===1?1:2}/2 · ${step===1?'Data & Keterangan':'Vendor & Item'}` : `Langkah ${step+1}/${STEPS.length}`}</p>
+          <h1 className="text-xl font-black text-slate-800 dark:text-slate-100">{isRevision ? `Edit Revisi ke-${revNumber||''}` : 'Buat Pengajuan Baru'}</h1>
+          <p className="text-xs text-slate-400 dark:text-slate-500">{isRevision ? `Langkah ${step===1?1:2}/2 · ${step===1?'Data & Keterangan':'Vendor & Item'}` : `Langkah ${step+1}/${STEPS.length}`}</p>
         </div>
       </div>
 
@@ -741,82 +741,82 @@ export default function NewFormPage() {
         {STEPS.map((s,i)=>(
           <div key={s} className="flex items-center flex-shrink-0">
             <div className="flex flex-col items-center">
-              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${i<step?'bg-emerald-500 text-white':i===step?'bg-amber-500 text-white':'bg-slate-200 text-slate-400'}`}>{i<step?<Check size={12}/>:i+1}</div>
-              <span className={`text-[9px] mt-1 font-medium whitespace-nowrap ${i===step?'text-amber-500':'text-slate-400'}`}>{s}</span>
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${i<step?'bg-emerald-500 text-white':i===step?'bg-amber-500 text-white':'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500'}`}>{i<step?<Check size={12}/>:i+1}</div>
+              <span className={`text-[9px] mt-1 font-medium whitespace-nowrap ${i===step?'text-amber-500':'text-slate-400 dark:text-slate-500'}`}>{s}</span>
             </div>
-            {i<STEPS.length-1&&<div className={`w-5 h-0.5 mx-1 mb-3 flex-shrink-0 ${i<step?'bg-emerald-400':'bg-slate-200'}`}/>}
+            {i<STEPS.length-1&&<div className={`w-5 h-0.5 mx-1 mb-3 flex-shrink-0 ${i<step?'bg-emerald-400':'bg-slate-200 dark:bg-slate-700'}`}/>}
           </div>
         ))}
       </div>
 
       {/* Peringatan kemungkinan pengajuan ganda — muncul setelah langkah Vendor 1 */}
       {!isRevision && duplikat.length > 0 && step >= 3 && (
-        <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4">
-          <p className="text-xs font-bold text-amber-800 mb-1">⚠ Kemungkinan pengajuan ganda</p>
-          <p className="text-[11px] text-amber-700/90 mb-3 leading-relaxed">
+        <div className="rounded-2xl border border-amber-300 dark:border-amber-500/40 bg-amber-50 dark:bg-amber-500/10 p-4">
+          <p className="text-xs font-bold text-amber-800 dark:text-amber-300 mb-1">⚠ Kemungkinan pengajuan ganda</p>
+          <p className="text-[11px] text-amber-700/90 dark:text-amber-300/90 mb-3 leading-relaxed">
             {form.is_umum
               ? <>Cabang <b>{form.cabangManual}</b> punya pengajuan aktif dengan item serupa dalam 30 hari terakhir. Periksa dulu sebelum melanjutkan:</>
               : <>Kendaraan <b>{form.kendaraan}</b> punya pengajuan aktif dengan item serupa dalam 30 hari terakhir. Periksa dulu sebelum melanjutkan:</>}
           </p>
           <div className="space-y-2">
             {duplikat.map(d => (
-              <div key={d.id} className="bg-white border border-amber-200 rounded-xl px-3 py-2.5 flex items-center justify-between gap-3">
+              <div key={d.id} className="bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-500/30 rounded-xl px-3 py-2.5 flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-xs font-bold text-slate-800 truncate">
+                  <p className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">
                     {d.nomor_pengajuan}
-                    <span className="ml-1.5 text-[10px] font-bold bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full">{d.status}</span>
+                    <span className="ml-1.5 text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-1.5 py-0.5 rounded-full">{d.status}</span>
                   </p>
-                  <p className="text-[11px] text-slate-500 truncate">
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
                     {d.item_mirip.join(' · ')} · {fmtCurrency(d.total_harga)}
                     {d.pemohon ? ` · ${d.pemohon}` : ''}
                   </p>
                 </div>
                 <a href={`/submissions/${d.id}`} target="_blank" rel="noreferrer"
-                  className="text-[11px] font-bold text-blue-600 hover:text-blue-700 whitespace-nowrap flex-shrink-0">
+                  className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 whitespace-nowrap flex-shrink-0">
                   Buka →
                 </a>
               </div>
             ))}
           </div>
-          <p className="text-[10px] text-amber-700/70 mt-2.5">
+          <p className="text-[10px] text-amber-700/70 dark:text-amber-300/70 mt-2.5">
             Tetap boleh melanjutkan jika ini kebutuhan berbeda — peringatan ini juga terlihat oleh verifikator.
           </p>
         </div>
       )}
       {cekDup && !isRevision && step >= 3 && (
-        <p className="text-[11px] text-slate-400 text-center">Memeriksa kemungkinan pengajuan ganda…</p>
+        <p className="text-[11px] text-slate-400 dark:text-slate-500 text-center">Memeriksa kemungkinan pengajuan ganda…</p>
       )}
 
       {step===0&&(
         <Card>
-          <h2 className="text-sm font-bold text-slate-700 mb-4">Pilih Jenis Pengajuan</h2>
+          <h2 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">Pilih Jenis Pengajuan</h2>
           <div className="grid grid-cols-2 gap-3 mb-5">
             {[['PR','Purchase Requisition','Permintaan pembelian rutin'],['PAR','Purchase Auth. Request','Otorisasi nilai besar']].map(([t,title,desc])=>(
-              <button key={t} type="button" onClick={()=>set('type',t)} className={`p-4 rounded-2xl border-2 text-left transition-all ${form.type===t?'border-amber-500 bg-amber-50':'border-slate-200 hover:border-slate-300'}`}>
-                <p className={`text-2xl font-black mb-1 ${form.type===t?'text-amber-500':'text-slate-300'}`}>{t}</p>
-                <p className="text-xs font-bold text-slate-700 mb-0.5">{title}</p>
-                <p className="text-[10px] text-slate-400">{desc}</p>
+              <button key={t} type="button" onClick={()=>set('type',t)} className={`p-4 rounded-2xl border-2 text-left transition-all ${form.type===t?'border-amber-500 bg-amber-50 dark:bg-amber-500/10':'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'}`}>
+                <p className={`text-2xl font-black mb-1 ${form.type===t?'text-amber-500':'text-slate-300 dark:text-slate-600'}`}>{t}</p>
+                <p className="text-xs font-bold text-slate-700 dark:text-slate-200 mb-0.5">{title}</p>
+                <p className="text-[10px] text-slate-400 dark:text-slate-500">{desc}</p>
               </button>
             ))}
           </div>
           {/* Pilihan Kendaraan/Umum — berlaku untuk PR maupun PAR (alur persetujuan tidak berubah) */}
           <div className="mb-5">
-              <p className="text-xs font-bold text-slate-700 mb-2">Isi pengajuan untuk</p>
+              <p className="text-xs font-bold text-slate-700 dark:text-slate-200 mb-2">Isi pengajuan untuk</p>
               <div className="grid grid-cols-2 gap-3">
                 {[[false,'Perawatan Kendaraan','Dengan plat & riwayat KM'],[true,'Barang Kantor / Umum','ATK, aset — tanpa kendaraan']].map(([val,title,desc])=>(
                   <button key={String(val)} type="button" onClick={()=>{set('is_umum',val); set('jenis_pembelian','');}}
-                    className={`p-3 rounded-2xl border-2 text-left transition-all ${form.is_umum===val?'border-amber-500 bg-amber-50':'border-slate-200 hover:border-slate-300'}`}>
-                    <p className={`text-sm font-black mb-0.5 ${form.is_umum===val?'text-amber-600':'text-slate-500'}`}>{title}</p>
-                    <p className="text-[10px] text-slate-400">{desc}</p>
+                    className={`p-3 rounded-2xl border-2 text-left transition-all ${form.is_umum===val?'border-amber-500 bg-amber-50 dark:bg-amber-500/10':'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'}`}>
+                    <p className={`text-sm font-black mb-0.5 ${form.is_umum===val?'text-amber-600 dark:text-amber-400':'text-slate-500 dark:text-slate-400'}`}>{title}</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500">{desc}</p>
                   </button>
                 ))}
               </div>
             </div>
-          <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200">
-            <p className="text-xs font-bold text-slate-700 mb-3">Format Nomor Pengajuan</p>
-            <div className="bg-white border-2 border-amber-300 rounded-xl px-4 py-2.5 mb-3 text-center">
-              <p className="text-xs text-slate-400 mb-0.5">Preview:</p>
-              <p className="text-base font-black text-amber-600">{previewNomor}</p>
+          <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-4 border border-slate-200 dark:border-slate-700">
+            <p className="text-xs font-bold text-slate-700 dark:text-slate-200 mb-3">Format Nomor Pengajuan</p>
+            <div className="bg-white dark:bg-slate-900 border-2 border-amber-300 dark:border-amber-500/40 rounded-xl px-4 py-2.5 mb-3 text-center">
+              <p className="text-xs text-slate-400 dark:text-slate-500 mb-0.5">Preview:</p>
+              <p className="text-base font-black text-amber-600 dark:text-amber-400">{previewNomor}</p>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Nomor Urut" required error={errors.nomorUrut} hint="Contoh: 009"><input value={form.nomorUrut} onChange={e=>set('nomorUrut',e.target.value)} placeholder="009" className={ic('nomorUrut')}/></Field>
@@ -828,7 +828,7 @@ export default function NewFormPage() {
 
       {step===1&&(
         <Card>
-          <h2 className="text-sm font-bold text-slate-700 mb-4">{form.is_umum?'Data Pengajuan & Keterangan':'Data Kendaraan & Keterangan'}</h2>
+          <h2 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">{form.is_umum?'Data Pengajuan & Keterangan':'Data Kendaraan & Keterangan'}</h2>
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <Field label="Pemohon"><input value={user?.name} disabled className={ic('')}/></Field>
@@ -844,7 +844,7 @@ export default function NewFormPage() {
                     else set('kendaraan', e.target.value);
                   }}
                   disabled={isRevision}
-                  className={`${ic('kendaraan')} bg-white ${form.kendaraan ? 'text-slate-800' : 'text-slate-400'}`}>
+                  className={`${ic('kendaraan')} bg-white dark:bg-slate-900 ${form.kendaraan ? 'text-slate-800 dark:text-slate-100' : 'text-slate-400 dark:text-slate-500'}`}>
                   <option value="">— Pilih kendaraan dari master —</option>
                   {platList.map(p => <option key={p} value={p}>{p}</option>)}
                   <option value="__new__">＋ Plat baru (belum terdaftar)…</option>
@@ -854,12 +854,12 @@ export default function NewFormPage() {
                   <input value={form.kendaraan} onChange={e=>set('kendaraan',e.target.value.toUpperCase())} placeholder="BM 1234 ZZ" disabled={isRevision} className={ic('kendaraan')}/>
                   {platList.length > 0 && (
                     <button type="button" onClick={() => { setPlatBaru(false); set('kendaraan',''); }}
-                      className="text-[10.5px] font-bold text-amber-500 hover:text-amber-600">
+                      className="text-[10.5px] font-bold text-amber-500 hover:text-amber-600 dark:hover:text-amber-400">
                       ← Pilih dari daftar master
                     </button>
                   )}
                   {platBaru && (
-                    <p className="text-[10px] text-slate-400 italic">
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 italic">
                       Plat baru otomatis terdaftar ke Master Kendaraan setelah pengajuan dikirim.
                     </p>
                   )}
@@ -881,11 +881,11 @@ export default function NewFormPage() {
             </Field>
             <Field label="Alasan Pengajuan" required error={errors.alasan}>
               <textarea value={form.alasan} onChange={e=>set('alasan',e.target.value)} rows={3} placeholder="Jelaskan alasan pengajuan..."
-                className={`w-full px-3 py-2.5 rounded-xl border text-sm text-slate-800 outline-none resize-none placeholder:text-slate-300 transition-colors leading-relaxed focus:ring-2 ${errors.alasan?'border-red-300 focus:border-red-400 focus:ring-red-50':'border-slate-200 focus:border-amber-400 focus:ring-amber-100'}`}/>
+                className={`w-full px-3 py-2.5 rounded-xl border text-sm text-slate-800 dark:text-slate-100 dark:bg-slate-900 outline-none resize-none placeholder:text-slate-300 dark:placeholder:text-slate-600 transition-colors leading-relaxed focus:ring-2 ${errors.alasan?'border-red-300 dark:border-red-500/40 focus:border-red-400 focus:ring-red-50 dark:focus:ring-red-500/15':'border-slate-200 dark:border-slate-700 focus:border-amber-400 focus:ring-amber-100 dark:focus:ring-amber-500/20'}`}/>
             </Field>
             <Field label="Pph23 (opsional)" hint="Teks bebas — tampil di detail & PDF, di bawah alasan">
               <textarea value={form.pph23} onChange={e=>set('pph23',e.target.value)} rows={2} placeholder="Contoh: Pph23 Rp.--- x 2% = ..."
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none resize-none placeholder:text-slate-300 focus:border-amber-400 focus:ring-2 focus:ring-amber-100 leading-relaxed"/>
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 text-sm text-slate-800 dark:text-slate-100 outline-none resize-none placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:border-amber-400 focus:ring-2 focus:ring-amber-100 dark:focus:ring-amber-500/20 leading-relaxed"/>
             </Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Batas Waktu Dana" required error={errors.batas_waktu_dana}><input value={form.batas_waktu_dana} onChange={e=>set('batas_waktu_dana',e.target.value)} placeholder="30 Hari" disabled={isRevision} className={ic('batas_waktu_dana')}/></Field>
@@ -900,7 +900,7 @@ export default function NewFormPage() {
           <Card>
             <div className="flex items-center gap-2 mb-4">
               <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center"><span className="text-white text-[10px] font-black">1</span></div>
-              <h2 className="text-sm font-bold text-slate-700">Vendor / Bengkel Pertama</h2>
+              <h2 className="text-sm font-bold text-slate-700 dark:text-slate-200">Vendor / Bengkel Pertama</h2>
             </div>
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
@@ -908,19 +908,19 @@ export default function NewFormPage() {
                 <Field label="NPWP/KTP (opsional)"><input value={form.npwp} onChange={e=>set('npwp',e.target.value)} placeholder="XX.XXX..." className={ic('')}/></Field>
               </div>
               <Field label="Rekening Tujuan Pembayaran" hint="Bank — Nomor a/n Nama">
-                <textarea value={form.rekening_tujuan} onChange={e=>set('rekening_tujuan',e.target.value)} rows={2} placeholder="BCA — 1234567890 a/n Nama" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none resize-none placeholder:text-slate-300 focus:border-amber-400 focus:ring-2 focus:ring-amber-100"/>
+                <textarea value={form.rekening_tujuan} onChange={e=>set('rekening_tujuan',e.target.value)} rows={2} placeholder="BCA — 1234567890 a/n Nama" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 text-sm text-slate-800 dark:text-slate-100 outline-none resize-none placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:border-amber-400 focus:ring-2 focus:ring-amber-100 dark:focus:ring-amber-500/20"/>
               </Field>
               {!form.is_umum && (
-                <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3.5 space-y-1.5">
+                <div className="rounded-xl border border-amber-200 dark:border-amber-500/30 bg-amber-50/60 dark:bg-amber-500/10 p-3.5 space-y-1.5">
                   <div className="flex items-center justify-between gap-3 flex-wrap">
                     <div>
-                      <p className="text-xs font-bold text-amber-800">KM Kendaraan Saat Ini</p>
-                      <p className="text-[10px] text-amber-700/80">Diisi otomatis ke kolom KM semua item — tidak perlu isi berulang</p>
+                      <p className="text-xs font-bold text-amber-800 dark:text-amber-300">KM Kendaraan Saat Ini</p>
+                      <p className="text-[10px] text-amber-700/80 dark:text-amber-300/80">Diisi otomatis ke kolom KM semua item — tidak perlu isi berulang</p>
                     </div>
                     <input type="number" value={form.kmMassal} onChange={e=>setKmMassal(e.target.value)} placeholder="Contoh: 152400"
-                      className="w-44 px-3 py-2 rounded-xl border border-amber-300 bg-white text-sm text-slate-800 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100"/>
+                      className="w-44 px-3 py-2 rounded-xl border border-amber-300 dark:border-amber-500/40 bg-white dark:bg-slate-900 text-sm text-slate-800 dark:text-slate-100 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 dark:focus:ring-amber-500/20"/>
                   </div>
-                  <p className="text-[10px] text-amber-700/60">KM per item tetap bisa diubah satu-satu bila ada yang berbeda.</p>
+                  <p className="text-[10px] text-amber-700/60 dark:text-amber-300/60">KM per item tetap bisa diubah satu-satu bila ada yang berbeda.</p>
                 </div>
               )}
               <ItemsSection items={form.items1} total={total1} vendorNum={1} errors={errors}
@@ -928,20 +928,20 @@ export default function NewFormPage() {
                 onBlurPenjelasan={handleBlurPenjelasan1} itemKMCache={itemKMCache} isUmum={form.is_umum}
                 suggestions={itemSuggestions}/>
               {/* Ppn — satu nilai untuk seluruh pengajuan (opsional, menambah total) */}
-              <div className="pt-3 mt-1 border-t border-slate-100 space-y-2.5">
+              <div className="pt-3 mt-1 border-t border-slate-100 dark:border-slate-800 space-y-2.5">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-xs font-semibold text-slate-600">Ppn (opsional)</p>
-                    <p className="text-[10px] text-slate-400">Nominal rupiah, menambah total</p>
+                    <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">Ppn (opsional)</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500">Nominal rupiah, menambah total</p>
                   </div>
                   <div className="relative w-40">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">Rp</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 dark:text-slate-500 pointer-events-none">Rp</span>
                     <input type="number" value={form.ppn||''} onChange={e=>set('ppn',e.target.value)} placeholder="0"
-                      className="w-full pl-8 pr-3 py-2 rounded-xl border border-slate-200 text-sm text-right text-slate-800 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100"/>
+                      className="w-full pl-8 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 text-sm text-right text-slate-800 dark:text-slate-100 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 dark:focus:ring-amber-500/20"/>
                   </div>
                 </div>
                 <div className="flex items-center justify-between pt-1">
-                  <span className="text-xs font-bold text-slate-500">Total Akhir (Vendor + Ppn)</span>
+                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Total Akhir (Vendor + Ppn)</span>
                   <span className="text-base font-black text-amber-500">{fmtCurrency(total1 + (parseFloat(form.ppn)||0))}</span>
                 </div>
               </div>
@@ -955,13 +955,13 @@ export default function NewFormPage() {
         <Card>
           <div className="flex items-center gap-2 mb-4">
             <div className="w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center"><span className="text-white text-[10px] font-black">2</span></div>
-            <h2 className="text-sm font-bold text-slate-700">Vendor Pembanding <span className="text-slate-400 font-normal text-xs">(opsional)</span></h2>
+            <h2 className="text-sm font-bold text-slate-700 dark:text-slate-200">Vendor Pembanding <span className="text-slate-400 dark:text-slate-500 font-normal text-xs">(opsional)</span></h2>
           </div>
-          <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl mb-4">
-            <button type="button" onClick={()=>set('useVendor2',!form.useVendor2)} className={`w-11 h-6 rounded-full transition-colors flex-shrink-0 ${form.useVendor2?'bg-amber-500':'bg-slate-300'}`}>
-              <div className={`w-5 h-5 bg-white rounded-full shadow transition-transform mx-0.5 ${form.useVendor2?'translate-x-5':'translate-x-0'}`}/>
+          <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl mb-4">
+            <button type="button" onClick={()=>set('useVendor2',!form.useVendor2)} className={`w-11 h-6 rounded-full transition-colors flex-shrink-0 ${form.useVendor2?'bg-amber-500':'bg-slate-300 dark:bg-slate-600'}`}>
+              <div className={`w-5 h-5 bg-white dark:bg-slate-900 rounded-full shadow transition-transform mx-0.5 ${form.useVendor2?'translate-x-5':'translate-x-0'}`}/>
             </button>
-            <p className="text-sm font-semibold text-slate-700">Tambahkan Vendor Pembanding</p>
+            <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Tambahkan Vendor Pembanding</p>
           </div>
           {form.useVendor2&&(
             <div className="space-y-3">
@@ -980,8 +980,8 @@ export default function NewFormPage() {
 
       {step===4&&(
         <Card>
-          <h2 className="text-sm font-bold text-slate-700 mb-1">Lampiran Foto <span className="text-red-500">*</span></h2>
-          <p className="text-xs text-slate-400 mb-4">Minimal 1 foto wajib dilampirkan.</p>
+          <h2 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-1">Lampiran Foto <span className="text-red-500">*</span></h2>
+          <p className="text-xs text-slate-400 dark:text-slate-500 mb-4">Minimal 1 foto wajib dilampirkan.</p>
           <PhotoUploader photos={photos} onAdd={p=>{setPhotos(prev=>[...prev,p]);setErrors(e=>({...e,photos:''}));}} onRemove={id=>setPhotos(prev=>prev.filter(p=>p.id!==id))}/>
           {errors.photos&&<p className="flex items-center gap-1 text-xs text-red-500 mt-2"><AlertCircle size={10}/> {errors.photos}</p>}
         </Card>
@@ -990,41 +990,41 @@ export default function NewFormPage() {
       {step===5&&(
         <div className="space-y-4">
           <Card>
-            <h2 className="text-sm font-bold text-slate-700 mb-3">Review & Konfirmasi</h2>
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-3"><p className="text-xs font-semibold text-amber-700">⚠ Periksa kembali semua data sebelum mengirim.</p></div>
+            <h2 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-3">Review & Konfirmasi</h2>
+            <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-xl p-3 mb-3"><p className="text-xs font-semibold text-amber-700 dark:text-amber-300">⚠ Periksa kembali semua data sebelum mengirim.</p></div>
             <div className="bg-slate-800 rounded-xl px-4 py-3 mb-3 text-center">
-              <p className="text-[10px] text-slate-400 mb-1">Nomor Pengajuan</p>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-1">Nomor Pengajuan</p>
               <p className="text-base font-black text-amber-400">{buildNomor(form.nomorUrut,form.type,form.cabangManual)}</p>
             </div>
             {[['Jenis',form.type],...(form.is_umum?[['Mode','Barang Kantor / Umum']]:[]),['Pemohon',user?.name],...(form.is_umum?[]:[['Kendaraan',form.kendaraan]]),['Jenis Pembelian',form.jenis_pembelian],['Vendor 1',form.vendor],...(form.rekening_tujuan?[['Rekening',form.rekening_tujuan]]:[]),['Total Vendor 1',fmtCurrency(total1)],...((parseFloat(form.ppn)||0)>0?[['Ppn',fmtCurrency(parseFloat(form.ppn)||0)],['Total Akhir',fmtCurrency(total1+(parseFloat(form.ppn)||0))]]:[]),...(form.useVendor2?[['Vendor 2',form.vendor2],['Total Vendor 2',fmtCurrency(total2)]]:[]),['Batas Waktu',form.batas_waktu_dana],['Batas Bayar',form.batas_akhir_pembayaran],['Foto',`${photos.length} foto`]].map(([k,v],i,arr)=>(
-              <div key={k} className={`flex justify-between gap-4 py-2 ${i<arr.length-1?'border-b border-slate-50':''}`}>
-                <span className="text-xs text-slate-400">{k}</span><span className="text-xs font-bold text-slate-700 text-right">{v}</span>
+              <div key={k} className={`flex justify-between gap-4 py-2 ${i<arr.length-1?'border-b border-slate-50 dark:border-slate-800':''}`}>
+                <span className="text-xs text-slate-400 dark:text-slate-500">{k}</span><span className="text-xs font-bold text-slate-700 dark:text-slate-200 text-right">{v}</span>
               </div>
             ))}
           </Card>
           <Card>
             {/* Rincian item — tampil untuk semua pengajuan (termasuk umum) */}
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Rincian Item</p>
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Rincian Item</p>
             <div className="space-y-1.5 mb-4">
               {form.items1.map((it, i) => (
-                <div key={`rv1-${i}`} className="flex justify-between gap-3 py-1.5 border-b border-slate-50 text-xs">
-                  <span className="text-slate-700 min-w-0">
+                <div key={`rv1-${i}`} className="flex justify-between gap-3 py-1.5 border-b border-slate-50 dark:border-slate-800 text-xs">
+                  <span className="text-slate-700 dark:text-slate-200 min-w-0">
                     {it.penjelasan || '(tanpa nama)'}
-                    <span className="text-slate-400"> · {parseFloat(it.satuan) || 1} × {fmtCurrency(parseFloat(it.harga) || 0)}{(parseFloat(it.diskon) || 0) > 0 ? ` − ${fmtCurrency(parseFloat(it.diskon))}` : ''}</span>
+                    <span className="text-slate-400 dark:text-slate-500"> · {parseFloat(it.satuan) || 1} × {fmtCurrency(parseFloat(it.harga) || 0)}{(parseFloat(it.diskon) || 0) > 0 ? ` − ${fmtCurrency(parseFloat(it.diskon))}` : ''}</span>
                   </span>
-                  <span className="font-bold text-slate-700 whitespace-nowrap">{fmtCurrency(calcItemTotal(it))}</span>
+                  <span className="font-bold text-slate-700 dark:text-slate-200 whitespace-nowrap">{fmtCurrency(calcItemTotal(it))}</span>
                 </div>
               ))}
               {form.useVendor2 && (
                 <>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pt-2">Vendor 2 — {form.vendor2 || '-'}</p>
+                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider pt-2">Vendor 2 — {form.vendor2 || '-'}</p>
                   {form.items2.map((it, i) => (
-                    <div key={`rv2-${i}`} className="flex justify-between gap-3 py-1.5 border-b border-slate-50 text-xs">
-                      <span className="text-slate-700 min-w-0">
+                    <div key={`rv2-${i}`} className="flex justify-between gap-3 py-1.5 border-b border-slate-50 dark:border-slate-800 text-xs">
+                      <span className="text-slate-700 dark:text-slate-200 min-w-0">
                         {it.penjelasan || '(tanpa nama)'}
-                        <span className="text-slate-400"> · {parseFloat(it.satuan) || 1} × {fmtCurrency(parseFloat(it.harga) || 0)}{(parseFloat(it.diskon) || 0) > 0 ? ` − ${fmtCurrency(parseFloat(it.diskon))}` : ''}</span>
+                        <span className="text-slate-400 dark:text-slate-500"> · {parseFloat(it.satuan) || 1} × {fmtCurrency(parseFloat(it.harga) || 0)}{(parseFloat(it.diskon) || 0) > 0 ? ` − ${fmtCurrency(parseFloat(it.diskon))}` : ''}</span>
                       </span>
-                      <span className="font-bold text-slate-700 whitespace-nowrap">{fmtCurrency(calcItemTotal(it))}</span>
+                      <span className="font-bold text-slate-700 dark:text-slate-200 whitespace-nowrap">{fmtCurrency(calcItemTotal(it))}</span>
                     </div>
                   ))}
                 </>
@@ -1033,21 +1033,21 @@ export default function NewFormPage() {
 
             {/* Alasan pengajuan — tampil untuk semua */}
             {form.alasan_type?.trim() && (<>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Type</p>
-            <div className="text-xs text-slate-700 leading-relaxed bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-200 mb-3">{form.alasan_type}</div>
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Type</p>
+            <div className="text-xs text-slate-700 dark:text-slate-200 leading-relaxed bg-slate-50 dark:bg-slate-800/60 rounded-xl px-3 py-2.5 border border-slate-200 dark:border-slate-700 mb-3">{form.alasan_type}</div>
             </>)}
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Alasan Pengajuan</p>
-            <div className="text-xs text-slate-700 leading-relaxed whitespace-pre-line bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-200 mb-4">{form.alasan?.trim() || '—'}</div>
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Alasan Pengajuan</p>
+            <div className="text-xs text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-line bg-slate-50 dark:bg-slate-800/60 rounded-xl px-3 py-2.5 border border-slate-200 dark:border-slate-700 mb-4">{form.alasan?.trim() || '—'}</div>
 
             {form.pph23?.trim() && (<>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Pph23</p>
-            <div className="text-xs text-slate-700 leading-relaxed whitespace-pre-line bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-200 mb-4">{form.pph23}</div>
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Pph23</p>
+            <div className="text-xs text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-line bg-slate-50 dark:bg-slate-800/60 rounded-xl px-3 py-2.5 border border-slate-200 dark:border-slate-700 mb-4">{form.pph23}</div>
             </>)}
 
             {/* Riwayat KM — hanya pengajuan kendaraan */}
             {!form.is_umum && (<>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Preview Riwayat KM:</p>
-            <div className="text-xs text-slate-700 leading-relaxed whitespace-pre-line bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-200 font-mono">{buildRiwayat()}</div>
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Preview Riwayat KM:</p>
+            <div className="text-xs text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-line bg-slate-50 dark:bg-slate-800/60 rounded-xl px-3 py-2.5 border border-slate-200 dark:border-slate-700 font-mono">{buildRiwayat()}</div>
             </>)}
           </Card>
         </div>
