@@ -1,4 +1,4 @@
-// src/pages/AnalyticsPage.jsx
+// src/pages/AnalyticsPage.jsx — Dark Mode Tahap 5 (hanya penambahan varian dark:, tanpa perubahan fitur)
 import { useState, useEffect } from 'react';
 import { TrendingUp, FileText, Wallet, CalendarDays, Download, Loader, Car, Tag, Store, Building2 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -40,7 +40,7 @@ function MonthlyBarChart({ data }) {
               <div className="w-full max-w-[36px] rounded-t-md transition-all hover:opacity-80"
                 style={{ height: `${h}%`, minHeight: d.total > 0 ? '4px' : '0', background: 'linear-gradient(to top, #f59e0b, #fbbf24)' }}/>
             </div>
-            <span className="text-[9px] text-slate-400 font-medium whitespace-nowrap">{d.label}</span>
+            <span className="text-[9px] text-slate-400 dark:text-slate-500 font-medium whitespace-nowrap">{d.label}</span>
           </div>
         );
       })}
@@ -51,7 +51,7 @@ function MonthlyBarChart({ data }) {
 /* ── Bar chart horizontal (ranking) ── */
 function HBarChart({ data, labelKey, valueKey, countKey, colorOffset = 0, showRp = true }) {
   const max = Math.max(...data.map(d => d[valueKey]), 1);
-  if (!data.length) return <p className="text-xs text-slate-400 italic py-4 text-center">Belum ada data</p>;
+  if (!data.length) return <p className="text-xs text-slate-400 dark:text-slate-500 italic py-4 text-center">Belum ada data</p>;
   return (
     <div className="space-y-2.5">
       {data.map((d, i) => {
@@ -60,13 +60,13 @@ function HBarChart({ data, labelKey, valueKey, countKey, colorOffset = 0, showRp
         return (
           <div key={i}>
             <div className="flex items-center justify-between mb-1 gap-2">
-              <span className="text-xs font-semibold text-slate-700 truncate flex-1" title={d[labelKey]}>{d[labelKey]}</span>
-              <span className="text-xs font-bold text-slate-600 flex-shrink-0">
+              <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate flex-1" title={d[labelKey]}>{d[labelKey]}</span>
+              <span className="text-xs font-bold text-slate-600 dark:text-slate-300 flex-shrink-0">
                 {showRp ? fmtRpShort(d[valueKey]) : d[valueKey]}
-                {countKey && <span className="text-[10px] text-slate-400 ml-1">({d[countKey]}x)</span>}
+                {countKey && <span className="text-[10px] text-slate-400 dark:text-slate-500 ml-1">({d[countKey]}x)</span>}
               </span>
             </div>
-            <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+            <div className="h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
               <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(w, 2)}%`, background: color }}/>
             </div>
           </div>
@@ -82,9 +82,9 @@ function StatCard({ icon: Icon, label, value, sub, color }) {
     <Card className="!p-4">
       <div className="flex items-start justify-between">
         <div className="min-w-0">
-          <p className="text-[11px] text-slate-400 font-medium mb-1">{label}</p>
-          <p className="text-lg font-black text-slate-800 truncate">{value}</p>
-          {sub && <p className="text-[10px] text-slate-400 mt-0.5">{sub}</p>}
+          <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium mb-1">{label}</p>
+          <p className="text-lg font-black text-slate-800 dark:text-slate-100 truncate">{value}</p>
+          {sub && <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">{sub}</p>}
         </div>
         <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${color}`}>
           <Icon size={17} className="text-white"/>
@@ -161,7 +161,7 @@ export default function AnalyticsPage() {
   }
 
   if (!data) {
-    return <Card><p className="text-sm text-slate-400 text-center py-8">Data tidak tersedia</p></Card>;
+    return <Card><p className="text-sm text-slate-400 dark:text-slate-500 text-center py-8">Data tidak tersedia</p></Card>;
   }
 
   const { summary } = data;
@@ -171,15 +171,15 @@ export default function AnalyticsPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-xl font-black text-slate-800">Dashboard Analitik</h1>
-          <p className="text-xs text-slate-400">Laporan pengeluaran maintenance — {months} bulan terakhir</p>
+          <h1 className="text-xl font-black text-slate-800 dark:text-slate-100">Dashboard Analitik</h1>
+          <p className="text-xs text-slate-400 dark:text-slate-500">Laporan pengeluaran maintenance — {months} bulan terakhir</p>
         </div>
         <div className="flex items-center gap-2">
           {/* Period selector */}
-          <div className="flex bg-slate-100 rounded-xl p-1">
+          <div className="flex bg-slate-100 dark:bg-slate-800 rounded-xl p-1">
             {PERIODS.map(p => (
               <button key={p.value} onClick={() => setMonths(p.value)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${months===p.value?'bg-white text-amber-600 shadow-sm':'text-slate-500 hover:text-slate-700'}`}>
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${months===p.value?'bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-sm':'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>
                 {p.label}
               </button>
             ))}
@@ -203,9 +203,9 @@ export default function AnalyticsPage() {
       <Card>
         <div className="flex items-center gap-2 mb-1">
           <TrendingUp size={16} className="text-amber-500"/>
-          <h2 className="text-sm font-bold text-slate-700">Pengeluaran per Bulan</h2>
+          <h2 className="text-sm font-bold text-slate-700 dark:text-slate-200">Pengeluaran per Bulan</h2>
         </div>
-        <p className="text-[11px] text-slate-400 mb-2">Tren biaya maintenance dari waktu ke waktu</p>
+        <p className="text-[11px] text-slate-400 dark:text-slate-500 mb-2">Tren biaya maintenance dari waktu ke waktu</p>
         <MonthlyBarChart data={data.perBulan}/>
       </Card>
 
@@ -214,14 +214,14 @@ export default function AnalyticsPage() {
         <Card>
           <div className="flex items-center gap-2 mb-3">
             <Car size={16} className="text-blue-500"/>
-            <h2 className="text-sm font-bold text-slate-700">Kendaraan Paling Boros</h2>
+            <h2 className="text-sm font-bold text-slate-700 dark:text-slate-200">Kendaraan Paling Boros</h2>
           </div>
           <HBarChart data={data.perKendaraan} labelKey="kendaraan" valueKey="total" countKey="count"/>
         </Card>
         <Card>
           <div className="flex items-center gap-2 mb-3">
             <Tag size={16} className="text-emerald-500"/>
-            <h2 className="text-sm font-bold text-slate-700">Pengeluaran per Jenis</h2>
+            <h2 className="text-sm font-bold text-slate-700 dark:text-slate-200">Pengeluaran per Jenis</h2>
           </div>
           <HBarChart data={data.perJenis} labelKey="jenis" valueKey="total" countKey="count" colorOffset={2}/>
         </Card>
@@ -232,11 +232,11 @@ export default function AnalyticsPage() {
         <Card>
           <div className="flex items-center gap-2 mb-3">
             <Store size={16} className="text-purple-500"/>
-            <h2 className="text-sm font-bold text-slate-700">Vendor Paling Sering</h2>
+            <h2 className="text-sm font-bold text-slate-700 dark:text-slate-200">Vendor Paling Sering</h2>
           </div>
           <HBarChart data={data.perVendor} labelKey="vendor" valueKey="count" countKey={null} colorOffset={3} showRp={false}/>
           {data.perVendor.length > 0 && (
-            <p className="text-[10px] text-slate-400 mt-3 pt-2 border-t border-slate-50">
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-3 pt-2 border-t border-slate-50 dark:border-slate-800">
               Total transaksi vendor teratas: {data.perVendor[0]?.vendor} ({data.perVendor[0]?.count}x, {fmtRpShort(data.perVendor[0]?.total)})
             </p>
           )}
@@ -244,13 +244,13 @@ export default function AnalyticsPage() {
         <Card>
           <div className="flex items-center gap-2 mb-3">
             <Building2 size={16} className="text-orange-500"/>
-            <h2 className="text-sm font-bold text-slate-700">Pengeluaran per Cabang</h2>
+            <h2 className="text-sm font-bold text-slate-700 dark:text-slate-200">Pengeluaran per Cabang</h2>
           </div>
           <HBarChart data={data.perCabang} labelKey="cabang" valueKey="total" countKey="count" colorOffset={5}/>
         </Card>
       </div>
 
-      <p className="text-[10px] text-slate-400 text-center pb-4">
+      <p className="text-[10px] text-slate-400 dark:text-slate-500 text-center pb-4">
         Data dihitung dari pengajuan berstatus "Disetujui" & "Selesai". Pengeluaran berdasarkan jumlah pembayaran (atau total disetujui jika belum dibayar).
       </p>
     </div>
