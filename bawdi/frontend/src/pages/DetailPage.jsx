@@ -1282,7 +1282,7 @@ export default function DetailPage() {
             {[
               { label: 'Dibuat',              info: `${sub.pemohon?.name} · ${fmtDateTime(sub.tanggal)}`,                     done: true },
               { label: 'Menunggu Verifikasi', info: sub.verifikasi_at ? `Diterima ${fmtDate(sub.verifikasi_at)}` : 'Menunggu...', done: !!sub.verifikasi_at },
-              { label: 'Diverifikasi',        info: sub.verifikator?.name || '—',                                              done: !!sub.verifikator_id },
+              { label: 'Diverifikasi',        info: sub.verifikator_id ? [sub.verifikator?.name, sub.verifikasi_at && fmtDate(sub.verifikasi_at)].filter(Boolean).join(' · ') : '—', done: !!sub.verifikator_id },
               ...(revisions.length > 0 ? [{ label: `${revisions.length}x Revisi`, info: sub.revisi_selesai_at ? `Selesai ${fmtDate(sub.revisi_selesai_at)}` : 'Ada revisi', done: !!sub.revisi_selesai_at, isRevisi: true }] : []),
               { label: 'Keputusan Approval',  info: sub.approval_at ? `${sub.status} · ${fmtDate(sub.approval_at)}` : 'Menunggu...', done: !!sub.approval_at, isReject: sub.status === 'Ditolak' },
               ...(['Disetujui', 'Selesai'].includes(sub.status) ? [
