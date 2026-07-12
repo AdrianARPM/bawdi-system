@@ -1,12 +1,36 @@
-// src/components/Layout.jsx  — v7 (Draft hanya Admin/Verifikator/Approval)
+// src/components/Layout.jsx  — v8 (Dark Mode Tahap 1: toggle Terang/Gelap/Sistem + dark variants)
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-import { LayoutDashboard, FileText, Plus, Users, LogOut, Menu, Truck, Archive, BarChart3, Activity } from 'lucide-react';
+import { LayoutDashboard, FileText, Plus, Users, LogOut, Menu, Truck, Archive, BarChart3, Activity, Sun, Moon, Monitor } from 'lucide-react';
 import useAuthStore from '../context/authStore';
 import NotificationBell from './NotificationBell';
+import { getThemePref, setThemePref } from '../utils/theme';
 
 const ROLE_COLOR = { Operasional:'bg-amber-400', Verifikator:'bg-blue-500', Approval:'bg-emerald-500', Admin:'bg-violet-500' };
 const DRAFT_ROLES = ['Admin', 'Verifikator', 'Approval', 'Operasional'];
+
+const THEME_OPTS = [
+  { value: 'light',  icon: Sun,     label: 'Terang' },
+  { value: 'dark',   icon: Moon,    label: 'Gelap'  },
+  { value: 'system', icon: Monitor, label: 'Sistem' },
+];
+
+function ThemeToggle() {
+  const [pref, setPref] = useState(getThemePref());
+  const pick = (v) => { setThemePref(v); setPref(v); };
+  return (
+    <div className="flex bg-slate-800 rounded-xl p-1 gap-1">
+      {THEME_OPTS.map(({ value, icon: Icon, label }) => (
+        <button key={value} type="button" onClick={() => pick(value)} title={label}
+          className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[10px] font-semibold transition-all ${
+            pref === value ? 'bg-slate-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'
+          }`}>
+          <Icon size={12}/>{label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 function NavItem({ to, icon: Icon, label, onClick, badge }) {
   return (
@@ -91,8 +115,9 @@ export default function Layout() {
         )}
       </nav>
 
-      {/* Logout */}
-      <div className="px-2.5 py-3 border-t border-slate-800">
+      {/* Tema + Logout */}
+      <div className="px-2.5 py-3 border-t border-slate-800 space-y-2">
+        <ThemeToggle/>
         <button onClick={doLogout}
           className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-all font-[inherit]">
           <LogOut size={15}/> Keluar
@@ -102,7 +127,7 @@ export default function Layout() {
   );
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50 font-sans">
+    <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 font-sans">
       <div className="hidden md:block w-52 flex-shrink-0">{sidebar}</div>
       {sidebarOpen && (
         <div className="md:hidden fixed inset-0 z-40">
@@ -112,15 +137,15 @@ export default function Layout() {
       )}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Mobile topbar */}
-        <header className="md:hidden bg-white border-b border-slate-100 px-4 py-3 flex items-center justify-between flex-shrink-0">
-          <button onClick={() => setSidebarOpen(true)} className="p-1.5 rounded-lg border border-slate-200">
-            <Menu size={18} className="text-slate-600"/>
+        <header className="md:hidden bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 px-4 py-3 flex items-center justify-between flex-shrink-0">
+          <button onClick={() => setSidebarOpen(true)} className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
+            <Menu size={18} className="text-slate-600 dark:text-slate-300"/>
           </button>
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-md bg-amber-500 flex items-center justify-center">
               <img src="/Logo.jpg" alt="BAWDI" className="h-6 w-auto"/>
             </div>
-            <span className="font-extrabold text-slate-800 text-sm">BAWDI</span>
+            <span className="font-extrabold text-slate-800 dark:text-slate-100 text-sm">BAWDI</span>
           </div>
           <div className="flex items-center gap-1.5">
             <NotificationBell variant="light"/>
