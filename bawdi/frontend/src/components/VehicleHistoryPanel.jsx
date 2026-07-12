@@ -1,4 +1,4 @@
-// src/components/VehicleHistoryPanel.jsx
+// src/components/VehicleHistoryPanel.jsx — Dark Mode Tahap 5 (hanya varian dark:, tanpa perubahan fitur)
 // Komponen: Riwayat pengajuan sebelumnya dari kendaraan + keyword yang sama
 import { useState, useEffect, useRef } from 'react';
 import { History, ChevronDown, ChevronUp, ExternalLink, Clock, Wrench, AlertCircle } from 'lucide-react';
@@ -13,7 +13,7 @@ const fmtDate = (iso) =>
 function HariLalu({ hari }) {
   if (hari < 30)  return <span className="text-red-500 font-bold">{hari} hari lalu</span>;
   if (hari < 365) return <span className="text-amber-500 font-bold">{Math.floor(hari/30)} bulan lalu</span>;
-  return <span className="text-slate-400 font-bold">{(hari/365).toFixed(1)} tahun lalu</span>;
+  return <span className="text-slate-400 dark:text-slate-500 font-bold">{(hari/365).toFixed(1)} tahun lalu</span>;
 }
 
 export default function VehicleHistoryPanel({ kendaraan, keyword, onClose }) {
@@ -57,25 +57,25 @@ export default function VehicleHistoryPanel({ kendaraan, keyword, onClose }) {
   if (!kendaraan?.trim()) return null;
 
   return (
-    <div className="rounded-2xl border-2 border-amber-200 bg-amber-50 overflow-hidden">
+    <div className="rounded-2xl border-2 border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-amber-100 border-b border-amber-200">
+      <div className="flex items-center justify-between px-4 py-3 bg-amber-100 dark:bg-amber-500/10 border-b border-amber-200 dark:border-amber-500/30">
         <div className="flex items-center gap-2">
-          <History size={15} className="text-amber-600" />
-          <p className="text-sm font-bold text-amber-800">
+          <History size={15} className="text-amber-600 dark:text-amber-400" />
+          <p className="text-sm font-bold text-amber-800 dark:text-amber-300">
             Riwayat Pengajuan Sebelumnya
           </p>
-          <span className="text-[10px] bg-amber-200 text-amber-700 px-2 py-0.5 rounded-full font-bold">
+          <span className="text-[10px] bg-amber-200 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-full font-bold">
             {kendaraan.toUpperCase()}
           </span>
           {keyword?.trim() && (
-            <span className="text-[10px] bg-white text-amber-600 border border-amber-300 px-2 py-0.5 rounded-full font-bold">
+            <span className="text-[10px] bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 border border-amber-300 dark:border-amber-500/40 px-2 py-0.5 rounded-full font-bold">
               🔍 {keyword}
             </span>
           )}
         </div>
         {onClose && (
-          <button onClick={onClose} className="text-amber-400 hover:text-amber-600 text-lg font-bold leading-none">×</button>
+          <button onClick={onClose} className="text-amber-400 hover:text-amber-600 dark:hover:text-amber-400 text-lg font-bold leading-none">×</button>
         )}
       </div>
 
@@ -84,7 +84,7 @@ export default function VehicleHistoryPanel({ kendaraan, keyword, onClose }) {
         {loading && (
           <div className="flex items-center gap-2 py-2">
             <div className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
-            <p className="text-xs text-amber-600">Mencari riwayat...</p>
+            <p className="text-xs text-amber-600 dark:text-amber-400">Mencari riwayat...</p>
           </div>
         )}
 
@@ -112,38 +112,38 @@ export default function VehicleHistoryPanel({ kendaraan, keyword, onClose }) {
         {/* Data */}
         {!loading && !error && data.length > 0 && (
           <div className="space-y-2.5">
-            <p className="text-[10px] text-amber-600 font-semibold">
+            <p className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">
               {data.length} riwayat ditemukan — diurutkan dari terbaru:
             </p>
 
             {data.map((item) => (
               <div key={item.id}
-                className="bg-white rounded-xl border border-amber-200 overflow-hidden shadow-sm">
+                className="bg-white dark:bg-slate-900 rounded-xl border border-amber-200 dark:border-amber-500/30 overflow-hidden shadow-sm">
 
                 {/* Summary row */}
                 <button
                   type="button"
                   onClick={() => toggle(item.id)}
-                  className="w-full flex items-start justify-between gap-3 px-3 py-2.5 text-left hover:bg-amber-50 transition-colors">
+                  className="w-full flex items-start justify-between gap-3 px-3 py-2.5 text-left hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors">
 
                   <div className="flex-1 min-w-0">
                     {/* Nomor & tanggal */}
                     <div className="flex items-center gap-2 flex-wrap mb-1">
-                      <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">{item.type}</span>
-                      <span className="text-xs font-bold text-slate-700 truncate">{item.nomor_pengajuan}</span>
+                      <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">{item.type}</span>
+                      <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{item.nomor_pengajuan}</span>
                       <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
-                        item.status === 'Selesai' ? 'bg-slate-100 text-slate-500' : 'bg-emerald-100 text-emerald-700'
+                        item.status === 'Selesai' ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400' : 'bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
                       }`}>{item.status}</span>
                     </div>
 
                     {/* Vendor & tanggal */}
-                    <p className="text-[11px] text-slate-500 truncate mb-0.5">
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mb-0.5">
                       📍 {item.vendor_dipakai || item.jenis_pembelian}
                     </p>
 
                     {/* Tanggal & hari lalu */}
                     <div className="flex items-center gap-3">
-                      <span className="text-[10px] text-slate-400 flex items-center gap-0.5">
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500 flex items-center gap-0.5">
                         <Clock size={9} /> {fmtDate(item.tanggal_bayar || item.tanggal)}
                       </span>
                       <HariLalu hari={item.hari_lalu} />
@@ -152,11 +152,11 @@ export default function VehicleHistoryPanel({ kendaraan, keyword, onClose }) {
 
                   {/* Total & expand */}
                   <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
-                    <p className="text-sm font-black text-emerald-600">
+                    <p className="text-sm font-black text-emerald-600 dark:text-emerald-400">
                       {fmtCurrency(item.jumlah_bayar || item.total_harga)}
                     </p>
                     {item.jumlah_bayar !== item.total_harga && item.jumlah_bayar > 0 && (
-                      <p className="text-[9px] text-slate-400 line-through">
+                      <p className="text-[9px] text-slate-400 dark:text-slate-500 line-through">
                         {fmtCurrency(item.total_harga)}
                       </p>
                     )}
@@ -169,22 +169,22 @@ export default function VehicleHistoryPanel({ kendaraan, keyword, onClose }) {
 
                 {/* Detail items — hanya tampil jika di-expand */}
                 {expanded[item.id] && (
-                  <div className="border-t border-amber-100 bg-amber-50/50 px-3 py-2.5 space-y-1.5">
+                  <div className="border-t border-amber-100 dark:border-amber-500/20 bg-amber-50/50 dark:bg-amber-500/10 px-3 py-2.5 space-y-1.5">
                     {/* Item yang relevan */}
                     {item.items_relevan?.length > 0 && (
                       <div>
-                        <p className="text-[10px] font-bold text-amber-700 mb-1 uppercase tracking-wide">
+                        <p className="text-[10px] font-bold text-amber-700 dark:text-amber-300 mb-1 uppercase tracking-wide">
                           Item{keyword?.trim() ? ` yang cocok dengan "${keyword}"` : ''}:
                         </p>
                         {item.items_relevan.map((it, i) => (
                           <div key={i}
-                            className="flex justify-between items-start gap-2 py-1 border-b border-amber-100 last:border-0">
-                            <p className="text-[11px] text-slate-600 flex-1 leading-relaxed">
+                            className="flex justify-between items-start gap-2 py-1 border-b border-amber-100 dark:border-amber-500/20 last:border-0">
+                            <p className="text-[11px] text-slate-600 dark:text-slate-300 flex-1 leading-relaxed">
                               {it.penjelasan}
                             </p>
                             <div className="text-right flex-shrink-0">
-                              <p className="text-[10px] font-bold text-slate-600">{fmtCurrency(it.total || it.harga)}</p>
-                              <p className="text-[9px] text-slate-400">{it.satuan}</p>
+                              <p className="text-[10px] font-bold text-slate-600 dark:text-slate-300">{fmtCurrency(it.total || it.harga)}</p>
+                              <p className="text-[9px] text-slate-400 dark:text-slate-500">{it.satuan}</p>
                             </div>
                           </div>
                         ))}
@@ -193,14 +193,14 @@ export default function VehicleHistoryPanel({ kendaraan, keyword, onClose }) {
 
                     {/* Info tambahan */}
                     <div className="flex items-center justify-between pt-1">
-                      <p className="text-[10px] text-slate-400">
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500">
                         Oleh: {item.pemohon}
                       </p>
                       <a
                         href={`/submissions/${item.id}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="flex items-center gap-1 text-[10px] text-amber-600 font-semibold hover:text-amber-800"
+                        className="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 font-semibold hover:text-amber-800 dark:hover:text-amber-300"
                         onClick={e => e.stopPropagation()}>
                         Lihat detail <ExternalLink size={9} />
                       </a>
