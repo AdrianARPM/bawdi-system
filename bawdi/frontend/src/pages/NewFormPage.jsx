@@ -213,7 +213,7 @@ const JENIS_UMUM = [
 ];
 // Daftar Cabang/Project — tambah manual di sini jika ada cabang baru
 const CABANG_LIST = [
-  'APLPKU','APLBDO','APLPDG','APLDJB','APLMES','APLPLM','PVPLM','PVMES','PVPKU','PVTKG','DHSCBT','NIC'
+  'APLPKU','APLBDO','APLPDG','APLDJB','APLMES','APLPLM','PVPLM','PVMES','PVPKU','PVTKG','PVSUB','DHSCBT','NIC'
 ];
 
 function ItemRow({ item, idx, totalItems, vendorNum, onUpdate, onRemove, onBlurPenjelasan, kmCache, errors, isUmum, suggestions = [] }) {
