@@ -476,7 +476,7 @@ try {                                                               // ✅ try a
   currentY += 10;
 
   // ── Tanda Tangan ──────────────────────────────────────────────
-  if (currentY + 22 > pageH - 15) {
+  if (currentY + 22 > pageH - 13) {
     doc.addPage();
     currentY = margin;
   }
@@ -551,14 +551,14 @@ try {                                                               // ✅ try a
     doc.setPage(pg);
     
     // Garis Footer
-    doc.setDrawColor(200, 200, 200);
-    doc.setLineWidth(0.5);
-    doc.line(margin, pageH - 12, pageW - margin, pageH - 12);
+    // doc.setDrawColor(200, 200, 200);
+    // doc.setLineWidth(0.5);
+    // doc.line(margin, pageH - 12, pageW - margin, pageH - 12);
     
-    doc.setFontSize(7);
-    doc.setTextColor(150, 150, 150);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Dokumen digenerate otomatis BAWDI Maintenance System', margin, pageH - 8);
+    // doc.setFontSize(7);
+    // doc.setTextColor(150, 150, 150);
+    // doc.setFont('helvetica', 'normal');
+    // doc.text('Dokumen digenerate otomatis BAWDI Maintenance System', margin, pageH - 8);
     doc.text(`Hal. ${pg}/${totalPages}`, pageW - margin, pageH - 8, { align: 'right' });
   }
 
