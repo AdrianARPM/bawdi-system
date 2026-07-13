@@ -1,9 +1,10 @@
-// src/pages/DraftPage.jsx  — v9 (Dark Mode Tahap 2: hanya penambahan varian dark:, tanpa perubahan fitur — basis v8 arsip per cabang, format Form Rekap PR + Export Excel)
+// src/pages/DraftPage.jsx  — v10 (Arsip ringan: default filter tahun berjalan + grup cabang bisa dilipat/accordion — basis v9 dark mode)
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Archive, Search, Filter, X, FileSpreadsheet,
   Calendar, Truck, Building2, ShieldOff, Loader,
+  ChevronDown, ChevronRight,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { revisionAPI } from '../utils/api';
@@ -12,6 +13,9 @@ import useAuthStore from '../context/authStore';
 
 const ALLOWED_ROLES = ['Admin', 'Verifikator', 'Approval', 'Operasional'];
 // Operasional hanya melihat arsip pengajuannya sendiri (difilter di backend)
+
+// Default periode = tahun berjalan, agar halaman tetap ringan saat arsip menumpuk
+const CURRENT_YEAR = String(new Date().getFullYear());
 
 // Status tagihan dari pembayaran (selaras rumus Excel)
 function statusTagihan(total, bayar) {
@@ -51,7 +55,10 @@ export default function DraftPage() {
   const [q,              setQ]               = useState('');
   const [filterKendaraan, setFilterKendaraan]= useState('');
   const [filterBulan,    setFilterBulan]     = useState('');
-  const [filterTahun,    setFilterTahun]     = useState('');
+  const [filterTahun,    setFilterTahun]     = useState(CURRENT_YEAR);
+
+  // Grup cabang yang sedang terbuka (accordion)
+  const [openCabang,     setOpenCabang]      = useState(new Set());
 
   const load = async () => {
     setLoading(true);
@@ -71,8 +78,25 @@ export default function DraftPage() {
 
   useEffect(() => { load(); }, [filterKendaraan, filterBulan, filterTahun]);
 
-  const resetFilter = () => { setFilterKendaraan(''); setFilterBulan(''); setFilterTahun(''); setQ(''); };
-  const hasFilter = filterKendaraan || filterBulan || filterTahun;
+  // Saat data berubah: jika hasil hanya 1-2 cabang, buka otomatis; selain itu semua terlipat
+  useEffect(() => {
+    const names = [...new Set(drafts.map(d => d.cabang))];
+    setOpenCabang(new Set(names.length <= 2 ? names : []));
+  }, [drafts]);
+
+  const toggleCabang = (cab) => {
+    setOpenCabang(prev => {
+      const next = new Set(prev);
+      next.has(cab) ? next.delete(cab) : next.add(cab);
+      return next;
+    });
+  };
+
+  const resetFilter = () => { setFilterKendaraan(''); setFilterBulan(''); setFilterTahun(CURRENT_YEAR); setQ(''); };
+  const hasFilter = filterKendaraan || filterBulan || filterTahun !== CURRENT_YEAR;
+
+  // Daftar tahun tersedia — diturunkan dari bulanList (dibangun backend dari seluruh arsip)
+  const tahunList = [...new Set(bulanList.map(b => b.tahun))].sort((a, b) => b - a);
 
   const filtered = drafts.filter(d => {
     if (!q) return true;
@@ -89,6 +113,11 @@ export default function DraftPage() {
   const cabangNames = Object.keys(groups).sort();
 
   const totalBayar = filtered.reduce((s, d) => s + (Number(d.dibayar) || 0), 0);
+
+  // Label periode aktif utk kartu ringkasan
+  const periodeLabel = filterBulan
+    ? (bulanList.find(b => b.bulan === Number(filterBulan) && b.tahun === Number(filterTahun))?.label || 'bulan dipilih')
+    : filterTahun ? `Tahun ${filterTahun}` : 'semua periode';
 
   const handleExportExcel = async () => {
     setExporting(true);
@@ -143,9 +172,7 @@ export default function DraftPage() {
         <Card className="!p-4">
           <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Total Dibayar</p>
           <p className="text-lg font-black text-emerald-600 dark:text-emerald-400">{fmtCurrency(totalBayar)}</p>
-          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-            {filterBulan ? bulanList.find(b => b.bulan === Number(filterBulan))?.label || 'bulan dipilih' : 'semua periode'}
-          </p>
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{periodeLabel}</p>
         </Card>
       </div>
 
@@ -168,7 +195,39 @@ export default function DraftPage() {
             </button>
           )}
         </div>
+        {/* Tahun — default tahun berjalan agar data yg dimuat tetap ringan */}
         <div className="mb-3">
+          <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5"><Calendar size={12}/> Tahun</label>
+          <div className="flex flex-wrap gap-1.5">
+            {[...new Set([Number(CURRENT_YEAR), ...tahunList])].sort((a, b) => b - a).map(t => (
+              <button key={t} onClick={() => { setFilterTahun(String(t)); setFilterBulan(''); }}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${filterTahun===String(t) ? 'bg-blue-500 border-blue-500 text-white' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400'}`}>
+                {t}
+              </button>
+            ))}
+            <button onClick={() => { setFilterTahun(''); setFilterBulan(''); }}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${!filterTahun ? 'bg-blue-500 border-blue-500 text-white' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400'}`}>
+              Semua Periode
+            </button>
+          </div>
+        </div>
+        <div className="mb-3">
+          <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5"><Calendar size={12}/> Bulan</label>
+          <div className="flex flex-wrap gap-1.5">
+            <button onClick={() => setFilterBulan('')}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${!filterBulan ? 'bg-blue-500 border-blue-500 text-white' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400'}`}>
+              Semua
+            </button>
+            {bulanList.filter(b => !filterTahun || b.tahun === Number(filterTahun)).map(b => (
+              <button key={`${b.bulan}-${b.tahun}`}
+                onClick={() => { setFilterBulan(String(b.bulan)); setFilterTahun(String(b.tahun)); }}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${filterBulan===String(b.bulan)&&filterTahun===String(b.tahun) ? 'bg-blue-500 border-blue-500 text-white' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400'}`}>
+                {b.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
           <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5"><Truck size={12}/> Plat Kendaraan</label>
           <div className="flex flex-wrap gap-1.5">
             <button onClick={() => setFilterKendaraan('')}
@@ -183,22 +242,6 @@ export default function DraftPage() {
             ))}
           </div>
         </div>
-        <div>
-          <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5"><Calendar size={12}/> Bulan</label>
-          <div className="flex flex-wrap gap-1.5">
-            <button onClick={() => { setFilterBulan(''); setFilterTahun(''); }}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${!filterBulan ? 'bg-blue-500 border-blue-500 text-white' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400'}`}>
-              Semua
-            </button>
-            {bulanList.map(b => (
-              <button key={`${b.bulan}-${b.tahun}`}
-                onClick={() => { setFilterBulan(String(b.bulan)); setFilterTahun(String(b.tahun)); }}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${filterBulan===String(b.bulan)&&filterTahun===String(b.tahun) ? 'bg-blue-500 border-blue-500 text-white' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400'}`}>
-                {b.label}
-              </button>
-            ))}
-          </div>
-        </div>
       </Card>
 
       {/* Count */}
@@ -206,31 +249,44 @@ export default function DraftPage() {
         <p className="text-xs text-slate-400 dark:text-slate-500">
           Menampilkan <strong className="text-slate-600 dark:text-slate-300">{filtered.length}</strong> arsip
           dalam <strong className="text-slate-600 dark:text-slate-300">{cabangNames.length}</strong> cabang
+          {cabangNames.length > 2 && <span> · klik nama cabang untuk membuka tabelnya</span>}
         </p>
       )}
 
-      {/* Tabel per cabang */}
+      {/* Tabel per cabang (accordion) */}
       {loading ? <Spinner size={28}/> : cabangNames.length === 0 ? (
         <div className="py-20 text-center">
           <Archive size={32} className="text-slate-300 dark:text-slate-700 mx-auto mb-3"/>
           <p className="text-sm text-slate-400 dark:text-slate-500">Belum ada arsip pengajuan</p>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-3">
           {cabangNames.map(cabang => {
             const rows = groups[cabang];
             const tTagihan = rows.reduce((s, d) => s + (Number(d.total_harga) || 0), 0);
             const tBayar   = rows.reduce((s, d) => s + (Number(d.dibayar) || 0), 0);
             const tSisa    = rows.reduce((s, d) => s + statusTagihan(d.total_harga, d.dibayar).sisa, 0);
             const noNota   = rows.filter(d => !d.nota_url).length;
+            const isOpen   = openCabang.has(cabang);
             return (
               <Card key={cabang} className="!p-0 overflow-hidden">
-                <div className="flex items-center gap-2 px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-100 dark:border-slate-800">
-                  <Building2 size={15} className="text-amber-500"/>
+                {/* Header cabang — klik untuk buka/lipat, ringkasan tetap terlihat saat terlipat */}
+                <button onClick={() => toggleCabang(cabang)} type="button"
+                  className="w-full flex items-center gap-2 px-4 py-3 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-left">
+                  {isOpen ? <ChevronDown size={15} className="text-slate-400 dark:text-slate-500 flex-shrink-0"/> : <ChevronRight size={15} className="text-slate-400 dark:text-slate-500 flex-shrink-0"/>}
+                  <Building2 size={15} className="text-amber-500 flex-shrink-0"/>
                   <p className="text-sm font-black text-slate-800 dark:text-slate-100">{cabang}</p>
                   <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500">{rows.length} pengajuan</span>
-                </div>
-                <div className="overflow-x-auto">
+                  <span className="ml-auto flex flex-wrap items-center justify-end gap-x-4 gap-y-0.5 text-[11px]">
+                    <span className="text-slate-500 dark:text-slate-400">Tagihan <strong className="text-slate-800 dark:text-slate-100">{fmtCurrency(tTagihan)}</strong></span>
+                    <span className="text-emerald-600 dark:text-emerald-400 font-bold">{fmtCurrency(tBayar)}</span>
+                    {tSisa > 0
+                      ? <span className="text-red-500 dark:text-red-400 font-bold">sisa {fmtCurrency(tSisa)}</span>
+                      : <span className="text-slate-400 dark:text-slate-500">lunas semua</span>}
+                  </span>
+                </button>
+                {isOpen && (<>
+                <div className="overflow-x-auto border-t border-slate-100 dark:border-slate-800">
                   <table className="w-full text-xs whitespace-nowrap">
                     <thead>
                       <tr className="bg-emerald-50 dark:bg-emerald-500/10 text-slate-600 dark:text-slate-300 text-left">
@@ -288,6 +344,7 @@ export default function DraftPage() {
                   <span className="text-slate-500 dark:text-slate-400">Belum Dibayar: <strong className="text-red-500 dark:text-red-400">{fmtCurrency(tTagihan - tBayar)}</strong></span>
                   {noNota > 0 && <span className="text-slate-500 dark:text-slate-400">Belum ada nota: <strong className="text-red-500 dark:text-red-400">{noNota} pengajuan</strong></span>}
                 </div>
+                </>)}
               </Card>
             );
           })}
