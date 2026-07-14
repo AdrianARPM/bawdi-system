@@ -620,8 +620,10 @@ export default function NewFormPage() {
           ...f,
           type: sub.type || 'PR', is_umum: !!sub.is_umum,
           kendaraan: sub.kendaraan || '', jenis_pembelian: sub.jenis_pembelian || '',
+          alasan: snap.alasan || '', alasan_type: snap.alasan_type || sub.alasan_type || '',
           alasan: snap.alasan || '', alasan_type: sub.alasan_type || '',
           pph23: snap.pph23 || '',
+          batas_waktu_dana: snap.batas_waktu_dana || sub.batas_waktu_dana || '', batas_akhir_pembayaran: snap.batas_akhir_pembayaran || sub.batas_akhir_pembayaran || '',
           ppn: snap.ppn != null && snap.ppn !== '' ? String(snap.ppn) : '',
           vendor: snap.vendor || '', npwp: snap.npwp || '', rekening_tujuan: snap.rekening_tujuan || '',
           vendor2: snap.vendor2 || '', npwp2: snap.npwp2 || '', useVendor2: v2.length > 0,
@@ -669,6 +671,9 @@ export default function NewFormPage() {
           vendor: form.vendor, npwp: form.npwp, rekening_tujuan: form.rekening_tujuan,
           vendor2: form.vendor2, npwp2: form.npwp2,
           ppn: parseFloat(form.ppn)||0, pph23: form.pph23||'',
+          alasan_type: form.alasan_type || '',
+          batas_waktu_dana: form.batas_waktu_dana || '',
+          batas_akhir_pembayaran: form.batas_akhir_pembayaran || null,
           items: [...itemsV1, ...itemsV2],
         };
         await revisionAPI.editSnapshot(snapshotId, payload);
@@ -884,7 +889,7 @@ export default function NewFormPage() {
             </Field>
             <Field label="Type" error={errors.alasan_type}>
               <input value={form.alasan_type} onChange={e=>set('alasan_type',e.target.value)} placeholder="Contoh: Revo Tahun 2010"
-                disabled={isRevision} className={ic('alasan_type')}/>
+                 className={ic('alasan_type')}/>   
             </Field>
             <Field label="Alasan Pengajuan" required error={errors.alasan}>
               <textarea value={form.alasan} onChange={e=>set('alasan',e.target.value)} rows={3} placeholder="Jelaskan alasan pengajuan..."
@@ -895,8 +900,8 @@ export default function NewFormPage() {
                 className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 text-sm text-slate-800 dark:text-slate-100 outline-none resize-none placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:border-amber-400 focus:ring-2 focus:ring-amber-100 dark:focus:ring-amber-500/20 leading-relaxed"/>
             </Field>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Batas Waktu Dana" required error={errors.batas_waktu_dana}><input value={form.batas_waktu_dana} onChange={e=>set('batas_waktu_dana',e.target.value)} placeholder="30 Hari" disabled={isRevision} className={ic('batas_waktu_dana')}/></Field>
-              <Field label="Batas Akhir Pembayaran" required error={errors.batas_akhir_pembayaran}><input type="date" value={form.batas_akhir_pembayaran} onChange={e=>set('batas_akhir_pembayaran',e.target.value)} disabled={isRevision} className={ic('batas_akhir_pembayaran')}/></Field>
+              <Field label="Batas Waktu Dana" required error={errors.batas_waktu_dana}><input value={form.batas_waktu_dana} onChange={e=>set('batas_waktu_dana',e.target.value)} placeholder="30 Hari"  className={ic('batas_waktu_dana')}/></Field>
+              <Field label="Batas Akhir Pembayaran" required error={errors.batas_akhir_pembayaran}><input type="date" value={form.batas_akhir_pembayaran} onChange={e=>set('batas_akhir_pembayaran',e.target.value)}  className={ic('batas_akhir_pembayaran')}/></Field>
             </div>
           </div>
         </Card>
