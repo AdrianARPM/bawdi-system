@@ -792,14 +792,18 @@ export default function DetailPage() {
   // Selalu tampilkan pesan urut waktu (naik) — tak bergantung urutan dari server
   const sortedMsgs = [...msgs].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
-  useEffect(() => {
-    if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
+useEffect(() => {
+    const el = chatRef.current;
+    if (!el) return;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    if (activeTabRefChat.current !== activeTab || nearBottom) el.scrollTop = el.scrollHeight;
+    activeTabRefChat.current = activeTab;
   }, [msgs, activeTab]);
 
   useEffect(() => {
     if (activeTab !== 'chat') return;
     const t = setInterval(async () => {
-      try { const { data } = await messageAPI.list(id); setMsgs(data.data); } catch {}
+      try { const { data } = await messageAPI.list(id); setMsgs(prev => ((data.data||[]).length === prev.length ? prev : data.data)); } catch {}
     }, 10000);
     return () => clearInterval(t);
   }, [activeTab, id]);
