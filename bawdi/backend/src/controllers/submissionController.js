@@ -108,7 +108,7 @@ async function list(req, res) {
     // Operasional biasa lihat punyanya sendiri, Kepala Op lihat semua
     if (req.user.role === 'Operasional' && !isKepalaOp(req.user)) query = query.eq('pemohon_id', req.user.id);
     if (status) query = query.eq('status', status);
-    if (belum_bayar) query = query.eq('status', 'Disetujui').is('jumlah_bayar', null);
+    if (belum_bayar) query = query.eq('status', 'Disetujui').or('jumlah_bayar.is.null,jumlah_bayar.eq.0');
     if (type)   query = query.eq('type', type);
     // Pencarian server-side: nomor pengajuan + cabang (bersihkan karakter khusus PostgREST)
     if (q && q.trim()) {
