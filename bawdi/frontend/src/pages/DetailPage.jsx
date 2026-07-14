@@ -738,6 +738,7 @@ export default function DetailPage() {
 
   const chatRef = useRef(null);
   const fotoRef = useRef(null);
+  const activeTabRefChat = useRef(null);
   const [savingFoto, setSavingFoto] = useState(false);
 
   const load = async () => {
