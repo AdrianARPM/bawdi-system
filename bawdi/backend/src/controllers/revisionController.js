@@ -164,6 +164,9 @@ async function requestRevision(req, res) {
       total_harga:      sourceData.total_harga       || 0,
       ppn:              Number(sourceData.ppn) || 0,
       pph23:            sourceData.pph23             || '',
+      alasan_type:            sourceData.alasan_type || sub.alasan_type || '',
+      batas_waktu_dana:       sourceData.batas_waktu_dana || sub.batas_waktu_dana || '',
+      batas_akhir_pembayaran: sourceData.batas_akhir_pembayaran || sub.batas_akhir_pembayaran || null,
       diminta_oleh:     req.user.id,
       alasan_revisi:    alasan_revisi.trim(),
       diminta_at:       now,
@@ -240,11 +243,11 @@ async function requestRevision(req, res) {
 // ── PUT /api/revisions/snapshot/:snapshotId — edit draft revisi ───
 async function editRevision(req, res) {
   try {
-    const { alasan, riwayat, vendor, npwp, vendor2, npwp2, rekening_tujuan, items, ppn, pph23 } = req.body;
+    const { alasan, riwayat, vendor, npwp, vendor2, npwp2, rekening_tujuan, items, ppn, pph23, alasan_type, batas_waktu_dana, batas_akhir_pembayaran } = req.body;
 
     const { data: snap, error: snapErr } = await supabase
       .from('revision_snapshots')
-      .select('id, status, submission_id, revision_number, ppn, pph23')
+      .select('id, status, submission_id, revision_number, ppn, pph23, alasan_type, batas_waktu_dana, batas_akhir_pembayaran')
       .eq('id', req.params.snapshotId)
       .single();
 
@@ -277,6 +280,9 @@ async function editRevision(req, res) {
       vendor2: vendor2 || '', npwp2: npwp2 || '',
       rekening_tujuan: rekening_tujuan || '',
       ppn: ppnVal, pph23: pph23Val,
+      alasan_type:            alasan_type            != null ? alasan_type            : (snap.alasan_type || ''),
+      batas_waktu_dana:       batas_waktu_dana       != null ? batas_waktu_dana       : (snap.batas_waktu_dana || ''),
+      batas_akhir_pembayaran: batas_akhir_pembayaran !== undefined ? (batas_akhir_pembayaran || null) : (snap.batas_akhir_pembayaran || null),
       total_harga,
     }).eq('id', req.params.snapshotId);
 
@@ -453,7 +459,7 @@ async function approveRevision(req, res) {
   try {
     const { data: snap } = await supabase
       .from('revision_snapshots')
-      .select('id, status, submission_id, revision_number, total_harga, items:revision_snapshot_items(*)')
+      .select('id, status, submission_id, revision_number, total_harga, alasan_type, batas_waktu_dana, batas_akhir_pembayaran, items:revision_snapshot_items(*)')
       .eq('id', req.params.snapshotId).single();
 
     if (!snap) return res.status(404).json({ error: 'Snapshot tidak ditemukan' });
@@ -488,6 +494,9 @@ async function approveRevision(req, res) {
       approver_id: req.user.id,
       approval_at: now,
       total_harga: snap.total_harga,  // update total untuk tracking pembayaran
+      ...(snap.alasan_type            ? { alasan_type:            snap.alasan_type }            : {}),
+      ...(snap.batas_waktu_dana       ? { batas_waktu_dana:       snap.batas_waktu_dana }       : {}),
+      ...(snap.batas_akhir_pembayaran ? { batas_akhir_pembayaran: snap.batas_akhir_pembayaran } : {}),
     }).eq('id', snap.submission_id);
 
     const { data: sub } = await supabase
