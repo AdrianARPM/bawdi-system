@@ -6,8 +6,7 @@ import { submissionAPI } from '../utils/api';
 import { Pill, Card, Spinner, Empty, fmtDate, fmtCurrency, daysSince, RevisiBadge } from '../components/ui';
 import useAuthStore from '../context/authStore';
 
-const STATUSES = ['Semua','Menunggu Verifikasi','Terverifikasi','Disetujui','Ditolak','Dibatalkan'];
-
+const STATUSES = ['Semua','Menunggu Verifikasi','Terverifikasi','Disetujui','Belum Dibayar','Ditolak','Dibatalkan'];
 export default function SubmissionsPage() {
   const { user } = useAuthStore();
   const [subs, setSubs] = useState([]);
@@ -27,7 +26,8 @@ export default function SubmissionsPage() {
     const load = async () => {
       try {
         const params = { limit: 1000 };
-        if (filter !== 'Semua')  params.status = filter;
+        if (filter === 'Belum Dibayar') params.belum_bayar = 1;
+        else if (filter !== 'Semua')    params.status = filter;
         if (debouncedQ.trim())   params.q = debouncedQ.trim();
         const { data } = await submissionAPI.list(params);
         setSubs(data.data || []);
