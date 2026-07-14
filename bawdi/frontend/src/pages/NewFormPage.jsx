@@ -612,7 +612,8 @@ export default function NewFormPage() {
           diskon: i.diskon ? String(i.diskon) : '',
           km_pengajuan: i.km_pengajuan != null ? String(i.km_pengajuan) : '',
           kategori_biaya: i.kategori_biaya || '',
-          km_manual: '', tgl_manual: '',
+          km_manual: i.km_manual != null ? String(i.km_manual) : '',
+          tgl_manual: i.tgl_manual || '',
         });
         const items1 = v1.length ? v1.map(mapItem) : [newItem()];
         setForm(f => ({
@@ -653,12 +654,14 @@ export default function NewFormPage() {
           penjelasan:i.penjelasan, satuan:i.satuan, vendor_num:1,
           harga:parseFloat(i.harga)||0, diskon:parseFloat(i.diskon)||0, total:calcItemTotal(i),
           km_pengajuan: parseInt(i.km_pengajuan) || null, kategori_biaya: i.kategori_biaya || 'Lainnya',
+          km_manual: parseInt(i.km_manual) || null, tgl_manual: i.tgl_manual || null,
         }));
         // Vendor 2 dipertahankan apa adanya (tidak diedit di layar revisi ini)
         const itemsV2 = preservedItems2.map(i => ({
           penjelasan:i.penjelasan, satuan:i.satuan, vendor_num:2,
           harga:Number(i.harga)||0, diskon:Number(i.diskon)||0, total:Number(i.total)||0,
           km_pengajuan: i.km_pengajuan != null ? Number(i.km_pengajuan) : null,
+          km_manual: i.km_manual != null ? Number(i.km_manual) : null, tgl_manual: i.tgl_manual || null,
           kategori_biaya: i.kategori_biaya || 'Lainnya',
         }));
         const payload = {
