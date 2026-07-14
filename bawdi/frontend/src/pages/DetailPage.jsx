@@ -1389,6 +1389,12 @@ export default function DetailPage() {
           <Card>
             <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Keterangan</p>
             <div className="space-y-3">
+              {sub.alasan_type?.trim() && (
+                <div>
+                  <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Type</p>
+                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{sub.alasan_type}</p>
+                </div>
+              )}
               <div>
                 <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Alasan</p>
                 <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">{sub.alasan || '—'}</p>
