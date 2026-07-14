@@ -188,6 +188,8 @@ async function requestRevision(req, res) {
         total:         calcRow(item),
         vendor_num:    item.vendor_num || 1,
         urutan:        idx + 1,
+        km_manual:     item.km_manual != null ? Number(item.km_manual) : null,
+        tgl_manual:    item.tgl_manual || null,
         km_pengajuan:  item.km_pengajuan != null ? Number(item.km_pengajuan) : null,
         kategori_biaya: item.kategori_biaya || 'Lainnya',
       }));
@@ -291,6 +293,8 @@ async function editRevision(req, res) {
         total:         calcRow(item),
         vendor_num:    item.vendor_num || 1,
         urutan:        idx + 1,
+        km_manual:     item.km_manual != null ? Number(item.km_manual) : null,
+        tgl_manual:    item.tgl_manual || null,
         km_pengajuan:  item.km_pengajuan != null ? Number(item.km_pengajuan) : null,
         kategori_biaya: item.kategori_biaya || 'Lainnya',
       }))
