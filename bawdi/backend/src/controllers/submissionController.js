@@ -91,7 +91,7 @@ async function stats(req, res) {
 // ── GET /api/submissions ──────────────────────────────────────────
 async function list(req, res) {
   try {
-    const { status, type, q, page = 1, limit = 20 } = req.query;
+    const { status, type, q, belum_bayar, page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
     let query = supabase
       .from('submissions')
@@ -108,6 +108,7 @@ async function list(req, res) {
     // Operasional biasa lihat punyanya sendiri, Kepala Op lihat semua
     if (req.user.role === 'Operasional' && !isKepalaOp(req.user)) query = query.eq('pemohon_id', req.user.id);
     if (status) query = query.eq('status', status);
+    if (belum_bayar) query = query.eq('status', 'Disetujui').is('jumlah_bayar', null);
     if (type)   query = query.eq('type', type);
     // Pencarian server-side: nomor pengajuan + cabang (bersihkan karakter khusus PostgREST)
     if (q && q.trim()) {
