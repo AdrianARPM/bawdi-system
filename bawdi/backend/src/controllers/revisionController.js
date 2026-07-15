@@ -15,6 +15,16 @@ const { sendEmailToUser, sendEmailToRole, emailTemplates } = require('../utils/e
 
 // Helper: cek apakah user adalah Kepala Operasional
 const isKepalaOp = (user) => user?.jabatan === 'Kepala Operasional';
+const DANA_SOSIAL = 'Beban Dana Sosial';
+const isHRGA = (user) => user?.jabatan === 'HRGA';
+const bolehHRGA = (user, jenis) => isHRGA(user) && jenis === DANA_SOSIAL;
+
+// Notif khusus HRGA (berdasarkan jabatan)
+async function notifyHRGA(submissionId, type, message) {
+  const { data: users } = await supabase
+    .from('users').select('id').eq('jabatan', 'HRGA').eq('is_active', true);
+  for (const u of (users || [])) await notifyUser(u.id, submissionId, type, message);
+}
 
 const BUCKET_NOTA = 'bawdi-nota';
 
@@ -91,7 +101,7 @@ async function requestRevision(req, res) {
     // ── FIX: query sederhana tanpa join yang bermasalah ──────────
     const { data: sub, error: subErr } = await supabase
       .from('submissions')
-      .select('id, type, nomor_pengajuan, status, pemohon_id, total_harga, alasan, riwayat, vendor, npwp, vendor2, npwp2, rekening_tujuan, revisi_diminta_oleh, ppn, pph23')
+      .select('id, type, nomor_pengajuan, status, pemohon_id, total_harga, alasan, riwayat, vendor, npwp, vendor2, npwp2, rekening_tujuan, revisi_diminta_oleh, ppn, pph23, jenis_pembelian, alasan_type, batas_waktu_dana, batas_akhir_pembayaran')
       .eq('id', submissionId)
       .single();
 
@@ -105,10 +115,10 @@ async function requestRevision(req, res) {
     // PR:  Verifikator + Approval + Admin yang bisa request revisi
     const isPAR = sub.type === 'PAR';
     if (isPAR) {
-      if (!isKepalaOp(req.user) && req.user.role !== 'Admin')
+      if (!isKepalaOp(req.user) && req.user.role !== 'Admin' && !bolehHRGA(req.user, sub.jenis_pembelian))
         return res.status(403).json({ error: 'Hanya Kepala Operasional yang dapat meminta revisi pengajuan PAR' });
     } else {
-      if (!['Verifikator', 'Approval', 'Admin'].includes(req.user.role))
+      if (!['Verifikator', 'Approval', 'Admin'].includes(req.user.role) && !bolehHRGA(req.user, sub.jenis_pembelian))
         return res.status(403).json({ error: 'Anda tidak memiliki izin meminta revisi pengajuan PR' });
     }
 
@@ -354,7 +364,7 @@ async function submitRevision(req, res) {
     // Ambil data submission untuk notifikasi
     const { data: sub } = await supabase
       .from('submissions')
-      .select('nomor_pengajuan, pemohon_id, revisi_diminta_oleh')
+      .select('nomor_pengajuan, pemohon_id, revisi_diminta_oleh, jenis_pembelian')
       .eq('id', snap.submission_id)
       .single();
 
@@ -364,8 +374,13 @@ async function submitRevision(req, res) {
       is_system: true,
     });
 
-    await notifyRole('Verifikator', snap.submission_id, 'revision_done',
-      `✅ Revisi ke-${snap.revision_number} pengajuan ${sub?.nomor_pengajuan} sudah selesai, silakan verifikasi ulang.`);
+    if (sub?.jenis_pembelian === DANA_SOSIAL) {
+      await notifyHRGA(snap.submission_id, 'revision_done',
+        `✅ Revisi ke-${snap.revision_number} pengajuan ${sub?.nomor_pengajuan} sudah selesai, silakan proses.`);
+    } else {
+      await notifyRole('Verifikator', snap.submission_id, 'revision_done',
+        `✅ Revisi ke-${snap.revision_number} pengajuan ${sub?.nomor_pengajuan} sudah selesai, silakan verifikasi ulang.`);
+    }
 
     if (sub?.revisi_diminta_oleh) {
       await notifyUser(sub.revisi_diminta_oleh, snap.submission_id, 'revision_done',
@@ -393,15 +408,15 @@ async function verifyRevision(req, res) {
 
     // Cek tipe submission
     const { data: subType } = await supabase
-      .from('submissions').select('type').eq('id', snap.submission_id).single();
+      .from('submissions').select('type, jenis_pembelian').eq('id', snap.submission_id).single();
     const isPAR = subType?.type === 'PAR';
 
     // Authorization
     if (isPAR) {
-      if (!isKepalaOp(req.user) && req.user.role !== 'Admin')
+      if (!isKepalaOp(req.user) && req.user.role !== 'Admin' && !bolehHRGA(req.user, subType?.jenis_pembelian))
         return res.status(403).json({ error: 'Hanya Kepala Operasional yang dapat memverifikasi revisi PAR' });
     } else {
-      if (!['Verifikator', 'Admin'].includes(req.user.role))
+      if (!['Verifikator', 'Admin'].includes(req.user.role) && !bolehHRGA(req.user, subType?.jenis_pembelian))
         return res.status(403).json({ error: 'Hanya Verifikator yang dapat memverifikasi revisi PR' });
     }
 
@@ -415,7 +430,7 @@ async function verifyRevision(req, res) {
     }).eq('id', snap.submission_id);
 
     const { data: sub } = await supabase
-      .from('submissions').select('nomor_pengajuan').eq('id', snap.submission_id).single();
+      .from('submissions').select('nomor_pengajuan, jenis_pembelian').eq('id', snap.submission_id).single();
 
     await supabase.from('messages').insert({
       id: uuidv4(), submission_id: snap.submission_id, user_id: req.user.id,
@@ -439,8 +454,13 @@ async function verifyRevision(req, res) {
         nomor: sub?.nomor_pengajuan, submissionId: snap.submission_id, type: 'need_approval',
       }).catch(() => {});
     } else {
+      if (sub?.jenis_pembelian === DANA_SOSIAL) {
+        await notifyHRGA(snap.submission_id, 'need_approval',
+          `📋 Revisi ke-${snap.revision_number} pengajuan ${sub?.nomor_pengajuan} menunggu persetujuan Anda.`);
+      } else {
       await notifyRole('Approval', snap.submission_id, 'need_approval',
         `📋 Revisi ke-${snap.revision_number} pengajuan ${sub?.nomor_pengajuan} menunggu persetujuan.`);
+      }
       sendEmailToRole('Approval', {
         ...emailTemplates.need_approval(sub?.nomor_pengajuan),
         nomor: sub?.nomor_pengajuan, submissionId: snap.submission_id, type: 'need_approval',
@@ -468,15 +488,15 @@ async function approveRevision(req, res) {
 
     // Cek tipe submission
     const { data: subType } = await supabase
-      .from('submissions').select('type').eq('id', snap.submission_id).single();
+      .from('submissions').select('type, jenis_pembelian').eq('id', snap.submission_id).single();
     const isPAR = subType?.type === 'PAR';
 
     // Authorization
     if (isPAR) {
-      if (!isKepalaOp(req.user) && req.user.role !== 'Admin')
+      if (!isKepalaOp(req.user) && req.user.role !== 'Admin' && !bolehHRGA(req.user, subType?.jenis_pembelian))
         return res.status(403).json({ error: 'Hanya Kepala Operasional yang dapat menyetujui revisi PAR' });
     } else {
-      if (!['Approval', 'Admin'].includes(req.user.role))
+      if (!['Approval', 'Admin'].includes(req.user.role) && !bolehHRGA(req.user, subType?.jenis_pembelian))
         return res.status(403).json({ error: 'Hanya Approval yang dapat menyetujui revisi PR' });
     }
 
@@ -551,13 +571,13 @@ async function rejectRevision(req, res) {
 
     // Cek tipe & authorization
     const { data: subType } = await supabase
-      .from('submissions').select('type').eq('id', snap.submission_id).single();
+      .from('submissions').select('type, jenis_pembelian').eq('id', snap.submission_id).single();
     const isPAR = subType?.type === 'PAR';
     if (isPAR) {
-      if (!isKepalaOp(req.user) && req.user.role !== 'Admin')
+      if (!isKepalaOp(req.user) && req.user.role !== 'Admin' && !bolehHRGA(req.user, subType?.jenis_pembelian))
         return res.status(403).json({ error: 'Hanya Kepala Operasional yang dapat menolak revisi PAR' });
     } else {
-      if (!['Approval', 'Verifikator', 'Admin'].includes(req.user.role))
+      if (!['Approval', 'Verifikator', 'Admin'].includes(req.user.role) && !bolehHRGA(req.user, subType?.jenis_pembelian))
         return res.status(403).json({ error: 'Anda tidak memiliki izin menolak revisi PR' });
     }
 
