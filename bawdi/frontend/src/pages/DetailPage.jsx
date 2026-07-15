@@ -195,6 +195,9 @@ function RevisiPanel({ snapshot, sub, user, onAction }) {
         </p>
         {[
           ['Alasan',    snapshot.alasan],
+          ...(snapshot.alasan_type            ? [['Type',              snapshot.alasan_type]]            : []),
+          ...(snapshot.batas_waktu_dana       ? [['Batas Waktu Dana',  snapshot.batas_waktu_dana]]       : []),
+          ...(snapshot.batas_akhir_pembayaran ? [['Batas Akhir Bayar', fmtDate(snapshot.batas_akhir_pembayaran)]] : []),
           ...(snapshot.pph23 ? [['Pph23', snapshot.pph23]] : []),
           ['Vendor 1',  snapshot.vendor],
           ...(snapshot.npwp            ? [['NPWP Vendor 1',  snapshot.npwp]]            : []),
@@ -893,6 +896,9 @@ useEffect(() => {
         total_harga:      lastRevision.total_harga,
         ppn:              lastRevision.ppn,
         pph23:            lastRevision.pph23,
+        alasan_type:            lastRevision.alasan_type || sub.alasan_type,
+        batas_waktu_dana:       lastRevision.batas_waktu_dana || sub.batas_waktu_dana,
+        batas_akhir_pembayaran: lastRevision.batas_akhir_pembayaran || sub.batas_akhir_pembayaran,
         items:            lastRevision.items,   // ← items dari snapshot, bukan submission_items
         _isRevision:      true,
         _revisionNumber:  lastRevision.revision_number,
