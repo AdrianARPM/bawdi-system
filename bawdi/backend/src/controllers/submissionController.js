@@ -173,6 +173,7 @@ async function create(req, res) {
         .select('*', { count: 'exact', head: true })
         .eq('nomor_urut', nomor_urut)
         .ilike('cabang_manual', cabang_manual.trim());
+      .neq('status', 'Dibatalkan')
       if (count > 0) {
         return res.status(400).json({
           error: `Nomor urut ${nomor_urut} sudah digunakan di project/cabang ${cabang_manual}.`
@@ -572,17 +573,24 @@ async function cancelSubmission(req, res) {
     if (Number(sub.jumlah_bayar) > 0 || Number(sub.jumlah_dp) > 0)
       return res.status(400).json({ error: 'Pengajuan yang sudah ada pembayaran/DP tidak dapat dibatalkan dari UI' });
 
+    // Bebaskan nomor: beri sufiks -BATAL agar nomor asli bisa dipakai ulang
+    const { count: nBatal } = await supabase.from('submissions')
+      .select('*', { count: 'exact', head: true })
+      .ilike('nomor_pengajuan', `${sub.nomor_pengajuan}-BATAL%`);
+    const nomorBatal = `${sub.nomor_pengajuan}-BATAL${nBatal > 0 ? nBatal + 1 : ''}`;
+    
     const { error } = await supabase.from('submissions').update({
       status:          'Dibatalkan',
       alasan_batal:    alasan.trim(),
       dibatalkan_at:   new Date().toISOString(),
       dibatalkan_oleh: req.user.id,
+      nomor_pengajuan: nomorBatal,
     }).eq('id', sub.id);
     if (error) throw error;
 
     await notifyUser(sub.pemohon_id, sub.id, 'dibatalkan',
       `Pengajuan ${sub.nomor_pengajuan} dibatalkan oleh ${req.user.name}: ${alasan.trim()}`);
-    logAudit(req, { action: 'batalkan', target: sub.nomor_pengajuan, submissionId: sub.id, detail: alasan.trim() });
+    logAudit(req, { action: 'batalkan', target: sub.nomor_pengajuan, submissionId: sub.id, detail: `${alasan.trim()} · nomor dibebaskan: ${sub.nomor_pengajuan} → ${nomorBatal}` });
 
     res.json({ message: `Pengajuan ${sub.nomor_pengajuan} dibatalkan` });
   } catch (err) {
