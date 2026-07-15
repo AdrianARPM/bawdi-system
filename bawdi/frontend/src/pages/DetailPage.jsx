@@ -107,8 +107,9 @@ function RevisiPanel({ snapshot, sub, user, onAction }) {
   // PAR: keduanya oleh Kepala Operasional (atau Admin) — backend memang mengizinkannya.
   const isPARSnap       = sub?.type === 'PAR';
   const kepalaOpOrAdmin = user.jabatan === 'Kepala Operasional' || user.role === 'Admin';
-  const canVerify  = (isPARSnap ? kepalaOpOrAdmin : user.role === 'Verifikator') && snapshot.status === 'submitted';
-  const canApprove = (isPARSnap ? kepalaOpOrAdmin : user.role === 'Approval')    && snapshot.status === 'terverifikasi';
+  const hrgaDanaSosial  = user.jabatan === 'HRGA' && sub?.jenis_pembelian === 'Beban Dana Sosial';
+  const canVerify  = ((isPARSnap ? kepalaOpOrAdmin : user.role === 'Verifikator') || hrgaDanaSosial) && snapshot.status === 'submitted';
+  const canApprove = ((isPARSnap ? kepalaOpOrAdmin : user.role === 'Approval')    || hrgaDanaSosial) && snapshot.status === 'terverifikasi';
 
   return (
     <div className="space-y-4">
@@ -925,11 +926,12 @@ useEffect(() => {
   // Cek apakah user adalah Kepala Operasional (berdasarkan jabatan)
   const isKepalaOp = user.jabatan === 'Kepala Operasional';
   const isPAR      = sub.type === 'PAR';
+  const isHRGADanaSosial = user.jabatan === 'HRGA' && sub.jenis_pembelian === 'Beban Dana Sosial';
 
   // Permission request revisi — beda untuk PR vs PAR
   const canRequestRevision = isPAR
-    ? (isKepalaOp || user.role === 'Admin') && ['Disetujui', 'Menunggu Verifikasi'].includes(sub.status)
-    : ['Verifikator', 'Approval', 'Admin'].includes(user.role) &&
+    ? (isKepalaOp || user.role === 'Admin' || isHRGADanaSosial) && ['Disetujui', 'Menunggu Verifikasi'].includes(sub.status)
+    : (['Verifikator', 'Approval', 'Admin'].includes(user.role) || isHRGADanaSosial) &&
       ['Disetujui', 'Terverifikasi', 'Menunggu Verifikasi'].includes(sub.status) &&
       sub.status !== 'Selesai';
 
@@ -1146,7 +1148,7 @@ useEffect(() => {
       {/* ── ACTION BANNERS — berbeda untuk PR vs PAR ─────────── */}
 
       {/* PR — Verifikator: verifikasi */}
-      {!isPAR && user.role === 'Verifikator' && sub.status === 'Menunggu Verifikasi' && (
+      {!isPAR && (user.role === 'Verifikator' || isHRGADanaSosial) && sub.status === 'Menunggu Verifikasi' && (
         revisiAktif ? (
           <div className="bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-2xl p-4 flex items-center justify-between gap-3">
             <div>
@@ -1173,7 +1175,7 @@ useEffect(() => {
       )}
 
       {/* PR — Approval: setujui/tolak */}
-      {!isPAR && user.role === 'Approval' && sub.status === 'Terverifikasi' && (
+      {!isPAR && (user.role === 'Approval' || isHRGADanaSosial) && sub.status === 'Terverifikasi' && (
         revisiAktif ? (
           <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-2xl p-4 flex items-center justify-between gap-3">
             <div>
@@ -1199,7 +1201,7 @@ useEffect(() => {
       )}
 
       {/* PAR — Kepala Operasional: langsung setujui/tolak dari status Menunggu Verifikasi */}
-      {isPAR && isKepalaOp && ['Menunggu Verifikasi', 'Terverifikasi'].includes(sub.status) && (
+      {isPAR && (isKepalaOp || isHRGADanaSosial) && ['Menunggu Verifikasi', 'Terverifikasi'].includes(sub.status) && (
         revisiAktif ? (
           <div className="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 rounded-2xl p-4 flex items-center justify-between gap-3">
             <div>
