@@ -13,6 +13,11 @@ const { logAudit } = require('../utils/auditLogger');
 // Helper: cek apakah user adalah Kepala Operasional
 const isKepalaOp = (user) => user?.jabatan === 'Kepala Operasional';
 
+// ── HRGA: verifikasi & approval khusus jenis pembelian Beban Dana Sosial ──
+const DANA_SOSIAL = 'Beban Dana Sosial';
+const isHRGA = (user) => user?.jabatan === 'HRGA';
+const bolehHRGA = (user, jenis) => isHRGA(user) && jenis === DANA_SOSIAL;
+
 // ── Helper notif ───────────────────────────────────────────────────
 async function notifyRole(role, submissionId, type, message) {
   const { data: users } = await supabase
@@ -44,6 +49,24 @@ async function notifyKepalaOp(submissionId, type, message) {
 }
 
 // Email ke Kepala Operasional
+// Notif khusus HRGA (cari berdasarkan jabatan)
+async function notifyHRGA(submissionId, type, message) {
+  const { data: users } = await supabase
+    .from('users').select('id').eq('jabatan', 'HRGA').eq('is_active', true);
+  for (const u of (users || [])) await notifyUser(u.id, submissionId, type, message);
+}
+
+async function sendEmailToHRGA({ subject, message, nomor, submissionId, type }) {
+  try {
+    const { data: users } = await supabase.from('users').select('email')
+      .eq('jabatan', 'HRGA').eq('is_active', true).eq('email_notif', true);
+    const { sendEmail } = require('../utils/emailService');
+    await Promise.all((users || []).filter(u => u.email).map(u =>
+      sendEmail({ to: u.email, subject, message, nomor, submissionId, type })
+    ));
+  } catch (e) { console.error('[sendEmailToHRGA]', e.message); }
+}
+
 async function sendEmailToKepalaOp({ subject, message, nomor, submissionId, type }) {
   try {
     const { data: users } = await supabase
@@ -63,7 +86,10 @@ async function sendEmailToKepalaOp({ subject, message, nomor, submissionId, type
 async function stats(req, res) {
   try {
     let base = supabase.from('submissions').select('status, tanggal', { count: 'exact' });
-    if (req.user.role === 'Operasional' && !isKepalaOp(req.user)) base = base.eq('pemohon_id', req.user.id);
+    if (req.user.role === 'Operasional' && !isKepalaOp(req.user))
+      base = isHRGA(req.user)
+        ? base.or(`pemohon_id.eq.${req.user.id},jenis_pembelian.eq."${DANA_SOSIAL}"`)
+        : base.eq('pemohon_id', req.user.id);
     const { data } = await base;
     const today = new Date().toDateString();
     const result = {
@@ -79,7 +105,10 @@ async function stats(req, res) {
       .select('id, nomor_pengajuan, tanggal, status')
       .in('status', ['Menunggu Verifikasi', 'Terverifikasi'])
       .lt('tanggal', twoDaysAgo);
-    if (req.user.role === 'Operasional' && !isKepalaOp(req.user)) alertQuery = alertQuery.eq('pemohon_id', req.user.id);
+    if (req.user.role === 'Operasional' && !isKepalaOp(req.user))
+      alertQuery = isHRGA(req.user)
+        ? alertQuery.or(`pemohon_id.eq.${req.user.id},jenis_pembelian.eq."${DANA_SOSIAL}"`)
+        : alertQuery.eq('pemohon_id', req.user.id);
     const { data: alerts } = await alertQuery;
     result.alerts = alerts || [];
     res.json(result);
@@ -106,7 +135,10 @@ async function list(req, res) {
       .order('tanggal', { ascending: false })
       .range(offset, offset + Number(limit) - 1);
     // Operasional biasa lihat punyanya sendiri, Kepala Op lihat semua
-    if (req.user.role === 'Operasional' && !isKepalaOp(req.user)) query = query.eq('pemohon_id', req.user.id);
+    if (req.user.role === 'Operasional' && !isKepalaOp(req.user))
+      query = isHRGA(req.user)
+        ? query.or(`pemohon_id.eq.${req.user.id},jenis_pembelian.eq."${DANA_SOSIAL}"`)
+        : query.eq('pemohon_id', req.user.id);
     if (status) query = query.eq('status', status);
     if (belum_bayar) query = query.eq('status', 'Disetujui').or('jumlah_bayar.is.null,jumlah_bayar.eq.0');
     if (type)   query = query.eq('type', type);
@@ -141,7 +173,7 @@ async function getOne(req, res) {
       .single();
     if (error || !data) return res.status(404).json({ error: 'Pengajuan tidak ditemukan' });
     // Operasional biasa hanya boleh buka punyanya sendiri (Kepala Op boleh semua)
-    if (req.user.role === 'Operasional' && !isKepalaOp(req.user) && data.pemohon_id !== req.user.id)
+    if (req.user.role === 'Operasional' && !isKepalaOp(req.user) && data.pemohon_id !== req.user.id && !bolehHRGA(req.user, data.jenis_pembelian))
       return res.status(403).json({ error: 'Akses ditolak' });
     res.json({ data });
   } catch (err) {
@@ -243,7 +275,13 @@ async function create(req, res) {
     }, { onConflict: 'submission_id,type' });
 
     // ── Notifikasi & email — beda untuk PR vs PAR ────────────────
-    if (type === 'PAR') {
+    if (jenis_pembelian === DANA_SOSIAL) {
+      // Dana Sosial: notif & email langsung ke HRGA (verifikasi & approval oleh HRGA)
+      await notifyHRGA(submissionId, 'new_submission',
+        `📋 Pengajuan Dana Sosial baru ${nomor_pengajuan} dari ${req.user.name} menunggu proses Anda.`);
+      const tmplHrga = emailTemplates.new_submission(nomor_pengajuan, req.user.name);
+      sendEmailToHRGA({ ...tmplHrga, nomor: nomor_pengajuan, submissionId, type: 'new_submission' }).catch(() => {});
+    } else if (type === 'PAR') {
       // PAR: notif langsung ke Kepala Operasional
       await notifyKepalaOp(submissionId, 'new_submission',
         `📋 Pengajuan PAR baru ${nomor_pengajuan} dari ${req.user.name} menunggu persetujuan Anda.`);
@@ -303,7 +341,7 @@ async function selectVendor(req, res) {
 async function verify(req, res) {
   try {
     const { data: sub } = await supabase.from('submissions')
-      .select('type, status, nomor_pengajuan, pemohon_id').eq('id', req.params.id).single();
+      .select('type, status, nomor_pengajuan, pemohon_id, jenis_pembelian').eq('id', req.params.id).single();
     if (!sub) return res.status(404).json({ error: 'Pengajuan tidak ditemukan' });
 
     // PAR tidak boleh diverifikasi (langsung approve oleh Kepala Op)
@@ -312,8 +350,8 @@ async function verify(req, res) {
     }
 
     // Cek role
-    if (!['Verifikator', 'Admin'].includes(req.user.role))
-      return res.status(403).json({ error: 'Hanya Verifikator yang dapat memverifikasi pengajuan PR' });
+    if (!['Verifikator', 'Admin'].includes(req.user.role) && !bolehHRGA(req.user, sub.jenis_pembelian))
+      return res.status(403).json({ error: 'Hanya Verifikator (atau HRGA untuk Beban Dana Sosial) yang dapat memverifikasi pengajuan PR' });
 
     if (sub.status !== 'Menunggu Verifikasi')
       return res.status(400).json({ error: 'Status tidak memungkinkan verifikasi' });
@@ -355,7 +393,7 @@ async function verify(req, res) {
 async function approve(req, res) {
   try {
     const { data: sub } = await supabase.from('submissions')
-      .select('type, status, nomor_pengajuan, pemohon_id, batas_akhir_pembayaran')
+      .select('type, status, nomor_pengajuan, pemohon_id, batas_akhir_pembayaran, jenis_pembelian')
       .eq('id', req.params.id).single();
     if (!sub) return res.status(404).json({ error: 'Pengajuan tidak ditemukan' });
 
@@ -363,11 +401,11 @@ async function approve(req, res) {
 
     // ── Authorization check ─────────────────────────────────────
     if (isPAR) {
-      if (!isKepalaOp(req.user) && req.user.role !== 'Admin')
-        return res.status(403).json({ error: 'Hanya Kepala Operasional yang dapat menyetujui pengajuan PAR' });
+      if (!isKepalaOp(req.user) && req.user.role !== 'Admin' && !bolehHRGA(req.user, sub.jenis_pembelian))
+        return res.status(403).json({ error: 'Hanya Kepala Operasional (atau HRGA untuk Beban Dana Sosial) yang dapat menyetujui pengajuan PAR' });
     } else {
-      if (!['Approval', 'Admin'].includes(req.user.role))
-        return res.status(403).json({ error: 'Hanya Approval yang dapat menyetujui pengajuan PR' });
+      if (!['Approval', 'Admin'].includes(req.user.role) && !bolehHRGA(req.user, sub.jenis_pembelian))
+        return res.status(403).json({ error: 'Hanya Approval (atau HRGA untuk Beban Dana Sosial) yang dapat menyetujui pengajuan PR' });
     }
 
     // ── Status check ────────────────────────────────────────────
@@ -446,17 +484,17 @@ async function reject(req, res) {
     if (!alasan_tolak?.trim()) return res.status(400).json({ error: 'Alasan penolakan wajib diisi' });
 
     const { data: sub } = await supabase.from('submissions')
-      .select('type, status, nomor_pengajuan, pemohon_id').eq('id', req.params.id).single();
+      .select('type, status, nomor_pengajuan, pemohon_id, jenis_pembelian').eq('id', req.params.id).single();
     if (!sub) return res.status(404).json({ error: 'Pengajuan tidak ditemukan' });
 
     const isPAR = sub.type === 'PAR';
 
     // Authorization
     if (isPAR) {
-      if (!isKepalaOp(req.user) && req.user.role !== 'Admin')
+      if (!isKepalaOp(req.user) && req.user.role !== 'Admin' && !bolehHRGA(req.user, sub.jenis_pembelian))
         return res.status(403).json({ error: 'Hanya Kepala Operasional yang dapat menolak pengajuan PAR' });
     } else {
-      if (!['Approval', 'Verifikator', 'Admin'].includes(req.user.role))
+      if (!['Approval', 'Verifikator', 'Admin'].includes(req.user.role) && !bolehHRGA(req.user, sub.jenis_pembelian))
         return res.status(403).json({ error: 'Anda tidak memiliki izin menolak pengajuan PR' });
     }
 
