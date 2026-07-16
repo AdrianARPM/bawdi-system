@@ -2,7 +2,7 @@
 const supabase = require('../../config/supabase');
 
 // Hanya role manajemen yang boleh akses analitik
-const MANAGER_ROLES = ['Admin', 'Verifikator', 'Approval'];
+const MANAGER_ROLES = ['Admin', 'Verifikator', 'Approval', 'Pengawas'];
 const isManager = (user) =>
   MANAGER_ROLES.includes(user?.role) || user?.jabatan === 'Kepala Operasional';
 
