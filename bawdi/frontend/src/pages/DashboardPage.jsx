@@ -86,6 +86,23 @@ if (loading) return <Spinner size={32} />;
         <StatCard label="Ditolak"     value={stats?.ditolak ?? 0}             icon={XCircle}      iconBg="bg-red-50 dark:bg-red-500/10"      iconColor="text-red-600 dark:text-red-400" />
       </div>
 
+      {/* Request Pembayaran (Admin/Verifikator/Approval) */}
+      {['Admin','Verifikator','Approval'].includes(user?.role) && stats?.payment_requests?.length > 0 && (
+        <Card padding={false}>
+          <div className="px-4 py-3 border-b border-slate-50 dark:border-slate-800">
+            <p className="text-sm font-bold text-slate-700 dark:text-slate-200">💳 Request Pembayaran</p>
+          </div>
+          {stats.payment_requests.map((r, i) => (
+            <Link key={r.id} to={`/submissions/${r.id}`}
+              className={`flex items-center gap-2.5 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors ${i < stats.payment_requests.length-1 ? 'border-b border-slate-50 dark:border-slate-800' : ''}`}>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0"/>
+              <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">{r.nomor_pengajuan}</span>
+              <span className="ml-auto text-[10px] text-slate-400 dark:text-slate-500 flex-shrink-0">{fmtDate(r.bayar_diminta_at)}</span>
+            </Link>
+          ))}
+        </Card>
+      )}
+
       {/* Recent submissions */}
       <Card padding={false}>
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-50 dark:border-slate-800">
