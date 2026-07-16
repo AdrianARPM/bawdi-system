@@ -80,7 +80,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 gap-3">
         <StatCard label="Hari Ini"    value={stats?.today ?? 0}               icon={FileText}     iconBg="bg-blue-50 dark:bg-blue-500/10"     iconColor="text-blue-600 dark:text-blue-400" />
         <StatCard label="Dalam Proses" value={(stats?.menunggu_verifikasi ?? 0) + (stats?.terverifikasi ?? 0)} icon={Clock} iconBg="bg-amber-50 dark:bg-amber-500/10" iconColor="text-amber-600 dark:text-amber-400" />
-        <StatCard label="Disetujui"   value={stats?.disetujui ?? 0}           icon={CheckCircle}  iconBg="bg-emerald-50 dark:bg-emerald-500/10"  iconColor="text-emerald-600 dark:text-emerald-400" />
+        <StatCard label="Disetujui (belum di tutup)"   value={stats?.disetujui ?? 0}           icon={CheckCircle}  iconBg="bg-emerald-50 dark:bg-emerald-500/10"  iconColor="text-emerald-600 dark:text-emerald-400" />
         <StatCard label="Ditolak"     value={stats?.ditolak ?? 0}             icon={XCircle}      iconBg="bg-red-50 dark:bg-red-500/10"      iconColor="text-red-600 dark:text-red-400" />
       </div>
 
