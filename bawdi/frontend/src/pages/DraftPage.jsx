@@ -11,7 +11,7 @@ import { revisionAPI } from '../utils/api';
 import { Card, Spinner, fmtDate, fmtCurrency } from '../components/ui';
 import useAuthStore from '../context/authStore';
 
-const ALLOWED_ROLES = ['Admin', 'Verifikator', 'Approval', 'Operasional'];
+const ALLOWED_ROLES = ['Admin', 'Verifikator', 'Approval', 'Operasional', 'Pengawas'];
 // Operasional hanya melihat arsip pengajuannya sendiri (difilter di backend)
 
 // Default periode = tahun berjalan, agar halaman tetap ringan saat arsip menumpuk
