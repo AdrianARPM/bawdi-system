@@ -15,9 +15,8 @@ router.post('/', authorize('Operasional', 'Admin'), ctrl.create);
 
 // Verify hanya untuk PR — controller cek tipe & role
 router.put('/:id/verify',  authorize('Verifikator', 'Admin', 'Operasional'), ctrl.verify);
-
 // Approve & Reject — buka untuk Operasional juga (untuk Kepala Op pada PAR)
-// Controller akan cek tipe dan jabatan yang sesuai
+// Controller akan cek tipe dan jabatan yang sesuai 
 router.put('/:id/approve', authorize('Approval', 'Admin', 'Operasional'), ctrl.approve);
 router.put('/:id/request-payment', authorize('Operasional', 'Admin'), ctrl.requestPayment);
 router.put('/:id/reject',  authorize('Approval', 'Verifikator', 'Admin', 'Operasional'), ctrl.reject);
