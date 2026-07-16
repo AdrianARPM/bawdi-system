@@ -43,7 +43,7 @@ export default function App() {
           <Route path="submissions/:id/revisi/:snapshotId" element={<NewFormPage />} />
           <Route path="users"           element={<PrivateRoute roles={['Admin']}><UsersPage /></PrivateRoute>} />
           <Route path="draft"           element={<DraftPage />} />
-          <Route path="analytics"       element={<PrivateRoute roles={['Admin','Verifikator','Approval','Operasional']}><AnalyticsPage /></PrivateRoute>} />
+          <Route path="analytics"       element={<PrivateRoute roles={['Admin','Verifikator','Approval','Pengawas']}><AnalyticsPage /></PrivateRoute>} />
           <Route path="vehicles"        element={<VehiclesPage />} />
           <Route path="status"          element={<PrivateRoute roles={['Admin']}><StatusPage /></PrivateRoute>} />
         </Route>
