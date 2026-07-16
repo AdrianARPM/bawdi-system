@@ -1,6 +1,6 @@
 // src/pages/DashboardPage.jsx — v2 (Dark Mode Tahap 2: hanya penambahan varian dark:, tanpa perubahan fitur)
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, Navigate } from 'react-router-dom';
 import { LayoutDashboard, FileText, Clock, CheckCircle, XCircle, AlertTriangle, Plus } from 'lucide-react';
 import { submissionAPI } from '../utils/api';
 import { StatCard, Pill, fmtDate, fmtCurrency, daysSince, Spinner, Card } from '../components/ui';
@@ -35,7 +35,9 @@ export default function DashboardPage() {
     return () => clearInterval(t);
   }, []);
 
-  if (loading) return <Spinner size={32} />;
+if (loading) return <Spinner size={32} />;
+
+  if (user?.role === 'Pengawas') return <Navigate to="/submissions" replace/>;
 
   return (
     <div className="space-y-5 max-w-2xl mx-auto">
