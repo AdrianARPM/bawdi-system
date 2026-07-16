@@ -1138,11 +1138,13 @@ useEffect(() => {
           </div>
         </div>
         {/* Export PDF */}
+        {user.role !== 'Pengawas' && (
         <button onClick={handleExportPDF} disabled={exporting}
           className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white text-xs font-bold transition-all flex-shrink-0">
           {exporting ? <Loader size={12} className="animate-spin"/> : <FileText size={12}/>}
           PDF
         </button>
+        )}
       </div>
 
       {/* ── ACTION BANNERS — berbeda untuk PR vs PAR ─────────── */}
@@ -1571,6 +1573,7 @@ useEffect(() => {
               );
             })}
           </div>
+          {user.role !== 'Pengawas' && (
           <div className="px-4 py-3 border-t border-slate-50 dark:border-slate-800 flex gap-2">
             <textarea value={msg} onChange={e => setMsg(e.target.value)}
               onKeyDown={e => { 
@@ -1585,6 +1588,7 @@ useEffect(() => {
               <Send size={15} className={msg.trim() ? 'text-white' : 'text-slate-400 dark:text-slate-500'}/>
             </button>
           </div>
+          )}
         </Card>
       )}
     </div>
