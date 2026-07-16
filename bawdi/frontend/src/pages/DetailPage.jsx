@@ -1297,7 +1297,7 @@ useEffect(() => {
               { label: 'Menunggu Verifikasi', info: sub.verifikasi_at ? `Diterima ${fmtDate(sub.verifikasi_at)}` : 'Menunggu...', done: !!sub.verifikasi_at },
               { label: 'Diverifikasi',        info: sub.verifikator_id ? [sub.verifikator?.name, sub.verifikasi_at && fmtDate(sub.verifikasi_at)].filter(Boolean).join(' · ') : '—', done: !!sub.verifikator_id },
               ...(revisions.length > 0 ? [{ label: `${revisions.length}x Revisi`, info: sub.revisi_selesai_at ? `Selesai ${fmtDate(sub.revisi_selesai_at)}` : 'Ada revisi', done: !!sub.revisi_selesai_at, isRevisi: true }] : []),
-              { label: 'Keputusan Approval',  info: sub.approval_at ? `${sub.status} · ${fmtDate(sub.approval_at)}` : 'Menunggu...', done: !!sub.approval_at, isReject: sub.status === 'Ditolak' },
+              { label: 'Keputusan Pengajuan',  info: sub.approval_at ? `${sub.status} · ${fmtDate(sub.approval_at)}` : 'Menunggu...', done: !!sub.approval_at, isReject: sub.status === 'Ditolak' },
               ...(['Disetujui', 'Selesai'].includes(sub.status) ? [
                 { label: 'Pembayaran', info: sub.tanggal_bayar ? `${fmtCurrency(sub.jumlah_bayar)} · ${fmtDate(sub.tanggal_bayar)}` : 'Belum dicatat', done: !!sub.tanggal_bayar },
                 { label: 'Selesai',    info: sub.ditutup_at ? `Ditutup ${fmtDate(sub.ditutup_at)}` : 'Menunggu...', done: sub.status === 'Selesai' },
