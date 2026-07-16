@@ -6,8 +6,8 @@ import useAuthStore from '../context/authStore';
 import NotificationBell from './NotificationBell';
 import { getThemePref, setThemePref } from '../utils/theme';
 
-const ROLE_COLOR = { Operasional:'bg-amber-400', Verifikator:'bg-blue-500', Approval:'bg-emerald-500', Admin:'bg-violet-500' };
-const DRAFT_ROLES = ['Admin', 'Verifikator', 'Approval', 'Operasional'];
+const ROLE_COLOR = { Operasional:'bg-amber-400', Verifikator:'bg-blue-500', Approval:'bg-emerald-500', Admin:'bg-violet-500', Pengawas:'bg-slate-500' };
+const DRAFT_ROLES = ['Admin', 'Verifikator', 'Approval', 'Operasional', 'Pengawas'];
 
 const THEME_OPTS = [
   { value: 'light',  icon: Sun,     label: 'Terang' },
@@ -102,7 +102,7 @@ export default function Layout() {
           <NavItem to="/draft" icon={Archive} label="Draft / Arsip" onClick={close}/>
         )}
         {/* Analitik — manajemen & Kepala Operasional */}
-        {(['Admin','Verifikator','Approval'].includes(user?.role) || user?.jabatan === 'Kepala Operasional') && (
+        {(['Admin','Verifikator','Approval','Pengawas'].includes(user?.role) || user?.jabatan === 'Kepala Operasional') && (
           <NavItem to="/analytics" icon={BarChart3} label="Analitik" onClick={close}/>
         )}
         {/* Master Kendaraan — dapat dilihat semua user (edit hanya Admin) */}
