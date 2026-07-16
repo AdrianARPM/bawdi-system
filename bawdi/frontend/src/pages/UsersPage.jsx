@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { userAPI } from '../utils/api';
 import { Card, Spinner, Empty, Button, Input, fmtDate } from '../components/ui';
 
-const ROLES = ['Operasional', 'Verifikator', 'Approval', 'Admin'];
+const ROLES = ['Operasional', 'Verifikator', 'Approval', 'Admin', 'Pengawas'];
 const ROLE_COLOR = {
   Operasional: 'bg-amber-100 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300',
   Verifikator: 'bg-blue-100 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300',
