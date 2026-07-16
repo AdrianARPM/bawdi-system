@@ -14,7 +14,7 @@ router.get('/:id',   ctrl.getOne);
 router.post('/', authorize('Operasional', 'Admin'), ctrl.create);
 
 // Verify hanya untuk PR — controller cek tipe & role
-router.put('/:id/verify',  authorize('Verifikator', 'Admin'), ctrl.verify);
+router.put('/:id/verify',  authorize('Verifikator', 'Admin', 'Operasional'), ctrl.verify);
 
 // Approve & Reject — buka untuk Operasional juga (untuk Kepala Op pada PAR)
 // Controller akan cek tipe dan jabatan yang sesuai
