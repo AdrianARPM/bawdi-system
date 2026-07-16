@@ -12,8 +12,11 @@ function authenticate(req, res, next) {
 
   const token = header.split(' ')[1];
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+   const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = decoded; // { id, nik, name, role, jabatan, cabang }
+    // Pengawas bersifat hanya-lihat: blokir semua aksi tulis, kecuali endpoint auth (ganti password)
+    if (decoded.role === 'Pengawas' && req.method !== 'GET' && !req.originalUrl.includes('/auth'))
+      return res.status(403).json({ error: 'Akun Pengawas bersifat hanya-lihat' });
     next();
   } catch (err) {
     return res.status(401).json({ error: 'Token tidak valid atau sudah kedaluwarsa' });
