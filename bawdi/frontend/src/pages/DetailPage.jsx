@@ -739,11 +739,25 @@ export default function DetailPage() {
   const [reqRevCat,     setReqRevCat]     = useState('');
   const [editSnap,      setEditSnap]      = useState(null); // snapshot yang sedang diedit
   const [exporting,     setExporting]     = useState(false);
+  const [reqPayLoading, setReqPayLoading] = useState(false);
 
   const chatRef = useRef(null);
   const fotoRef = useRef(null);
   const activeTabRefChat = useRef(null);
   const [savingFoto, setSavingFoto] = useState(false);
+
+  const handleRequestPayment = async () => {
+    if (reqPayLoading || sub?.bayar_diminta_at) return; // anti double-click sisi klien
+    setReqPayLoading(true);
+    try {
+      await submissionAPI.requestPayment(id);
+      toast.success('Request pembayaran terkirim!');
+      await load();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Gagal mengirim request pembayaran');
+    }
+    setReqPayLoading(false);
+  };
 
   const load = async () => {
     try {
@@ -1264,6 +1278,25 @@ useEffect(() => {
           className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl border-2 border-dashed border-purple-300 dark:border-purple-500/40 hover:border-purple-500 text-purple-600 dark:text-purple-400 text-sm font-semibold transition-colors">
           <RefreshCw size={14}/> Minta Revisi ke Pemohon
         </button>
+      )}
+
+      {/* Request Pembayaran — hanya pemohon, setelah Disetujui, sebelum dibayar */}
+      {user.id === sub.pemohon_id && sub.status === 'Disetujui' && !sub.tanggal_bayar && (
+        sub.bayar_diminta_at ? (
+          <div className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-sm font-semibold">
+            ✓ Pembayaran sudah direquest · {fmtDate(sub.bayar_diminta_at)}
+          </div>
+        ) : sub.nota_tertunggak ? (
+          <div className="w-full py-2.5 px-3 rounded-2xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 text-sm font-semibold text-center">
+            🔒 Request pembayaran terkunci — unggah dulu nota{' '}
+            <Link to={`/submissions/${sub.nota_tertunggak.id}`} className="underline font-bold">{sub.nota_tertunggak.nomor}</Link>
+          </div>
+        ) : (
+          <button onClick={handleRequestPayment} disabled={reqPayLoading}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm font-bold transition-colors">
+            {reqPayLoading ? <Loader size={14} className="animate-spin"/> : <Send size={14}/>} Request Pembayaran
+          </button>
+        )
       )}
 
       {/* ── TABS ──────────────────────────────────────────────── */}
