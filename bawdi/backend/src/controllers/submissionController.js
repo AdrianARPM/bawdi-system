@@ -111,6 +111,18 @@ async function stats(req, res) {
         : alertQuery.eq('pemohon_id', req.user.id);
     const { data: alerts } = await alertQuery;
     result.alerts = alerts || [];
+    // Card Request Pembayaran (Admin/Verifikator/Approval): request yang belum dibayar
+    if (['Admin', 'Verifikator', 'Approval'].includes(req.user.role)) {
+      const { data: reqs } = await supabase.from('submissions')
+        .select('id, nomor_pengajuan, bayar_diminta_at')
+        .not('bayar_diminta_at', 'is', null)
+        .is('tanggal_bayar', null)
+        .eq('status', 'Disetujui')
+        .order('bayar_diminta_at', { ascending: true })
+        .limit(20);
+      result.payment_requests = reqs || [];
+    }
+
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: 'Gagal mengambil statistik' });
@@ -175,6 +187,22 @@ async function getOne(req, res) {
     // Operasional biasa hanya boleh buka punyanya sendiri (Kepala Op boleh semua)
     if (req.user.role === 'Operasional' && !isKepalaOp(req.user) && data.pemohon_id !== req.user.id && !bolehHRGA(req.user, data.jenis_pembelian))
       return res.status(403).json({ error: 'Akses ditolak' });
+
+    // Info kunci Request Pembayaran utk pemohon: nota tertunggak > 3 hari sejak pelunasan
+    if (req.user.id === data.pemohon_id) {
+      const batas = new Date(Date.now() - 3 * 86400000).toISOString();
+      const { data: tunggak } = await supabase.from('submissions')
+        .select('id, nomor_pengajuan')
+        .eq('pemohon_id', req.user.id)
+        .not('bayar_diminta_at', 'is', null)
+        .not('tanggal_bayar', 'is', null)
+        .or('nota_url.is.null,nota_url.eq.')
+        .lt('tanggal_bayar', batas)
+        .neq('id', data.id)
+        .limit(1);
+      if (tunggak?.length) data.nota_tertunggak = { id: tunggak[0].id, nomor: tunggak[0].nomor_pengajuan };
+    }
+
     res.json({ data });
   } catch (err) {
     res.status(500).json({ error: 'Gagal mengambil data pengajuan' });
@@ -772,4 +800,55 @@ async function checkDuplicate(req, res) {
   }
 }
 
-module.exports = { list, getOne, create, verify, approve, reject, stats, selectVendor, overdueForAction, cancelSubmission, hardDeleteSubmission, checkDuplicate };
+// ── PUT /api/submissions/:id/request-payment ───────────────────────
+// Pemohon meminta pembayaran: sekali saja (idempoten, anti double-click di server)
+async function requestPayment(req, res) {
+  try {
+    const { data: sub } = await supabase.from('submissions')
+      .select('id, status, pemohon_id, nomor_pengajuan, bayar_diminta_at, tanggal_bayar')
+      .eq('id', req.params.id).single();
+    if (!sub) return res.status(404).json({ error: 'Pengajuan tidak ditemukan' });
+    if (req.user.id !== sub.pemohon_id)
+      return res.status(403).json({ error: 'Hanya pemohon pengajuan ini yang dapat meminta pembayaran' });
+    if (sub.status !== 'Disetujui')
+      return res.status(400).json({ error: 'Request pembayaran hanya untuk pengajuan berstatus Disetujui' });
+    if (sub.tanggal_bayar)
+      return res.status(400).json({ error: 'Pengajuan ini sudah dibayarkan' });
+    if (sub.bayar_diminta_at)
+      return res.status(400).json({ error: 'Pembayaran sudah pernah direquest' });
+
+    // Kunci: ada pengajuan lain milik pemohon (direquest & sudah dibayar) yang notanya menunggak > 3 hari
+    const batas = new Date(Date.now() - 3 * 86400000).toISOString();
+    const { data: tunggak } = await supabase.from('submissions')
+      .select('id, nomor_pengajuan')
+      .eq('pemohon_id', req.user.id)
+      .not('bayar_diminta_at', 'is', null)
+      .not('tanggal_bayar', 'is', null)
+      .or('nota_url.is.null,nota_url.eq.')
+      .lt('tanggal_bayar', batas)
+      .neq('id', sub.id)
+      .limit(1);
+    if (tunggak?.length)
+      return res.status(403).json({ error: `Terkunci: unggah dulu nota pembayaran ${tunggak[0].nomor_pengajuan} yang menunggak lebih dari 3 hari` });
+
+    // Idempoten: hanya set bila masih kosong (race-safe terhadap double click)
+    const { data: updated } = await supabase.from('submissions')
+      .update({ bayar_diminta_at: new Date().toISOString(), bayar_diminta_oleh: req.user.id })
+      .eq('id', sub.id).is('bayar_diminta_at', null)
+      .select('id');
+    if (!updated?.length)
+      return res.status(400).json({ error: 'Pembayaran sudah pernah direquest' });
+
+    // Notifikasi in-app ke Approval (tanpa email, sesuai keputusan)
+    await notifyRole('Approval', sub.id, 'need_approval',
+      `💳 ${req.user.name} meminta pembayaran ${sub.nomor_pengajuan}`);
+    logAudit(req, { action: 'request_bayar', target: sub.nomor_pengajuan, submissionId: sub.id, detail: 'Pemohon meminta pembayaran' });
+
+    res.json({ message: 'Request pembayaran terkirim' });
+  } catch (err) {
+    console.error('[requestPayment]', err);
+    res.status(500).json({ error: 'Gagal mengirim request pembayaran' });
+  }
+}
+
+module.exports = { list, getOne, create, verify, approve, reject, stats, selectVendor, overdueForAction, cancelSubmission, hardDeleteSubmission, checkDuplicate, requestPayment };
