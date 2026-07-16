@@ -36,6 +36,7 @@ export const submissionAPI = {
   checkDuplicate: (body) => api.post('/submissions/check-duplicate', body),
   verify:       id => api.put(`/submissions/${id}/verify`),
   approve:      id => api.put(`/submissions/${id}/approve`),
+  requestPayment: id => api.put(`/submissions/${id}/request-payment`),
   reject:       (id, alasan_tolak) => api.put(`/submissions/${id}/reject`, { alasan_tolak }),
   selectVendor: (id, vendor_pilihan, vendor_pilihan_alasan) =>
     api.put(`/submissions/${id}/select-vendor`, { vendor_pilihan, vendor_pilihan_alasan }),
