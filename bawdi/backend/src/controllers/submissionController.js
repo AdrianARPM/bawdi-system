@@ -842,9 +842,11 @@ async function requestPayment(req, res) {
       return res.status(400).json({ error: 'Pembayaran sudah pernah direquest' });
 
     // Notifikasi in-app ke Approval (tanpa email, sesuai keputusan)
+// Notifikasi in-app + push ke Approval & Verifikator (tanpa email)
     await notifyRole('Approval', sub.id, 'need_approval',
       `💳 ${req.user.name} meminta pembayaran ${sub.nomor_pengajuan}`);
-    logAudit(req, { action: 'request_bayar', target: sub.nomor_pengajuan, submissionId: sub.id, detail: 'Pemohon meminta pembayaran' });
+    await notifyRole('Verifikator', sub.id, 'need_approval',
+      `💳 ${req.user.name} meminta pembayaran ${sub.nomor_pengajuan}`);
 
     res.json({ message: 'Request pembayaran terkirim' });
   } catch (err) {
