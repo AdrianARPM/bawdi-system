@@ -82,7 +82,7 @@ if (loading) return <Spinner size={32} />;
       {/* Alert: pengajuan > 3 hari */}
       {stats?.alerts?.length > 0 && (
         <div className="bg-orange-50 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/30 rounded-2xl p-4">
-          <div className="flex gap-3">
+          <div className="flex gap-3 mb-2">
             <AlertTriangle size={17} className="text-orange-500 flex-shrink-0 mt-0.5" />
             <div>
               <p className="text-sm font-bold text-orange-800 dark:text-orange-300 mb-1">
