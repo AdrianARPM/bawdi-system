@@ -82,7 +82,7 @@ if (loading) return <Spinner size={32} />;
       {/* Alert: pengajuan > 3 hari */}
       {stats?.alerts?.length > 0 && (
         <div className="bg-orange-50 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/30 rounded-2xl p-4">
-          <div className="flex gap-3 mb-2">
+          <div className="flex gap-3">
             <AlertTriangle size={17} className="text-orange-500 flex-shrink-0 mt-0.5" />
             <div>
               <p className="text-sm font-bold text-orange-800 dark:text-orange-300 mb-1">
@@ -101,7 +101,7 @@ if (loading) return <Spinner size={32} />;
       )}
 
       {/* Stats grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-2 mb-4">
         <StatCard label="Semua Pengajuan"    value={stats?.total ?? 0}               icon={Files}        iconBg="bg-blue-50 dark:bg-blue-500/10"     iconColor="text-blue-600 dark:text-blue-400" />
         <StatCard label="Menunggu Verifikasi" value={stats?.menunggu_verifikasi ?? 0} icon={Clock}       iconBg="bg-amber-50 dark:bg-amber-500/10"   iconColor="text-amber-600 dark:text-amber-400" />
         <StatCard label="Belum Dibayar"      value={stats?.belum_dibayar ?? 0}       icon={CreditCard}   iconBg="bg-orange-50 dark:bg-orange-500/10" iconColor="text-orange-600 dark:text-orange-400" />
