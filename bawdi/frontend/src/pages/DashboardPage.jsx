@@ -101,7 +101,7 @@ if (loading) return <Spinner size={32} />;
       )}
 
       {/* Stats grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
         <StatCard label="Semua Pengajuan"    value={stats?.total ?? 0}               icon={Files}        iconBg="bg-blue-50 dark:bg-blue-500/10"     iconColor="text-blue-600 dark:text-blue-400" />
         <StatCard label="Menunggu Verifikasi" value={stats?.menunggu_verifikasi ?? 0} icon={Clock}       iconBg="bg-amber-50 dark:bg-amber-500/10"   iconColor="text-amber-600 dark:text-amber-400" />
         <StatCard label="Belum Dibayar"      value={stats?.belum_dibayar ?? 0}       icon={CreditCard}   iconBg="bg-orange-50 dark:bg-orange-500/10" iconColor="text-orange-600 dark:text-orange-400" />
