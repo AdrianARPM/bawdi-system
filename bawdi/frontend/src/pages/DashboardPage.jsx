@@ -1,7 +1,7 @@
 // src/pages/DashboardPage.jsx — v2 (Dark Mode Tahap 2: hanya penambahan varian dark:, tanpa perubahan fitur)
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, Navigate } from 'react-router-dom';
-import { LayoutDashboard, FileText, Clock, CheckCircle, XCircle, AlertTriangle, Plus } from 'lucide-react';
+import { LayoutDashboard, FileText, Clock, CheckCircle, XCircle, AlertTriangle, Plus, Files, CreditCard, Ban, Wallet } from 'lucide-react';
 import { submissionAPI } from '../utils/api';
 import { StatCard, Pill, fmtDate, fmtCurrency, daysSince, Spinner, Card } from '../components/ui';
 import useAuthStore from '../context/authStore';
@@ -39,10 +39,32 @@ if (loading) return <Spinner size={32} />;
 
   if (user?.role === 'Pengawas') return <Navigate to="/submissions" replace/>;
 
+  // Card Request Pembayaran → kolom kanan (khusus Admin/Verifikator/Approval, hanya bila ada isinya)
+  const showReqCol = ['Admin','Verifikator','Approval'].includes(user?.role) && stats?.payment_requests?.length > 0;
+  const reqCard = (
+    <Card padding={false}>
+      <div className="px-4 py-3 border-b border-slate-50 dark:border-slate-800">
+        <p className="text-sm font-bold text-slate-700 dark:text-slate-200">💳 Request Pembayaran</p>
+      </div>
+      {(stats?.payment_requests || []).map((r, i) => (
+        <Link key={r.id} to={`/submissions/${r.id}`}
+          className={`flex items-center gap-2.5 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors ${i < stats.payment_requests.length-1 ? 'border-b border-slate-50 dark:border-slate-800' : ''}`}>
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0"/>
+          <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">{r.nomor_pengajuan}</span>
+          <span className="ml-auto text-[10px] text-slate-400 dark:text-slate-500 flex-shrink-0">{fmtDate(r.bayar_diminta_at)}</span>
+        </Link>
+      ))}
+    </Card>
+  );
+
   return (
-    <div className="space-y-5 max-w-2xl mx-auto">
+    <div className={showReqCol ? "flex flex-col lg:flex-row gap-5 max-w-5xl mx-auto items-start" : "space-y-5 max-w-2xl mx-auto"}>
       {/* Modal pengingat pengajuan overdue > 3 hari */}
       <OverdueModal />
+      {showReqCol && (
+        <div className="w-full lg:w-72 lg:order-2 flex-shrink-0">{reqCard}</div>
+      )}
+      <div className={showReqCol ? "flex-1 min-w-0 lg:order-1 space-y-5 w-full" : "contents"}>
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
@@ -80,28 +102,13 @@ if (loading) return <Spinner size={32} />;
 
       {/* Stats grid */}
       <div className="grid grid-cols-2 gap-3">
-        <StatCard label="Hari Ini"    value={stats?.today ?? 0}               icon={FileText}     iconBg="bg-blue-50 dark:bg-blue-500/10"     iconColor="text-blue-600 dark:text-blue-400" />
-        <StatCard label="Menunggu Verifikasi" value={(stats?.menunggu_verifikasi ?? 0) + (stats?.terverifikasi ?? 0)} icon={Clock} iconBg="bg-amber-50 dark:bg-amber-500/10" iconColor="text-amber-600 dark:text-amber-400" />
-        <StatCard label="Disetujui (belum di tutup)"   value={stats?.disetujui ?? 0}           icon={CheckCircle}  iconBg="bg-emerald-50 dark:bg-emerald-500/10"  iconColor="text-emerald-600 dark:text-emerald-400" />
-        <StatCard label="Ditolak"     value={stats?.ditolak ?? 0}             icon={XCircle}      iconBg="bg-red-50 dark:bg-red-500/10"      iconColor="text-red-600 dark:text-red-400" />
+        <StatCard label="Semua Pengajuan"    value={stats?.total ?? 0}               icon={Files}        iconBg="bg-blue-50 dark:bg-blue-500/10"     iconColor="text-blue-600 dark:text-blue-400" />
+        <StatCard label="Menunggu Verifikasi" value={stats?.menunggu_verifikasi ?? 0} icon={Clock}       iconBg="bg-amber-50 dark:bg-amber-500/10"   iconColor="text-amber-600 dark:text-amber-400" />
+        <StatCard label="Belum Dibayar"      value={stats?.belum_dibayar ?? 0}       icon={CreditCard}   iconBg="bg-orange-50 dark:bg-orange-500/10" iconColor="text-orange-600 dark:text-orange-400" />
+        <StatCard label="Dibatalkan"         value={stats?.dibatalkan ?? 0}          icon={Ban}          iconBg="bg-red-50 dark:bg-red-500/10"       iconColor="text-red-600 dark:text-red-400" />
+        <StatCard label="Disetujui"          value={stats?.disetujui ?? 0}           icon={CheckCircle}  iconBg="bg-emerald-50 dark:bg-emerald-500/10" iconColor="text-emerald-600 dark:text-emerald-400" />
+        <StatCard label="Sudah Dibayar (Belum Ditutup)" value={stats?.sudah_dibayar_belum_tutup ?? 0} icon={Wallet} iconBg="bg-emerald-50 dark:bg-emerald-500/10" iconColor="text-emerald-600 dark:text-emerald-400" />
       </div>
-
-      {/* Request Pembayaran (Admin/Verifikator/Approval) */}
-      {['Admin','Verifikator','Approval'].includes(user?.role) && stats?.payment_requests?.length > 0 && (
-        <Card padding={false}>
-          <div className="px-4 py-3 border-b border-slate-50 dark:border-slate-800">
-            <p className="text-sm font-bold text-slate-700 dark:text-slate-200">💳 Request Pembayaran</p>
-          </div>
-          {stats.payment_requests.map((r, i) => (
-            <Link key={r.id} to={`/submissions/${r.id}`}
-              className={`flex items-center gap-2.5 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors ${i < stats.payment_requests.length-1 ? 'border-b border-slate-50 dark:border-slate-800' : ''}`}>
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0"/>
-              <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">{r.nomor_pengajuan}</span>
-              <span className="ml-auto text-[10px] text-slate-400 dark:text-slate-500 flex-shrink-0">{fmtDate(r.bayar_diminta_at)}</span>
-            </Link>
-          ))}
-        </Card>
-      )}
 
       {/* Recent submissions */}
       <Card padding={false}>
@@ -137,6 +144,7 @@ if (loading) return <Spinner size={32} />;
           );
         })}
       </Card>
+      </div>
     </div>
   );
 }
