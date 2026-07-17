@@ -370,82 +370,81 @@ try {                                                               // ✅ try a
   const rightX = margin + boxPadding + colW + gap;
   let   contentTopY = innerY;
 
-// ── Kolom kiri: Alasan Pengajuan (hanya di halaman pertama) ──
+// ── Konten dua kolom (Alasan+Pph23 kiri, Riwayat kanan) dgn paginasi bersama ──
+  // Kolom kiri disusun sbg deretan baris bergaya agar bisa dipotong per halaman
+  const leftRows = [];
+  if (sub.alasan_type && String(sub.alasan_type).trim()) {
+    doc.setFont('helvetica', 'bold');
+    doc.splitTextToSize(`Type: ${sub.alasan_type}`, colW).forEach(t => leftRows.push({ t, bold: true, gray: false }));
+    leftRows.push({ t: '', bold: false, gray: false });
+  }
+  doc.setFont('helvetica', 'normal');
+  alasanLines.forEach(t => leftRows.push({ t, bold: false, gray: false }));
+  if (sub.pph23 && String(sub.pph23).trim()) {
+    leftRows.push({ t: '', bold: false, gray: false });
+    leftRows.push({ t: 'Pph23', bold: true, gray: true });
+    doc.setFont('helvetica', 'normal');
+    doc.splitTextToSize(String(sub.pph23), colW).forEach(t => leftRows.push({ t, bold: false, gray: false }));
+  }
+
+  // Judul kolom (halaman pertama)
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(80, 80, 80);
   doc.text('Alasan Pengajuan', leftX, contentTopY);
+  doc.text('Riwayat Sebelumnya', rightX, contentTopY);
 
-  let alasanY = contentTopY + colHeaderH;
-  // Type di atas teks alasan (bila diisi)
-  if (sub.alasan_type && String(sub.alasan_type).trim()) {
-    const typeLines = doc.splitTextToSize(`Type: ${sub.alasan_type}`, colW);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0, 0, 0);
-    doc.text(typeLines, leftX, alasanY);
-    alasanY += typeLines.length * lineH + 1.5;
-  }
+  let leftRemaining  = [...leftRows];
+  let rightRemaining = [...riwayatAll];
+  let leftY = contentTopY + colHeaderH;
+  let rY    = contentTopY + colHeaderH;
 
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(0, 0, 0);
-  doc.text(alasanLines, leftX, alasanY);
-  let leftBottomY = alasanY + alasanLines.length * lineH;
+  while (leftRemaining.length > 0 || rightRemaining.length > 0) {
+    // ── potongan kolom kiri utk halaman ini ──
+    const fitsL  = Math.max(1, Math.floor((footerSafeY - leftY) / lineH));
+    const chunkL = leftRemaining.slice(0, fitsL);
+    leftRemaining = leftRemaining.slice(chunkL.length);
+    let ly = leftY;
+    for (const r of chunkL) {
+      if (r.t) {
+        doc.setFont('helvetica', r.bold ? 'bold' : 'normal');
+        doc.setTextColor(...(r.gray ? [80, 80, 80] : [0, 0, 0]));
+        doc.text(r.t, leftX, ly);
+      }
+      ly += lineH;
+    }
+    const leftBottomY = ly;
 
-  // Pph23 — di dalam box Keterangan, bawah Alasan (kolom kiri)
-  if (sub.pph23 && String(sub.pph23).trim()) {
-    let pphY = leftBottomY + 3;
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(80, 80, 80);
-    doc.text('Pph23', leftX, pphY);
-    pphY += colHeaderH - 1;
+    // ── potongan kolom kanan utk halaman ini ──
+    const fitsR  = Math.max(1, Math.floor((footerSafeY - rY) / lineH));
+    const chunkR = rightRemaining.slice(0, fitsR);
+    rightRemaining = rightRemaining.slice(chunkR.length);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(0, 0, 0);
-    const pphLines = doc.splitTextToSize(String(sub.pph23), colW);
-    doc.text(pphLines, leftX, pphY);
-    leftBottomY = pphY + pphLines.length * lineH;
-  }
+    if (chunkR.length) doc.text(chunkR, rightX, rY);
+    const rightBottomY = rY + chunkR.length * lineH;
 
-  // ── Kolom kanan: Riwayat Sebelumnya (dgn page-break bila panjang) ──
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(80, 80, 80);
-  doc.text('Riwayat Sebelumnya', rightX, contentTopY);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(0, 0, 0);
-
-  let rY        = contentTopY + colHeaderH;
-  let remaining = [...riwayatAll];
-
-  while (remaining.length > 0) {
-    const availH = footerSafeY - rY;
-    const fits   = Math.max(1, Math.floor(availH / lineH));
-    const chunk  = remaining.slice(0, fits);
-    remaining    = remaining.slice(fits);
-    doc.text(chunk, rightX, rY);
-    const rightBottomY = rY + chunk.length * lineH;
-
-    // Tinggi box halaman ini = max(kiri, kanan)
-    const boxBottom = Math.max(leftBottomY, rightBottomY) + boxPadding;
+    // ── box + garis pemisah utk segmen halaman ini ──
+    const boxBottom = Math.min(Math.max(leftBottomY, rightBottomY) + boxPadding, footerSafeY);
     doc.setDrawColor(180, 180, 180);
     doc.setLineWidth(0.3);
     doc.rect(margin, boxY, pageW - margin * 2, boxBottom - boxY, 'S');
-    // Garis pemisah dua kolom
     doc.setDrawColor(220, 220, 220);
     const divX = margin + boxPadding + colW + gap / 2;
     doc.line(divX, contentTopY - 2, divX, boxBottom - 1);
 
     currentY = boxBottom + 6;
 
-    if (remaining.length > 0) {
+    if (leftRemaining.length > 0 || rightRemaining.length > 0) {
       doc.addPage();
-      boxY        = margin;
-      const cont  = boxY + boxPadding + 3;
+      boxY       = margin;
+      const cont = boxY + boxPadding + 3;
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(80, 80, 80);
-      doc.text('Riwayat (lanjutan)', margin + boxPadding, cont);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(0, 0, 0);
+      if (leftRemaining.length > 0)  doc.text('Alasan (lanjutan)', margin + boxPadding, cont);
+      if (rightRemaining.length > 0) doc.text('Riwayat (lanjutan)', rightX, cont);
       contentTopY = cont;
-      leftBottomY = cont;          // tak ada alasan di halaman lanjutan
-      rY          = cont + colHeaderH;
+      leftY = cont + colHeaderH;
+      rY    = cont + colHeaderH;
     }
   }
 
@@ -463,7 +462,7 @@ try {                                                               // ✅ try a
   doc.text(':', margin + 30, currentY);
   doc.setTextColor(0, 0, 0);
   doc.setFont('helvetica', 'bold');
-  doc.text(sub.batas_waktu_dana ? `${sub.batas_waktu_dana} Hari` : '—', margin + 33, currentY);
+  doc.text(sub.batas_waktu_dana ? `${sub.batas_waktu_dana} ` : '—', margin + 33, currentY);
 
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 100, 100);
