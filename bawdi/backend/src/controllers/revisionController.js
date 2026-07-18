@@ -893,8 +893,9 @@ async function getDraft(req, res) {
   try {
     const { kendaraan, bulan, tahun } = req.query;
     let all = await fetchArsipRows({});   // semua, untuk membangun daftar filter
-    // Operasional (termasuk Kepala Op) hanya melihat arsip pengajuannya sendiri
-    if (req.user.role === 'Operasional') all = all.filter(r => r.pemohon_id === req.user.id);
+    // Operasional hanya melihat arsip sendiri; Kepala Operasional melihat semua (read-only)
+    if (req.user.role === 'Operasional' && req.user.jabatan !== 'Kepala Operasional')
+      all = all.filter(r => r.pemohon_id === req.user.id);
     const kendaraanList = [...new Set(all.map(r => r.kendaraan))].sort();
     const cabangList    = [...new Set(all.map(r => r.cabang))].sort();
     const bulanList = [...new Map(all.map(r => [
