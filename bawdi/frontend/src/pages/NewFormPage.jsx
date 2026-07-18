@@ -31,6 +31,18 @@ function buildNomor(nomorUrut, type, cabangManual) {
   return `${nomorUrut}-${type}/BKD-${cab}/${bulan}${tahun}`;
 }
 
+// Hitung selisih KM dgn koreksi odometer rollover (Jalan 1: deteksi batas dari besar angka).
+// Rollover terjadi saat odometer berputar balik ke 0 setelah melewati batas maksimum.
+// Batas ditebak dari KM terakhir: > 99.999 → odometer 6 digit (999.999), selain itu 5 digit (99.999).
+function hitungSelisihKM(kmSekarang, kmTerakhir) {
+  if (!kmSekarang || kmTerakhir == null) return null;
+  const raw = kmSekarang - kmTerakhir;
+  if (raw >= 0) return raw;
+  // selisih negatif → asumsikan odometer sudah rollover
+  const batas = kmTerakhir > 99999 ? 999999 : 99999;
+  return (batas - kmTerakhir) + kmSekarang;
+}
+
 function calcItemTotal(item) {
   const qty    = parseFloat(item.satuan) || 1;
   const harga  = parseFloat(item.harga)  || 0;
@@ -109,7 +121,7 @@ function ItemKMSection({ item, kmCache, onItemUpdate }) {
   const kmTerakhirEf = hasArsip ? kmCache.kmTerakhir : (parseInt(item.km_manual) || null);
   const tglTerakhirEf = hasArsip ? kmCache.tanggalTerakhir : (item.tgl_manual || null);
   const kmSekarang   = parseInt(item.km_pengajuan) || null;
-  const selisih      = kmSekarang && kmTerakhirEf != null ? kmSekarang - kmTerakhirEf : null;
+  const selisih      = hitungSelisihKM(kmSekarang, kmTerakhirEf);
 
   return (
     <div className="border-t border-slate-200 dark:border-slate-700 pt-2.5 mt-2">
@@ -517,7 +529,7 @@ export default function NewFormPage() {
       if (!kmSekarang && !kmTerakhirEf && !tglTerakhirEf) return;
 
       counter++;
-      const selisih = kmSekarang && kmTerakhirEf != null ? kmSekarang - kmTerakhirEf : null;
+      const selisih = hitungSelisihKM(kmSekarang, kmTerakhirEf);
       const sumber  = hasArsip ? (cache.nomorTerakhir ? ` (${cache.nomorTerakhir})` : '') : ' (manual)';
 
       lines.push(`${counter}. ${item.penjelasan || '(tanpa penjelasan)'}`);
@@ -622,13 +634,11 @@ export default function NewFormPage() {
           type: sub.type || 'PR', is_umum: !!sub.is_umum,
           kendaraan: sub.kendaraan || '', jenis_pembelian: sub.jenis_pembelian || '',
           alasan: snap.alasan || '', alasan_type: snap.alasan_type || sub.alasan_type || '',
-          alasan: snap.alasan || '', alasan_type: sub.alasan_type || '',
           pph23: snap.pph23 || '',
           batas_waktu_dana: snap.batas_waktu_dana || sub.batas_waktu_dana || '', batas_akhir_pembayaran: snap.batas_akhir_pembayaran || sub.batas_akhir_pembayaran || '',
           ppn: snap.ppn != null && snap.ppn !== '' ? String(snap.ppn) : '',
           vendor: snap.vendor || '', npwp: snap.npwp || '', rekening_tujuan: snap.rekening_tujuan || '',
           vendor2: snap.vendor2 || '', npwp2: snap.npwp2 || '', useVendor2: v2.length > 0,
-          batas_waktu_dana: sub.batas_waktu_dana || '', batas_akhir_pembayaran: sub.batas_akhir_pembayaran || '',
           items1, items2: v2.length ? v2.map(mapItem) : [newItem()],
         }));
         setStep(1);
