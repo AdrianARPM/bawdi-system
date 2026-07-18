@@ -26,6 +26,15 @@ function fmtTanggal(iso) {
 ─────────────────────────────────────────────────────────────── */
 const KATEGORI_BIAYA = ['Sewa', 'Service', 'Ban', 'Izin Kendaraan', 'Jasa', 'Lainnya'];
 
+// Selisih KM dgn koreksi odometer rollover (disamakan dgn NewFormPage.hitungSelisihKM)
+function hitungSelisihKM(kmSekarang, kmTerakhir) {
+  if (!kmSekarang || kmTerakhir == null) return null;
+  const raw = kmSekarang - kmTerakhir;
+  if (raw >= 0) return raw;
+  const batas = kmTerakhir > 99999 ? 999999 : 99999;
+  return (batas - kmTerakhir) + kmSekarang;
+}
+
 function ItemRow({ item, onUpdate, onRemove, canRemove, vendorLabel, vendorColor, isUmum }) {
   return (
     <div className="border border-slate-200 dark:border-slate-700 rounded-xl p-3 space-y-2 bg-white dark:bg-slate-900">
@@ -246,7 +255,7 @@ export default function RevisiEditor({ snapshot, onClose, onSubmitted, isUmum = 
         const kmSekarang    = parseInt(item.km_pengajuan) || null;
         if (!kmSekarang && !kmTerakhirEf && !tglTerakhirEf) return;  // item tanpa data KM dilewati
         counter++;
-        const selisih = kmSekarang && kmTerakhirEf != null ? kmSekarang - kmTerakhirEf : null;
+        const selisih = hitungSelisihKM(kmSekarang, kmTerakhirEf);
         const sumber  = hasArsip ? (arsip.nomor_pengajuan ? ` (${arsip.nomor_pengajuan})` : '') : '';
         lines.push(`${counter}. ${item.penjelasan || '(tanpa penjelasan)'}`);
         lines.push(`   a. Tgl Terakhir : ${tglTerakhirEf ? fmtTanggal(tglTerakhirEf) + sumber : '—'}`);
