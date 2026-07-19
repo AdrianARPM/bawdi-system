@@ -224,6 +224,16 @@ const JENIS_UMUM = [
   'Beban Bongkar',
   'Beban Parkir',
 ];
+// Jenis pembelian yang MEWAJIBKAN pengisian Pph23
+const PPH23_WAJIB = [
+  'Beban Perbaikan',
+  'Beban Perbaikan dan Suku Cadang',
+  'Beban Perbaikan dan Perlengkapan Kendaraan',
+  'Beban Perbaikan Box',
+  'Beban Perawatan',
+  'Beban Perawatan dan Suku Cadang',
+  'Beban Sewa Kendaraan',
+];
 // Daftar Cabang/Project — tambah manual di sini jika ada cabang baru
 const CABANG_LIST = [
   'APLPKU','APLBDO','APLPDG','APLDJB','APLMES','APLPLM','PVPLM','PVMES','PVPKU','PVTKG','PVSUB','DHSCBT','NIC', 'ADM'
@@ -553,6 +563,7 @@ export default function NewFormPage() {
       if (!form.alasan.trim())          e.alasan='Wajib';
       if (!form.batas_waktu_dana.trim())  e.batas_waktu_dana='Wajib';
       if (!form.batas_akhir_pembayaran)   e.batas_akhir_pembayaran='Wajib';
+      if (PPH23_WAJIB.includes(form.jenis_pembelian) && !form.pph23.trim()) e.pph23 = 'Wajib diisi untuk jenis pembelian ini';
     }
     if (s===2) {
       if (!form.vendor.trim()) e.vendor='Wajib';
@@ -906,9 +917,9 @@ export default function NewFormPage() {
               <textarea value={form.alasan} onChange={e=>set('alasan',e.target.value)} rows={3} placeholder="Jelaskan alasan pengajuan..."
                 className={`w-full px-3 py-2.5 rounded-xl border text-sm text-slate-800 dark:text-slate-100 dark:bg-slate-900 outline-none resize-none placeholder:text-slate-300 dark:placeholder:text-slate-600 transition-colors leading-relaxed focus:ring-2 ${errors.alasan?'border-red-300 dark:border-red-500/40 focus:border-red-400 focus:ring-red-50 dark:focus:ring-red-500/15':'border-slate-200 dark:border-slate-700 focus:border-amber-400 focus:ring-amber-100 dark:focus:ring-amber-500/20'}`}/>
             </Field>
-            <Field label="Pph23 (opsional)" hint="Teks bebas — tampil di detail & PDF, di bawah alasan">
+            <Field label={PPH23_WAJIB.includes(form.jenis_pembelian) ? 'Pph23' : 'Pph23 (opsional)'} required={PPH23_WAJIB.includes(form.jenis_pembelian)} error={errors.pph23} hint="Teks bebas — tampil di detail & PDF, di bawah alasan">
               <textarea value={form.pph23} onChange={e=>set('pph23',e.target.value)} rows={2} placeholder="Contoh: Pph23 Rp.--- x 2% = ..."
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 text-sm text-slate-800 dark:text-slate-100 outline-none resize-none placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:border-amber-400 focus:ring-2 focus:ring-amber-100 dark:focus:ring-amber-500/20 leading-relaxed"/>
+                className={`w-full px-3 py-2.5 rounded-xl border text-sm text-slate-800 dark:text-slate-100 dark:bg-slate-900 outline-none resize-none placeholder:text-slate-300 dark:placeholder:text-slate-600 leading-relaxed focus:ring-2 ${errors.pph23?'border-red-300 dark:border-red-500/40 focus:border-red-400 focus:ring-red-50 dark:focus:ring-red-500/15':'border-slate-200 dark:border-slate-700 focus:border-amber-400 focus:ring-amber-100 dark:focus:ring-amber-500/20'}`}/>
             </Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Batas Waktu Dana" required error={errors.batas_waktu_dana}><input value={form.batas_waktu_dana} onChange={e=>set('batas_waktu_dana',e.target.value)} placeholder="30 Hari"  className={ic('batas_waktu_dana')}/></Field>
