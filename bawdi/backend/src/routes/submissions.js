@@ -19,6 +19,7 @@ router.put('/:id/verify',  authorize('Verifikator', 'Admin', 'Operasional'), ctr
 // Controller akan cek tipe dan jabatan yang sesuai 
 router.put('/:id/approve', authorize('Approval', 'Admin', 'Operasional'), ctrl.approve);
 router.put('/:id/request-payment', authorize('Operasional', 'Admin'), ctrl.requestPayment);
+router.put('/:id/request-verification', authorize('Operasional', 'Admin'), ctrl.requestVerification);
 router.put('/:id/reject',  authorize('Approval', 'Verifikator', 'Admin', 'Operasional'), ctrl.reject);
 
 router.put('/:id/select-vendor', authorize('Approval', 'Admin'), ctrl.selectVendor);
