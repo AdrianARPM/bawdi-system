@@ -40,7 +40,24 @@ if (loading) return <Spinner size={32} />;
   if (user?.role === 'Pengawas') return <Navigate to="/submissions" replace/>;
 
   // Card Request Pembayaran → kolom kanan (khusus Admin/Verifikator/Approval, hanya bila ada isinya)
-  const showReqCol = ['Admin','Verifikator','Approval'].includes(user?.role) && stats?.payment_requests?.length > 0;
+  const hasPayReq   = ['Admin','Verifikator','Approval'].includes(user?.role) && stats?.payment_requests?.length > 0;
+  const hasVerifReq = user?.role === 'Verifikator' && stats?.verification_requests?.length > 0;
+  const showReqCol  = hasPayReq || hasVerifReq;
+  const verifCard = (
+    <Card padding={false}>
+      <div className="px-4 py-3 border-b border-slate-50 dark:border-slate-800">
+        <p className="text-sm font-bold text-slate-700 dark:text-slate-200">⏰ Request Verifikasi</p>
+      </div>
+      {(stats?.verification_requests || []).map((r, i) => (
+        <Link key={r.id} to={`/submissions/${r.id}`}
+          className={`flex items-center gap-2.5 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors ${i < stats.verification_requests.length-1 ? 'border-b border-slate-50 dark:border-slate-800' : ''}`}>
+          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0"/>
+          <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">{r.nomor_pengajuan}</span>
+          <span className="ml-auto text-[10px] text-slate-400 dark:text-slate-500 flex-shrink-0">{fmtDate(r.verif_diminta_at)}</span>
+        </Link>
+      ))}
+    </Card>
+  );
   const reqCard = (
     <Card padding={false}>
       <div className="px-4 py-3 border-b border-slate-50 dark:border-slate-800">
@@ -62,7 +79,10 @@ if (loading) return <Spinner size={32} />;
       {/* Modal pengingat pengajuan overdue > 3 hari */}
       <OverdueModal />
       {showReqCol && (
-        <div className="w-full lg:w-72 lg:order-2 flex-shrink-0">{reqCard}</div>
+        <div className="w-full lg:w-72 lg:order-2 flex-shrink-0 space-y-5">
+          {hasVerifReq && verifCard}
+          {hasPayReq && reqCard}
+        </div>
       )}
       <div className={showReqCol ? "flex-1 min-w-0 lg:order-1 space-y-5 w-full" : "contents"}>
       {/* Header */}
