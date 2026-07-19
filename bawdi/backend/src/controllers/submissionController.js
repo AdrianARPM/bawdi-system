@@ -126,6 +126,17 @@ async function stats(req, res) {
       result.payment_requests = reqs || [];
     }
 
+    // Card Request Verifikasi (khusus Verifikator): hilang otomatis saat diverifikasi/dibatalkan
+    if (req.user.role === 'Verifikator') {
+      const { data: vreqs } = await supabase.from('submissions')
+        .select('id, nomor_pengajuan, verif_diminta_at')
+        .not('verif_diminta_at', 'is', null)
+        .eq('status', 'Menunggu Verifikasi')
+        .order('verif_diminta_at', { ascending: true })
+        .limit(20);
+      result.verification_requests = vreqs || [];
+    }
+
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: 'Gagal mengambil statistik' });
@@ -861,4 +872,46 @@ async function requestPayment(req, res) {
   }
 }
 
-module.exports = { list, getOne, create, verify, approve, reject, stats, selectVendor, overdueForAction, cancelSubmission, hardDeleteSubmission, checkDuplicate, requestPayment };
+// ── PUT /api/submissions/:id/request-verification ───────────────────
+// Pemohon meminta verifikasi setelah pengajuan menggantung ≥ 2 hari (sekali, idempoten)
+async function requestVerification(req, res) {
+  try {
+    const { data: sub } = await supabase.from('submissions')
+      .select('id, status, pemohon_id, nomor_pengajuan, verif_diminta_at, tanggal, jenis_pembelian')
+      .eq('id', req.params.id).single();
+    if (!sub) return res.status(404).json({ error: 'Pengajuan tidak ditemukan' });
+    if (req.user.id !== sub.pemohon_id)
+      return res.status(403).json({ error: 'Hanya pemohon pengajuan ini yang dapat meminta verifikasi' });
+    if (sub.status !== 'Menunggu Verifikasi')
+      return res.status(400).json({ error: 'Request verifikasi hanya untuk pengajuan berstatus Menunggu Verifikasi' });
+    if (sub.verif_diminta_at)
+      return res.status(400).json({ error: 'Verifikasi sudah pernah diminta' });
+    // Umur pengajuan minimal 2 hari (dihitung server, tidak bisa diakali klien)
+    if (Date.now() - new Date(sub.tanggal).getTime() < 2 * 86400000)
+      return res.status(400).json({ error: 'Request verifikasi baru tersedia setelah pengajuan menunggu 2 hari' });
+
+    // Idempoten: hanya set bila masih kosong (race-safe terhadap double click)
+    const { data: updated } = await supabase.from('submissions')
+      .update({ verif_diminta_at: new Date().toISOString(), verif_diminta_oleh: req.user.id })
+      .eq('id', sub.id).is('verif_diminta_at', null)
+      .select('id');
+    if (!updated?.length)
+      return res.status(400).json({ error: 'Verifikasi sudah pernah diminta' });
+
+    // Notifikasi in-app + push ke Verifikator; Dana Sosial → HRGA juga (pemroses utamanya)
+    await notifyRole('Verifikator', sub.id, 'new_submission',
+      `⏰ ${req.user.name} meminta verifikasi ${sub.nomor_pengajuan} (menunggu ${Math.floor((Date.now() - new Date(sub.tanggal).getTime()) / 86400000)} hari)`);
+    if (sub.jenis_pembelian === DANA_SOSIAL) {
+      await notifyHRGA(sub.id, 'new_submission',
+        `⏰ ${req.user.name} meminta verifikasi ${sub.nomor_pengajuan} (Dana Sosial)`);
+    }
+    logAudit(req, { action: 'request_verif', target: sub.nomor_pengajuan, submissionId: sub.id, detail: 'Pemohon meminta verifikasi' });
+
+    res.json({ message: 'Request verifikasi terkirim' });
+  } catch (err) {
+    console.error('[requestVerification]', err);
+    res.status(500).json({ error: 'Gagal mengirim request verifikasi' });
+  }
+}
+
+module.exports = { list, getOne, create, verify, approve, reject, stats, selectVendor, overdueForAction, cancelSubmission, hardDeleteSubmission, checkDuplicate, requestPayment, requestVerification };
