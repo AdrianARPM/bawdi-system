@@ -229,6 +229,9 @@ async function create(req, res) {
       return res.status(400).json({ error: 'Semua field wajib diisi' });
     if (!is_umum && !kendaraan)
       return res.status(400).json({ error: 'Kendaraan wajib diisi' });
+    const PPH23_WAJIB = ['Beban Perbaikan','Beban Perbaikan dan Suku Cadang','Beban Perbaikan dan Perlengkapan Kendaraan','Beban Perbaikan Box','Beban Perawatan','Beban Perawatan dan Suku Cadang','Beban Sewa Kendaraan'];
+    if (PPH23_WAJIB.includes(jenis_pembelian) && !(pph23 || '').trim())
+      return res.status(400).json({ error: `Pph23 wajib diisi untuk jenis pembelian ${jenis_pembelian}` });
 
     // Cek duplikat nomor dalam project/cabang yang sama
     if (nomor_urut && cabang_manual) {
