@@ -740,11 +740,25 @@ export default function DetailPage() {
   const [editSnap,      setEditSnap]      = useState(null); // snapshot yang sedang diedit
   const [exporting,     setExporting]     = useState(false);
   const [reqPayLoading, setReqPayLoading] = useState(false);
+  const [reqVerifLoading, setReqVerifLoading] = useState(false);
 
   const chatRef = useRef(null);
   const fotoRef = useRef(null);
   const activeTabRefChat = useRef(null);
   const [savingFoto, setSavingFoto] = useState(false);
+
+  const handleRequestVerification = async () => {
+    if (reqVerifLoading || sub?.verif_diminta_at) return; // anti double-click sisi klien
+    setReqVerifLoading(true);
+    try {
+      await submissionAPI.requestVerification(id);
+      toast.success('Request verifikasi terkirim!');
+      await load();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Gagal mengirim request verifikasi');
+    }
+    setReqVerifLoading(false);
+  };
 
   const handleRequestPayment = async () => {
     if (reqPayLoading || sub?.bayar_diminta_at) return; // anti double-click sisi klien
@@ -1278,6 +1292,21 @@ useEffect(() => {
           className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl border-2 border-dashed border-purple-300 dark:border-purple-500/40 hover:border-purple-500 text-purple-600 dark:text-purple-400 text-sm font-semibold transition-colors">
           <RefreshCw size={14}/> Minta Revisi ke Pemohon
         </button>
+      )}
+
+      {/* Request Verifikasi — hanya pemohon, ≥2 hari masih Menunggu Verifikasi */}
+      {user.id === sub.pemohon_id && sub.status === 'Menunggu Verifikasi' &&
+       (Date.now() - new Date(sub.tanggal).getTime()) >= 2 * 86400000 && (
+        sub.verif_diminta_at ? (
+          <div className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 text-blue-700 dark:text-blue-300 text-sm font-semibold">
+            ✓ Verifikasi sudah diminta · {fmtDate(sub.verif_diminta_at)}
+          </div>
+        ) : (
+          <button onClick={handleRequestVerification} disabled={reqVerifLoading}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-bold transition-colors">
+            {reqVerifLoading ? <Loader size={14} className="animate-spin"/> : <Send size={14}/>} Request Verifikasi
+          </button>
+        )
       )}
 
       {/* Request Pembayaran — hanya pemohon, setelah Disetujui, sebelum dibayar */}
