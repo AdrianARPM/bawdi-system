@@ -46,6 +46,22 @@ export default function StatusPage() {
   const [exporting, setExporting] = useState('');
   const [audit, setAudit] = useState([]);
 
+  const doExportPph23 = async () => {
+    if (exporting) return;
+    setExporting('pph23');
+    try {
+      const { data } = await backupAPI.exportPph23();
+      const url = URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `bawdi_pph23_${new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' })}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setError('Gagal membuat export Pph23 — coba lagi.');
+    } finally { setExporting(''); }
+  };
+
   const doExport = async (format) => {
     if (exporting) return;
     setExporting(format);
@@ -240,6 +256,10 @@ export default function StatusPage() {
               <button onClick={() => doExport('json')} disabled={!!exporting}
                 className="flex-1 flex items-center justify-center gap-1.5 text-xs font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-xl py-2.5 hover:bg-blue-100 dark:hover:bg-blue-500/20 transition-colors disabled:opacity-50">
                 <Download size={12}/> {exporting === 'json' ? 'Menyiapkan…' : 'Export JSON'}
+              </button>
+              <button onClick={doExportPph23} disabled={!!exporting}
+                className="flex-1 flex items-center justify-center gap-1.5 text-xs font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-xl py-2.5 hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-colors disabled:opacity-50">
+                <Download size={12}/> {exporting === 'pph23' ? 'Menyiapkan…' : 'Export Pph23'}
               </button>
             </div>
           </div>
