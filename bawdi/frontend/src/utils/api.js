@@ -61,6 +61,7 @@ export const healthAPI = {
 
 export const backupAPI = {
   export: (format) => api.get(`/backup/export?format=${format}`, { responseType: 'blob' }),
+  exportPph23: () => api.get('/backup/export-pph23', { responseType: 'blob' }),
 };
 
 export const pushAPI = {
