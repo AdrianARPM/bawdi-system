@@ -1,6 +1,6 @@
 // src/pages/SubmissionsPage.jsx — v2 (Dark Mode Tahap 2: hanya penambahan varian dark:, tanpa perubahan fitur)
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Search, Plus, FileText } from 'lucide-react';
 import { submissionAPI } from '../utils/api';
 import { Pill, Card, Spinner, Empty, fmtDate, fmtCurrency, daysSince, RevisiBadge } from '../components/ui';
@@ -11,9 +11,20 @@ export default function SubmissionsPage() {
   const { user } = useAuthStore();
   const [subs, setSubs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('Semua');
-  const [q, setQ] = useState('');
-  const [debouncedQ, setDebouncedQ] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const filter = searchParams.get('status') || 'Semua';
+  const q = searchParams.get('q') || '';
+  const setFilter = (val) => setSearchParams(prev => {
+    const p = new URLSearchParams(prev);
+    if (val && val !== 'Semua') p.set('status', val); else p.delete('status');
+    return p;
+  }, { replace: true });
+  const setQ = (val) => setSearchParams(prev => {
+    const p = new URLSearchParams(prev);
+    if (val) p.set('q', val); else p.delete('q');
+    return p;
+  }, { replace: true });
+  const [debouncedQ, setDebouncedQ] = useState(searchParams.get('q') || '');
 
   // Debounce input pencarian — kueri ke server hanya setelah berhenti mengetik (300ms)
   useEffect(() => {
