@@ -1474,7 +1474,7 @@ useEffect(() => {
               )}
               <div>
                 <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Alasan</p>
-                <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">{sub.alasan || '—'}</p>
+                <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-line">{sub.alasan || '—'}</p>
               </div>
               {sub.pph23?.trim() && (
                 <div>
