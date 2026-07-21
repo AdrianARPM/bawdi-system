@@ -28,7 +28,7 @@ async function getAnalytics(req, res) {
       .from('submissions')
       .select(`
         id, nomor_pengajuan, status, tanggal, kendaraan, vendor, vendor2,
-        vendor_pilihan, jenis_pembelian, total_harga, jumlah_bayar, cabang
+        vendor_pilihan, jenis_pembelian, total_harga, jumlah_bayar, cabang, cabang_manual
       `)
       .in('status', ['Disetujui', 'Selesai'])
       .gte('tanggal', since.toISOString())
@@ -98,7 +98,7 @@ async function getAnalytics(req, res) {
     // ── Per Cabang ────────────────────────────────────────────
     const cabangMap = {};
     data.forEach(s => {
-      const c = (s.cabang || '—').trim();
+      const c = (s.cabang_manual || s.cabang || '—').trim();
       if (!cabangMap[c]) cabangMap[c] = { cabang: c, total: 0, count: 0 };
       cabangMap[c].total += nilai(s); cabangMap[c].count += 1;
     });
