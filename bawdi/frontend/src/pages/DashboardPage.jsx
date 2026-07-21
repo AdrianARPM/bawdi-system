@@ -127,7 +127,7 @@ if (loading) return <Spinner size={32} />;
         <StatCard label="Belum Dibayar"      value={stats?.belum_dibayar ?? 0}       icon={CreditCard}   iconBg="bg-orange-50 dark:bg-orange-500/10" iconColor="text-orange-600 dark:text-orange-400" />
         <StatCard label="Dibatalkan"         value={stats?.dibatalkan ?? 0}          icon={Ban}          iconBg="bg-red-50 dark:bg-red-500/10"       iconColor="text-red-600 dark:text-red-400" />
         <StatCard label="Disetujui"          value={stats?.disetujui ?? 0}           icon={CheckCircle}  iconBg="bg-emerald-50 dark:bg-emerald-500/10" iconColor="text-emerald-600 dark:text-emerald-400" />
-        <StatCard label="Sudah Dibayar (Belum Ditutup)" value={stats?.sudah_dibayar_belum_tutup ?? 0} icon={Wallet} iconBg="bg-emerald-50 dark:bg-emerald-500/10" iconColor="text-emerald-600 dark:text-emerald-400" />
+        <StatCard label="Sudah Dibayar (Belum Upload Nota)" value={stats?.sudah_dibayar_belum_nota ?? 0} icon={Wallet} iconBg="bg-emerald-50 dark:bg-emerald-500/10" iconColor="text-emerald-600 dark:text-emerald-400" />
       </div>
 
       {/* Recent submissions */}
