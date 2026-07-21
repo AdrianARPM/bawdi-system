@@ -85,7 +85,7 @@ async function sendEmailToKepalaOp({ subject, message, nomor, submissionId, type
 // ── GET /api/submissions/stats ─────────────────────────────────────
 async function stats(req, res) {
   try {
-    let base = supabase.from('submissions').select('status, tanggal, jumlah_bayar, ditutup_at', { count: 'exact' });
+    let base = supabase.from('submissions').select('status, tanggal, jumlah_bayar, ditutup_at, nota_url', { count: 'exact' });
     if (req.user.role === 'Operasional' && !isKepalaOp(req.user))
       base = isHRGA(req.user)
         ? base.or(`pemohon_id.eq.${req.user.id},jenis_pembelian.eq."${DANA_SOSIAL}"`)
@@ -101,7 +101,7 @@ async function stats(req, res) {
       ditolak:             data.filter(s => s.status === 'Ditolak').length,
       dibatalkan:          data.filter(s => s.status === 'Dibatalkan').length,
       belum_dibayar:       data.filter(s => s.status === 'Disetujui' && !(Number(s.jumlah_bayar) > 0)).length,
-      sudah_dibayar_belum_tutup: data.filter(s => s.status === 'Disetujui' && Number(s.jumlah_bayar) > 0 && !s.ditutup_at).length,
+      sudah_dibayar_belum_nota: data.filter(s => s.status === 'Disetujui' && Number(s.jumlah_bayar) > 0 && !(s.nota_url && s.nota_url.trim())).length,
     };
     const twoDaysAgo = new Date(Date.now() - 2 * 86400000).toISOString();
     let alertQuery = supabase.from('submissions')
