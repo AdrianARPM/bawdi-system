@@ -6,7 +6,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   ChevronLeft, Send, Check, User, Download, Eye,
   X, ZoomIn, Upload, FileText, CreditCard, Lock,
-  RefreshCw, Loader, Trash2
+  RefreshCw, Loader, Trash2, PauseCircle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { submissionAPI, messageAPI, revisionAPI, photoAPI } from '../utils/api';
@@ -741,11 +741,29 @@ export default function DetailPage() {
   const [exporting,     setExporting]     = useState(false);
   const [reqPayLoading, setReqPayLoading] = useState(false);
   const [reqVerifLoading, setReqVerifLoading] = useState(false);
+  const [tundaModal,   setTundaModal]   = useState(false);
+  const [tundaAlasan,  setTundaAlasan]  = useState('');
+  const [tundaDurasi,  setTundaDurasi]  = useState(2);
+  const [tundaLoading, setTundaLoading] = useState(false);
 
   const chatRef = useRef(null);
   const fotoRef = useRef(null);
   const activeTabRefChat = useRef(null);
   const [savingFoto, setSavingFoto] = useState(false);
+
+  const doTunda = async () => {
+    if (tundaLoading || !tundaAlasan.trim()) return;
+    setTundaLoading(true);
+    try {
+      await submissionAPI.tunda(id, { alasan: tundaAlasan.trim(), durasi: tundaDurasi });
+      toast.success('Pengajuan ditunda');
+      setTundaModal(false); setTundaAlasan(''); setTundaDurasi(2);
+      await load();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Gagal menunda pengajuan');
+    }
+    setTundaLoading(false);
+  };
 
   const handleRequestVerification = async () => {
     if (reqVerifLoading || sub?.verif_diminta_at) return; // anti double-click sisi klien
@@ -1114,6 +1132,40 @@ useEffect(() => {
         </div>
       )}
 
+      {/* Modal tunda */}
+      {tundaModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+            <h3 className="text-base font-bold text-slate-800 dark:text-slate-100 mb-1">Tunda {sub.nomor_pengajuan}</h3>
+            <p className="text-xs text-slate-400 dark:text-slate-500 mb-4">
+              Hanya bisa sekali. Pemohon akan diberi tahu beserta alasannya.
+            </p>
+            <textarea value={tundaAlasan} onChange={e => setTundaAlasan(e.target.value)}
+              rows={3} placeholder="Alasan penundaan, mis. menunggu konfirmasi stok vendor..."
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 text-sm outline-none resize-none focus:border-amber-400 mb-4"/>
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">Durasi</p>
+            <div className="flex gap-2 mb-5">
+              {[1, 2, 3, 4].map(d => (
+                <button key={d} onClick={() => setTundaDurasi(d)}
+                  className={`flex-1 py-2 rounded-xl text-xs font-bold border transition-all ${
+                    tundaDurasi === d
+                      ? 'bg-amber-500 border-amber-500 text-white'
+                      : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-amber-300'
+                  }`}>{d} hari</button>
+              ))}
+            </div>
+            <div className="flex gap-2.5">
+              <Button variant="secondary" className="flex-1"
+                onClick={() => { setTundaModal(false); setTundaAlasan(''); }}>Batal</Button>
+              <Button className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-bold"
+                onClick={doTunda} loading={tundaLoading} disabled={!tundaAlasan.trim()}>
+                Simpan Penundaan
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal minta revisi */}
       {reqRevModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -1292,6 +1344,41 @@ useEffect(() => {
           className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl border-2 border-dashed border-purple-300 dark:border-purple-500/40 hover:border-purple-500 text-purple-600 dark:text-purple-400 text-sm font-semibold transition-colors">
           <RefreshCw size={14}/> Minta Revisi ke Pemohon
         </button>
+      )}
+
+      {/* Tunda — badge bila sudah ditunda, tombol bila belum & >3 hari */}
+      {['Menunggu Verifikasi', 'Terverifikasi'].includes(sub.status) && (
+        sub.ditunda_sampai ? (
+          <div className="rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 p-3">
+            <div className="flex items-center gap-2 mb-1.5">
+              <PauseCircle size={16} className="text-amber-600 dark:text-amber-400 flex-shrink-0"/>
+              <span className="text-sm font-bold text-amber-700 dark:text-amber-300">
+                {sub.ditunda_sampai < new Date().toISOString().slice(0, 10)
+                  ? `Masa tunda habis (${fmtDate(sub.ditunda_sampai)})`
+                  : `Ditunda s/d ${fmtDate(sub.ditunda_sampai)}`}
+              </span>
+            </div>
+            {sub.alasan_tunda && (
+              <p className="text-xs text-amber-700 dark:text-amber-300/90 leading-relaxed whitespace-pre-line">
+                <span className="opacity-70">Alasan:</span> {sub.alasan_tunda}
+                {sub.ditunda_at && <span className="opacity-70"> · {fmtDate(sub.ditunda_at)}</span>}
+              </p>
+            )}
+          </div>
+        ) : ['Verifikator', 'Approval', 'Admin'].includes(user.role) &&
+            (Date.now() - new Date(sub.tanggal).getTime()) >= 3 * 86400000 && (
+          <div className="rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 p-3 flex items-center gap-3">
+            <PauseCircle size={20} className="text-amber-600 dark:text-amber-400 flex-shrink-0"/>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-amber-700 dark:text-amber-300">Menggantung {daysSince(sub.tanggal)} hari</p>
+              <p className="text-xs text-amber-600 dark:text-amber-400/80">Proses, atau tunda bila menunggu pihak lain</p>
+            </div>
+            <button onClick={() => setTundaModal(true)}
+              className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-colors">
+              <PauseCircle size={13}/> Tunda
+            </button>
+          </div>
+        )
       )}
 
       {/* Request Verifikasi — hanya pemohon, ≥2 hari masih Menunggu Verifikasi */}
