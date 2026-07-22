@@ -100,6 +100,7 @@ async function stats(req, res) {
       disetujui:           data.filter(s => s.status === 'Disetujui').length,
       ditolak:             data.filter(s => s.status === 'Ditolak').length,
       dibatalkan:          data.filter(s => s.status === 'Dibatalkan').length,
+      selesai:             data.filter(s => s.status === 'Selesai').length,
       belum_dibayar:       data.filter(s => s.status === 'Disetujui' && !(Number(s.jumlah_bayar) > 0)).length,
       sudah_dibayar_belum_nota: data.filter(s => s.status === 'Disetujui' && Number(s.jumlah_bayar) > 0 && !(s.nota_url && s.nota_url.trim())).length,
     };
@@ -146,7 +147,7 @@ async function stats(req, res) {
 // ── GET /api/submissions ──────────────────────────────────────────
 async function list(req, res) {
   try {
-    const { status, type, q, belum_bayar, page = 1, limit = 20 } = req.query;
+   const { status, type, q, belum_bayar, belum_nota, page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
     let query = supabase
       .from('submissions')
@@ -167,6 +168,7 @@ async function list(req, res) {
         : query.eq('pemohon_id', req.user.id);
     if (status) query = query.eq('status', status);
     if (belum_bayar) query = query.eq('status', 'Disetujui').or('jumlah_bayar.is.null,jumlah_bayar.eq.0');
+    if (belum_nota) query = query.eq('status', 'Disetujui').gt('jumlah_bayar', 0).or('nota_url.is.null,nota_url.eq.');
     if (type)   query = query.eq('type', type);
     // Pencarian server-side: nomor pengajuan + cabang (bersihkan karakter khusus PostgREST)
     if (q && q.trim()) {
