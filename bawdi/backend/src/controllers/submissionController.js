@@ -914,4 +914,55 @@ async function requestVerification(req, res) {
   }
 }
 
-module.exports = { list, getOne, create, verify, approve, reject, stats, selectVendor, overdueForAction, cancelSubmission, hardDeleteSubmission, checkDuplicate, requestPayment, requestVerification };
+// ── PUT /api/submissions/:id/tunda ─────────────────────────────────
+// Verifikator/Approval menunda pengajuan yang menggantung > 3 hari (sekali saja, 1–4 hari)
+async function tundaSubmission(req, res) {
+  try {
+    const { alasan, durasi } = req.body;
+    const d = parseInt(durasi);
+    if (!alasan || !alasan.trim())
+      return res.status(400).json({ error: 'Alasan penundaan wajib diisi' });
+    if (!(d >= 1 && d <= 4))
+      return res.status(400).json({ error: 'Durasi penundaan harus 1–4 hari' });
+
+    const { data: sub } = await supabase.from('submissions')
+      .select('id, status, nomor_pengajuan, tanggal, ditunda_sampai, pemohon_id')
+      .eq('id', req.params.id).single();
+    if (!sub) return res.status(404).json({ error: 'Pengajuan tidak ditemukan' });
+
+    if (!['Menunggu Verifikasi', 'Terverifikasi'].includes(sub.status))
+      return res.status(400).json({ error: 'Hanya pengajuan yang masih menunggu proses yang dapat ditunda' });
+    // Ambang: > 3 hari sejak tanggal pengajuan
+    if (Date.now() - new Date(sub.tanggal).getTime() < 3 * 86400000)
+      return res.status(400).json({ error: 'Penundaan hanya untuk pengajuan yang sudah lebih dari 3 hari' });
+    // Sekali tunda saja
+    if (sub.ditunda_sampai)
+      return res.status(400).json({ error: 'Pengajuan ini sudah pernah ditunda' });
+
+    const sampai = new Date(Date.now() + d * 86400000);
+    const sampaiStr = sampai.toISOString().slice(0, 10); // date (YYYY-MM-DD)
+
+    const { error: upErr } = await supabase.from('submissions')
+      .update({
+        ditunda_sampai: sampaiStr,
+        alasan_tunda: alasan.trim(),
+        ditunda_oleh: req.user.id,
+        ditunda_at: new Date().toISOString(),
+      })
+      .eq('id', sub.id).is('ditunda_sampai', null); // idempoten: sekali tunda
+    if (upErr) return res.status(500).json({ error: 'Gagal menyimpan penundaan' });
+
+    const fmtSampai = sampai.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+    // Notifikasi in-app + push ke pemohon (pengajuannya dijeda, beserta alasan)
+    await notifyUser(sub.pemohon_id, sub.id, 'new_submission',
+      `⏸️ Pengajuan ${sub.nomor_pengajuan} ditunda ${req.user.name} sampai ${fmtSampai}. Alasan: ${alasan.trim()}`);
+
+    logAudit(req, { action: 'tunda', target: sub.nomor_pengajuan, submissionId: sub.id, detail: `Ditunda ${d} hari (s/d ${sampaiStr}) · alasan: ${alasan.trim()}` });
+    res.json({ message: 'Pengajuan ditunda', ditunda_sampai: sampaiStr });
+  } catch (err) {
+    console.error('[tundaSubmission]', err);
+    res.status(500).json({ error: 'Gagal menunda pengajuan' });
+  }
+}
+
+module.exports = { list, getOne, create, verify, approve, reject, stats, selectVendor, overdueForAction, cancelSubmission, hardDeleteSubmission, checkDuplicate, requestPayment, requestVerification, tundaSubmission };
