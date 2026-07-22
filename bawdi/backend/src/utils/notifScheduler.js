@@ -194,9 +194,51 @@ async function sendDailyDigest() {
   } catch (err) { console.error('[scheduler/dailyDigest]', err.message); }
 }
 
+// ── Cek Tunda: (a) >3 hari belum ditunda, (b) masa tunda habis → notif Admin + pemohon ──
+async function checkTunda() {
+  try {
+    const nowMs = Date.now();
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const { data: subs } = await supabase.from('submissions')
+      .select('id, nomor_pengajuan, status, tanggal, pemohon_id, ditunda_sampai')
+      .in('status', ['Menunggu Verifikasi', 'Terverifikasi']);
+    if (!subs?.length) return;
+
+    for (const sub of subs) {
+      const lewat3Hari = nowMs - new Date(sub.tanggal).getTime() >= 3 * 86400000;
+
+      // (b) masa tunda habis
+      if (sub.ditunda_sampai && sub.ditunda_sampai < todayStr) {
+        const type = 'tunda_habis';
+        const { count } = await supabase.from('notifications')
+          .select('id', { count: 'exact', head: true })
+          .eq('submission_id', sub.id).eq('type', type);
+        if (!count) {
+          const msg = `⏰ Masa tunda ${sub.nomor_pengajuan} telah habis. Tinjau dan tanyakan ke pemohon sebelum membatalkan.`;
+          await notifyRole('Admin', sub.id, type, msg);
+        }
+        continue; // sudah ditangani cabang (b), jangan ikut (a)
+      }
+
+      // (a) >3 hari & belum pernah ditunda
+      if (lewat3Hari && !sub.ditunda_sampai) {
+        const type = 'overdue_admin';
+        const { count } = await supabase.from('notifications')
+          .select('id', { count: 'exact', head: true })
+          .eq('submission_id', sub.id).eq('type', type);
+        if (!count) {
+          const hari = Math.floor((nowMs - new Date(sub.tanggal).getTime()) / 86400000);
+          const msg = `⚠️ ${sub.nomor_pengajuan} sudah ${hari} hari belum ditindaklanjuti dan belum ditunda. Perlu perhatian Admin.`;
+          await notifyRole('Admin', sub.id, type, msg);
+        }
+      }
+    }
+  } catch (e) { console.error('[checkTunda]', e.message); }
+}
+
 let lastRunAt = null; // heartbeat untuk panel Status Sistem
 async function runAll() {
-  await checkOverdue(); await checkDeadlines(); await sendDailyDigest();
+  await checkOverdue(); await checkDeadlines(); await checkTunda(); await sendDailyDigest();
   lastRunAt = new Date().toISOString();
 }
 function getLastRunAt() { return lastRunAt; }
