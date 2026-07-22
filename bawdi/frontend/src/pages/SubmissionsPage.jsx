@@ -7,9 +7,19 @@ import { Pill, Card, Spinner, Empty, fmtDate, fmtCurrency, daysSince, RevisiBadg
 import useAuthStore from '../context/authStore';
 
 const STATUSES = ['Semua','Menunggu Verifikasi','Terverifikasi','Disetujui','Belum Dibayar','Ditolak','Dibatalkan'];
+const STATUS_KEY = {
+  'Semua': 'total',
+  'Menunggu Verifikasi': 'menunggu_verifikasi',
+  'Terverifikasi': 'terverifikasi',
+  'Disetujui': 'disetujui',
+  'Belum Dibayar': 'belum_dibayar',
+  'Ditolak': 'ditolak',
+  'Dibatalkan': 'dibatalkan',
+};
 export default function SubmissionsPage() {
   const { user } = useAuthStore();
   const [subs, setSubs] = useState([]);
+  const [counts, setCounts] = useState(null);
   const [loading, setLoading] = useState(true);
   const [searchParams, setSearchParams] = useSearchParams();
   const filter = searchParams.get('status') || 'Semua';
@@ -33,6 +43,10 @@ export default function SubmissionsPage() {
   }, [q]);
 
   // Pencarian & filter status dikerjakan di server; Opsi A: muat semua saat tak mencari
+  useEffect(() => {
+    submissionAPI.stats().then(({ data }) => setCounts(data)).catch(() => {});
+  }, []);
+
   useEffect(() => {
     const load = async () => {
       try {
@@ -71,9 +85,16 @@ export default function SubmissionsPage() {
       <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
         {STATUSES.map(s => (
           <button key={s} onClick={() => setFilter(s)}
-            className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+            className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
               filter === s ? 'bg-brand-500 border-brand-500 text-white' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600'
-            }`}>{s}</button>
+            }`}>
+            {s}
+            {counts && counts[STATUS_KEY[s]] != null && (
+              <span className={`min-w-[18px] px-1 rounded-full text-[10px] font-bold ${
+                filter === s ? 'bg-white/25 text-white' : (counts[STATUS_KEY[s]] === 0 ? 'text-slate-300 dark:text-slate-600' : 'text-slate-700 dark:text-slate-200')
+              }`}>{counts[STATUS_KEY[s]]}</span>
+            )}
+          </button>
         ))}
       </div>
 
@@ -81,7 +102,9 @@ export default function SubmissionsPage() {
 
       <div className="space-y-2.5">
         {subs.map(s => {
-          const isAlert = ['Menunggu Verifikasi','Terverifikasi'].includes(s.status) && daysSince(s.tanggal) > 3;
+          // Tunda aktif → keluar dari daftar mendesak (alert oranye dibungkam)
+          const isDitunda = !!s.ditunda_sampai && s.ditunda_sampai >= new Date().toISOString().slice(0, 10);
+          const isAlert = ['Menunggu Verifikasi','Terverifikasi'].includes(s.status) && daysSince(s.tanggal) > 3 && !isDitunda;
           const notaAlert = s.status === 'Disetujui' && !s.nota_url && daysSince(s.approval_at) >= 1;
           return (
             <Link key={s.id} to={`/submissions/${s.id}`}
@@ -107,6 +130,13 @@ export default function SubmissionsPage() {
                 </div>
                 <div className="text-right flex-shrink-0">
                   <Pill status={s.status} />
+                  {isDitunda && (
+                    <div className="mt-1 flex justify-end">
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-500/30">
+                        ⏸ Ditunda s/d {fmtDate(s.ditunda_sampai)}
+                      </span>
+                    </div>
+                  )}
                   {s.revisi_count > 0 && <div className="mt-1 flex justify-end"><RevisiBadge count={s.revisi_count} /></div>}
                   <p className="text-xs font-black text-brand-500 mt-1.5">{fmtCurrency(s.total_harga)}</p>
                 </div>
