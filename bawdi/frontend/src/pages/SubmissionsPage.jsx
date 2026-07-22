@@ -6,13 +6,15 @@ import { submissionAPI } from '../utils/api';
 import { Pill, Card, Spinner, Empty, fmtDate, fmtCurrency, daysSince, RevisiBadge } from '../components/ui';
 import useAuthStore from '../context/authStore';
 
-const STATUSES = ['Semua','Menunggu Verifikasi','Terverifikasi','Disetujui','Belum Dibayar','Ditolak','Dibatalkan'];
+const STATUSES = ['Semua','Menunggu Verifikasi','Terverifikasi','Disetujui','Belum Dibayar','Belum Ada Nota','Selesai','Ditolak','Dibatalkan'];
 const STATUS_KEY = {
   'Semua': 'total',
   'Menunggu Verifikasi': 'menunggu_verifikasi',
   'Terverifikasi': 'terverifikasi',
   'Disetujui': 'disetujui',
   'Belum Dibayar': 'belum_dibayar',
+  'Belum Ada Nota': 'sudah_dibayar_belum_nota',
+  'Selesai': 'selesai',
   'Ditolak': 'ditolak',
   'Dibatalkan': 'dibatalkan',
 };
@@ -52,6 +54,7 @@ export default function SubmissionsPage() {
       try {
         const params = { limit: 1000 };
         if (filter === 'Belum Dibayar') params.belum_bayar = 1;
+        else if (filter === 'Belum Ada Nota') params.belum_nota = 1;
         else if (filter !== 'Semua')    params.status = filter;
         if (debouncedQ.trim())   params.q = debouncedQ.trim();
         const { data } = await submissionAPI.list(params);
