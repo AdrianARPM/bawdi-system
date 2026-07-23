@@ -84,9 +84,6 @@ function RevisiPanel({ snapshot, sub, user, onAction }) {
   const [rejectReason, setRejectReason] = useState('');
   const [showReject,   setShowReject]   = useState(false);
   const [actLoading,   setActLoading]   = useState('');
-  const [vendorAlasan, setVendorAlasan] = useState('');
-  const [vendorLoading, setVendorLoading] = useState(0);
-  const [ubahVendor,   setUbahVendor]   = useState(false);
 
   const act = async (type, arg) => {
     setActLoading(type);
@@ -744,6 +741,9 @@ export default function DetailPage() {
   const [exporting,     setExporting]     = useState(false);
   const [reqPayLoading, setReqPayLoading] = useState(false);
   const [reqVerifLoading, setReqVerifLoading] = useState(false);
+  const [vendorAlasan,  setVendorAlasan]  = useState('');
+  const [vendorLoading, setVendorLoading] = useState(0);
+  const [ubahVendor,    setUbahVendor]    = useState(false);
   const [tundaModal,   setTundaModal]   = useState(false);
   const [tundaAlasan,  setTundaAlasan]  = useState('');
   const [tundaDurasi,  setTundaDurasi]  = useState(2);
