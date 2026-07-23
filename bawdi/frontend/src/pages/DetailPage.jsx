@@ -990,13 +990,14 @@ useEffect(() => {
   // Cek apakah user adalah Kepala Operasional (berdasarkan jabatan)
   const isKepalaOp = user.jabatan === 'Kepala Operasional';
   const isPAR      = sub.type === 'PAR';
-  // v28: pengajuan 2-vendor wajib dipilih sebelum disetujui
+  const isHRGADanaSosial = user.jabatan === 'HRGA' && sub.jenis_pembelian === 'Beban Dana Sosial';
+  // v28: pengajuan 2-vendor wajib dipilih Approval sebelum disetujui
+  // (disamakan dgn izin endpoint select-vendor: Approval & Admin saja)
   const has2Vendor       = !!(sub.vendor2 && items2.length > 0);
   const totalV1          = items1.reduce((s, i) => s + (Number(i.total) || 0), 0);
   const totalV2          = items2.reduce((s, i) => s + (Number(i.total) || 0), 0);
-  const perluPilihVendor = has2Vendor && !sub.vendor_pilihan;
-  const bolehPilihVendor = ['Approval', 'Admin'].includes(user.role) || isKepalaOp || isHRGADanaSosial;
-  const isHRGADanaSosial = user.jabatan === 'HRGA' && sub.jenis_pembelian === 'Beban Dana Sosial';
+  const bolehPilihVendor = ['Approval', 'Admin'].includes(user.role);
+  const perluPilihVendor = has2Vendor && !sub.vendor_pilihan && bolehPilihVendor;
 
   // Permission request revisi — beda untuk PR vs PAR
   const canRequestRevision = isPAR
@@ -1390,12 +1391,8 @@ useEffect(() => {
             <div className="flex gap-2.5">
               <Button variant="danger"  className="flex-1" onClick={() => setShowReject(true)}>✗ Tolak</Button>
               <Button variant="success" className="flex-1" onClick={() => doAction('approve')}
-                disabled={perluPilihVendor}
                 loading={actLoading === 'approve'}>✓ Setujui</Button>
             </div>
-            {perluPilihVendor && (
-              <p className="text-xs text-red-600 dark:text-red-400 mt-2">Pilih vendor terlebih dahulu sebelum menyetujui.</p>
-            )}
           </div>
         ) : null
       )}
