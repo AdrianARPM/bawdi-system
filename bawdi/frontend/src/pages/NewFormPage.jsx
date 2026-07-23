@@ -227,6 +227,17 @@ function ItemKMSection({ item, kmCache, onItemUpdate, onPilihRiwayat }) {
           )}
         </div>
 
+        {/* v27: item/merek sebelumnya — opsional, hanya saat riwayat diisi manual */}
+        {!hasArsip && (
+          <div className="flex items-center gap-2">
+            <span className="w-28 text-slate-500 dark:text-slate-400 flex-shrink-0 text-[11px]">Item sebelumnya</span>
+            <input type="text" value={item.riwayat_dari || ''} onChange={e => onItemUpdate(item.id, 'riwayat_dari', e.target.value)}
+              placeholder="opsional — mis. Ban Belakang (GT Radial)"
+              className="flex-1 px-2 py-1 rounded border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 text-[11px] text-slate-800 dark:text-slate-100 outline-none focus:border-amber-400 placeholder:text-slate-300 dark:placeholder:text-slate-600"/>
+            <span className="bg-amber-100 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 rounded px-1.5 py-0.5 font-bold text-[9px] flex-shrink-0">ISI</span>
+          </div>
+        )}
+
         {/* c. KM saat pengajuan (selalu input) */}
         <div className="flex items-center gap-2">
           <span className="w-28 text-slate-500 dark:text-slate-400 flex-shrink-0 text-[11px]">c. KM Sekarang</span>
@@ -658,7 +669,7 @@ export default function NewFormPage() {
       lines.push(`   b. KM Terakhir  : ${kmTerakhirEf != null ? fmtKM(kmTerakhirEf) : '—'}`);
       lines.push(`   c. KM Sekarang  : ${kmSekarang != null ? fmtKM(kmSekarang) : '—'}`);
       lines.push(`   d. Selisih KM   : ${selisih != null ? `${selisih >= 0 ? '+' : ''}${selisih.toLocaleString('id-ID')} KM` : '—'}`);
-      if (item.riwayat_dari?.trim()) lines.push(`      (riwayat dari: ${item.riwayat_dari.trim()})`);
+      if (item.riwayat_dari?.trim()) lines.push(`      (riwayat dari: ${item.riwayat_dari.trim()}${hasArsip ? '' : ' — manual'})`);
       lines.push('');
     });
 
