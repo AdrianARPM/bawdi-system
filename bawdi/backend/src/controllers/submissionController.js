@@ -307,6 +307,7 @@ async function create(req, res) {
         km_pengajuan: i.km_pengajuan != null ? Number(i.km_pengajuan) : null,
         km_manual:    i.km_manual != null ? Number(i.km_manual) : null,
         tgl_manual:   i.tgl_manual || null,
+        riwayat_dari: i.riwayat_dari || '',
         kategori_biaya: i.kategori_biaya || 'Lainnya',
       }))
     );
