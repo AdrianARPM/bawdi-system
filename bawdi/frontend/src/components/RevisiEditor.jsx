@@ -206,6 +206,9 @@ export default function RevisiEditor({ snapshot, onClose, onSubmitted, isUmum = 
       diskon:        i.diskon ? String(i.diskon) : '',
       vendor_num:    i.vendor_num || 1,
       km_pengajuan:  i.km_pengajuan != null ? String(i.km_pengajuan) : '',
+      km_manual:     i.km_manual != null ? String(i.km_manual) : '',
+      tgl_manual:    i.tgl_manual || '',
+      riwayat_dari:  i.riwayat_dari || '',
       kategori_biaya: i.kategori_biaya || 'Lainnya',
     })),
   });
@@ -236,7 +239,8 @@ export default function RevisiEditor({ snapshot, onClose, onSubmitted, isUmum = 
       // Cari KM/Tgl terakhir dari arsip per item (paralel), berdasarkan plat + nama item
       const results = await Promise.all(ordered.map(async item => {
         let arsip = null;
-        const keyword = item.penjelasan?.trim();
+        // v27: bila pemohon sudah memilih sumber riwayat, pakai nama itu utk lookup
+        const keyword = (item.riwayat_dari?.trim() || item.penjelasan?.trim());
         if (kendaraan?.trim() && keyword) {
           try {
             const { data: res } = await historyAPI.getLastKM(kendaraan.trim(), keyword);
@@ -250,18 +254,20 @@ export default function RevisiEditor({ snapshot, onClose, onSubmitted, isUmum = 
       let counter = 0;
       results.forEach(({ item, arsip }) => {
         const hasArsip      = !!arsip;
-        const kmTerakhirEf  = hasArsip ? arsip.km_pengajuan : null;
-        const tglTerakhirEf = hasArsip ? arsip.tanggal      : null;
+        // fallback ke nilai manual bila arsip kosong (disamakan dgn NewFormPage)
+        const kmTerakhirEf  = hasArsip ? arsip.km_pengajuan : (parseInt(item.km_manual) || null);
+        const tglTerakhirEf = hasArsip ? arsip.tanggal      : (item.tgl_manual || null);
         const kmSekarang    = parseInt(item.km_pengajuan) || null;
         if (!kmSekarang && !kmTerakhirEf && !tglTerakhirEf) return;  // item tanpa data KM dilewati
         counter++;
         const selisih = hitungSelisihKM(kmSekarang, kmTerakhirEf);
-        const sumber  = hasArsip ? (arsip.nomor_pengajuan ? ` (${arsip.nomor_pengajuan})` : '') : '';
+        const sumber  = hasArsip ? (arsip.nomor_pengajuan ? ` (${arsip.nomor_pengajuan})` : '') : ' (manual)';
         lines.push(`${counter}. ${item.penjelasan || '(tanpa penjelasan)'}`);
         lines.push(`   a. Tgl Terakhir : ${tglTerakhirEf ? fmtTanggal(tglTerakhirEf) + sumber : '—'}`);
         lines.push(`   b. KM Terakhir  : ${kmTerakhirEf != null ? fmtKM(kmTerakhirEf) : '—'}`);
         lines.push(`   c. KM Sekarang  : ${kmSekarang != null ? fmtKM(kmSekarang) : '—'}`);
         lines.push(`   d. Selisih KM   : ${selisih != null ? `${selisih >= 0 ? '+' : ''}${selisih.toLocaleString('id-ID')} KM` : '—'}`);
+        if (item.riwayat_dari?.trim()) lines.push(`      (riwayat dari: ${item.riwayat_dari.trim()})`);
         lines.push('');
       });
       setField('riwayat', lines.length ? lines.join('\n').trim() : '(Tidak ada riwayat KM yang diisi)');
