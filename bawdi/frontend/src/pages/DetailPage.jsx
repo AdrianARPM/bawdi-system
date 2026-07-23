@@ -84,6 +84,9 @@ function RevisiPanel({ snapshot, sub, user, onAction }) {
   const [rejectReason, setRejectReason] = useState('');
   const [showReject,   setShowReject]   = useState(false);
   const [actLoading,   setActLoading]   = useState('');
+  const [vendorAlasan, setVendorAlasan] = useState('');
+  const [vendorLoading, setVendorLoading] = useState(0);
+  const [ubahVendor,   setUbahVendor]   = useState(false);
 
   const act = async (type, arg) => {
     setActLoading(type);
@@ -859,6 +862,21 @@ useEffect(() => {
     return () => clearInterval(t);
   }, [activeTab, id]);
 
+  // v28: Approval memilih vendor pada pengajuan 2-vendor (total_harga dihitung ulang di server)
+  const doSelectVendor = async (n) => {
+    if (vendorLoading) return;
+    setVendorLoading(n);
+    try {
+      await submissionAPI.selectVendor(id, n, vendorAlasan.trim());
+      toast.success(`Vendor ${n} dipilih`);
+      setUbahVendor(false); setVendorAlasan('');
+      await load();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Gagal memilih vendor');
+    }
+    setVendorLoading(0);
+  };
+
   const doAction = async (action, arg) => {
     setActLoading(action);
     try {
@@ -972,6 +990,12 @@ useEffect(() => {
   // Cek apakah user adalah Kepala Operasional (berdasarkan jabatan)
   const isKepalaOp = user.jabatan === 'Kepala Operasional';
   const isPAR      = sub.type === 'PAR';
+  // v28: pengajuan 2-vendor wajib dipilih sebelum disetujui
+  const has2Vendor       = !!(sub.vendor2 && items2.length > 0);
+  const totalV1          = items1.reduce((s, i) => s + (Number(i.total) || 0), 0);
+  const totalV2          = items2.reduce((s, i) => s + (Number(i.total) || 0), 0);
+  const perluPilihVendor = has2Vendor && !sub.vendor_pilihan;
+  const bolehPilihVendor = ['Approval', 'Admin'].includes(user.role) || isKepalaOp || isHRGADanaSosial;
   const isHRGADanaSosial = user.jabatan === 'HRGA' && sub.jenis_pembelian === 'Beban Dana Sosial';
 
   // Permission request revisi — beda untuk PR vs PAR
@@ -1257,6 +1281,65 @@ useEffect(() => {
       )}
 
       {/* PR — Approval: setujui/tolak */}
+      {/* v28: Pilih vendor — wajib sebelum menyetujui pengajuan 2-vendor */}
+      {has2Vendor && bolehPilihVendor && !['Ditolak', 'Dibatalkan'].includes(sub.status) && (
+        <div className={`rounded-2xl p-4 border ${sub.vendor_pilihan && !ubahVendor
+          ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30'
+          : 'bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/30'}`}>
+          {sub.vendor_pilihan && !ubahVendor ? (
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-emerald-800 dark:text-emerald-300">
+                  🏆 Vendor {sub.vendor_pilihan} dipilih — {sub.vendor_pilihan === 2 ? sub.vendor2 : sub.vendor}
+                </p>
+                <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-0.5">
+                  Total dipakai: {fmtCurrency(sub.vendor_pilihan === 2 ? totalV2 : totalV1)}
+                  {Number(sub.ppn) > 0 ? ` + Ppn ${fmtCurrency(sub.ppn)}` : ''}
+                </p>
+                {sub.vendor_pilihan_alasan && (
+                  <p className="text-xs text-emerald-700 dark:text-emerald-300/90 mt-1 whitespace-pre-line">
+                    <span className="opacity-70">Alasan:</span> {sub.vendor_pilihan_alasan}
+                  </p>
+                )}
+              </div>
+              {!['Selesai'].includes(sub.status) && !sub.tanggal_bayar && (
+                <button onClick={() => setUbahVendor(true)}
+                  className="flex-shrink-0 text-xs font-bold text-emerald-700 dark:text-emerald-300 underline">Ubah pilihan</button>
+              )}
+            </div>
+          ) : (
+            <>
+              <p className="text-sm font-bold text-blue-800 dark:text-blue-300 mb-1">Pilih Vendor</p>
+              <p className="text-xs text-blue-600 dark:text-blue-400 mb-3">
+                Pengajuan ini punya 2 vendor. Pilih salah satu — total pembayaran mengikuti pilihan Anda.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-3">
+                {[{ n: 1, nama: sub.vendor, tot: totalV1, jml: items1.length },
+                  { n: 2, nama: sub.vendor2, tot: totalV2, jml: items2.length }].map(v => (
+                  <button key={v.n} onClick={() => doSelectVendor(v.n)} disabled={!!vendorLoading}
+                    className={`text-left rounded-xl border p-3 transition-all disabled:opacity-50 ${
+                      sub.vendor_pilihan === v.n
+                        ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-300 dark:border-emerald-500/40'
+                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 hover:border-blue-400'}`}>
+                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500">VENDOR {v.n}</p>
+                    <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">{v.nama || '—'}</p>
+                    <p className="text-sm font-bold text-brand-600 dark:text-brand-400 mt-1">{fmtCurrency(v.tot)}</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500">{v.jml} item</p>
+                  </button>
+                ))}
+              </div>
+              <input type="text" value={vendorAlasan} onChange={e => setVendorAlasan(e.target.value)}
+                placeholder="Alasan pemilihan (opsional)"
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 text-xs outline-none focus:border-blue-400"/>
+              {ubahVendor && (
+                <button onClick={() => { setUbahVendor(false); setVendorAlasan(''); }}
+                  className="mt-2 text-xs text-slate-500 dark:text-slate-400 underline">Batal ubah</button>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
       {!isPAR && (user.role === 'Approval' || isHRGADanaSosial) && sub.status === 'Terverifikasi' && (
         revisiAktif ? (
           <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-2xl p-4 flex items-center justify-between gap-3">
@@ -1276,8 +1359,12 @@ useEffect(() => {
             <div className="flex gap-2.5">
               <Button variant="danger"  className="flex-1" onClick={() => setShowReject(true)}>✗ Tolak</Button>
               <Button variant="success" className="flex-1" onClick={() => doAction('approve')}
+                disabled={perluPilihVendor}
                 loading={actLoading === 'approve'}>✓ Setujui</Button>
             </div>
+            {perluPilihVendor && (
+              <p className="text-xs text-red-600 dark:text-red-400 mt-2">Pilih vendor terlebih dahulu sebelum menyetujui.</p>
+            )}
           </div>
         )
       )}
@@ -1303,8 +1390,12 @@ useEffect(() => {
             <div className="flex gap-2.5">
               <Button variant="danger"  className="flex-1" onClick={() => setShowReject(true)}>✗ Tolak</Button>
               <Button variant="success" className="flex-1" onClick={() => doAction('approve')}
+                disabled={perluPilihVendor}
                 loading={actLoading === 'approve'}>✓ Setujui</Button>
             </div>
+            {perluPilihVendor && (
+              <p className="text-xs text-red-600 dark:text-red-400 mt-2">Pilih vendor terlebih dahulu sebelum menyetujui.</p>
+            )}
           </div>
         ) : null
       )}
