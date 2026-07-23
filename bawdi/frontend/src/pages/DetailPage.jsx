@@ -744,6 +744,7 @@ export default function DetailPage() {
   const [vendorAlasan,  setVendorAlasan]  = useState('');
   const [vendorLoading, setVendorLoading] = useState(0);
   const [ubahVendor,    setUbahVendor]    = useState(false);
+  const [konfirmVendor, setKonfirmVendor] = useState(0);   // 0 = tidak ada dialog
   const [tundaModal,   setTundaModal]   = useState(false);
   const [tundaAlasan,  setTundaAlasan]  = useState('');
   const [tundaDurasi,  setTundaDurasi]  = useState(2);
@@ -869,7 +870,7 @@ useEffect(() => {
     try {
       await submissionAPI.selectVendor(id, n, vendorAlasan.trim());
       toast.success(`Vendor ${n} dipilih`);
-      setUbahVendor(false); setVendorAlasan('');
+      setUbahVendor(false); setVendorAlasan(''); setKonfirmVendor(0);
       await load();
     } catch (err) {
       toast.error(err.response?.data?.error || 'Gagal memilih vendor');
@@ -1157,6 +1158,35 @@ useEffect(() => {
         </div>
       )}
 
+      {/* v28: Konfirmasi pemilihan vendor */}
+      {konfirmVendor > 0 && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+            <h3 className="text-base font-bold text-slate-800 dark:text-slate-100 mb-1">Pilih Vendor {konfirmVendor}?</h3>
+            <p className="text-sm text-slate-600 dark:text-slate-300 mb-1">
+              {konfirmVendor === 2 ? sub.vendor2 : sub.vendor}
+            </p>
+            <p className="text-sm font-bold text-brand-600 dark:text-brand-400 mb-3">
+              Total: {fmtCurrency(konfirmVendor === 2 ? totalV2 : totalV1)}
+              {Number(sub.ppn) > 0 ? ` + Ppn ${fmtCurrency(sub.ppn)}` : ''}
+            </p>
+            <p className="text-xs text-slate-400 dark:text-slate-500 mb-4">
+              Nominal pembayaran akan mengikuti vendor ini. Pilihan tercatat di chat dan masih bisa diubah sebelum pembayaran.
+            </p>
+            {vendorAlasan.trim() && (
+              <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+                <span className="opacity-70">Alasan:</span> {vendorAlasan.trim()}
+              </p>
+            )}
+            <div className="flex gap-2.5">
+              <Button variant="secondary" className="flex-1" onClick={() => setKonfirmVendor(0)}>Batal</Button>
+              <Button variant="success" className="flex-1" loading={vendorLoading === konfirmVendor}
+                onClick={() => doSelectVendor(konfirmVendor)}>Ya, pilih</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal tunda */}
       {tundaModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -1317,7 +1347,7 @@ useEffect(() => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-3">
                 {[{ n: 1, nama: sub.vendor, tot: totalV1, jml: items1.length },
                   { n: 2, nama: sub.vendor2, tot: totalV2, jml: items2.length }].map(v => (
-                  <button key={v.n} onClick={() => doSelectVendor(v.n)} disabled={!!vendorLoading}
+                  <button key={v.n} onClick={() => setKonfirmVendor(v.n)} disabled={!!vendorLoading}
                     className={`text-left rounded-xl border p-3 transition-all disabled:opacity-50 ${
                       sub.vendor_pilihan === v.n
                         ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-300 dark:border-emerald-500/40'
