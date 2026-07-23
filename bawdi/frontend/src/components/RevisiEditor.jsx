@@ -267,7 +267,7 @@ export default function RevisiEditor({ snapshot, onClose, onSubmitted, isUmum = 
         lines.push(`   b. KM Terakhir  : ${kmTerakhirEf != null ? fmtKM(kmTerakhirEf) : '—'}`);
         lines.push(`   c. KM Sekarang  : ${kmSekarang != null ? fmtKM(kmSekarang) : '—'}`);
         lines.push(`   d. Selisih KM   : ${selisih != null ? `${selisih >= 0 ? '+' : ''}${selisih.toLocaleString('id-ID')} KM` : '—'}`);
-        if (item.riwayat_dari?.trim()) lines.push(`      (riwayat dari: ${item.riwayat_dari.trim()})`);
+        if (item.riwayat_dari?.trim()) lines.push(`      (riwayat dari: ${item.riwayat_dari.trim()}${hasArsip ? '' : ' — manual'})`);
         lines.push('');
       });
       setField('riwayat', lines.length ? lines.join('\n').trim() : '(Tidak ada riwayat KM yang diisi)');
