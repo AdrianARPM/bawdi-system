@@ -113,7 +113,25 @@ function Field({ label, required, error, hint, children }) {
 /* ═══════════════════════════════════════════════════════════════
    ItemKMSection — Riwayat KM PER ITEM (opsional)
    ═══════════════════════════════════════════════════════════════ */
-function ItemKMSection({ item, kmCache, onItemUpdate }) {
+// v27: pencocokan riwayat longgar — cocok bila ada minimal 1 kata sama.
+// Daftar sumber (itemSuggestions) sudah di-dedup per item & berisi entri TERBARU.
+const STOP_RIWAYAT = new Set(['mrek','merek','merk','jasa','unit','pcs','set','buah','pasang','dan','yang','untuk','bagian','kode']);
+function toksRiwayat(s) {
+  return new Set(String(s || '').toLowerCase().replace(/[()\[\]\/,.\-+:]/g, ' ').split(/\s+/)
+    .filter(t => t.length > 2 && !STOP_RIWAYAT.has(t)));
+}
+function cariRiwayatMirip(nama, list) {
+  const q = toksRiwayat(nama);
+  if (!q.size || !list?.length) return [];
+  const namaN = String(nama || '').trim().toLowerCase();
+  return list
+    .filter(s => s.penjelasan && s.penjelasan.trim().toLowerCase() !== namaN && s.km_pengajuan != null)
+    .map(s => ({ ...s, skor: [...toksRiwayat(s.penjelasan)].filter(t => q.has(t)).length }))
+    .filter(s => s.skor > 0)
+    .sort((a, b) => b.skor - a.skor || new Date(b.tanggal) - new Date(a.tanggal));
+}
+
+function ItemKMSection({ item, kmCache, onItemUpdate, onPilihRiwayat }) {
   const hasArsip = kmCache?.hasArsip;
   const loading  = kmCache?.loading;
 
@@ -130,6 +148,49 @@ function ItemKMSection({ item, kmCache, onItemUpdate }) {
         {loading && <Loader size={11} className="text-amber-400 animate-spin"/>}
       </div>
       <div className="space-y-1 text-xs bg-slate-50 dark:bg-slate-800/60 rounded-lg px-2.5 py-2 border border-slate-100 dark:border-slate-800">
+        {/* v27: saran riwayat mirip — muncul bila exact-match gagal tapi ada item serupa */}
+        {!hasArsip && !kmCache?.tolakSaran && kmCache?.saran?.length > 0 && (
+          <div className="bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-lg px-2.5 py-2 mb-1.5">
+            {!kmCache.lihatSemua ? (
+              <>
+                <p className="text-[10px] font-bold text-blue-700 dark:text-blue-300 mb-0.5">Mirip dengan riwayat yang ada</p>
+                <p className="text-[10.5px] text-blue-700 dark:text-blue-300 leading-snug">
+                  {kmCache.saran[0].penjelasan} · {fmtKM(kmCache.saran[0].km_pengajuan)} · {fmtTanggal(kmCache.saran[0].tanggal)}
+                  {kmCache.saran[0].nomor_pengajuan ? ` · ${kmCache.saran[0].nomor_pengajuan}` : ''}
+                </p>
+                {kmCache.saran.length > 1 && (
+                  <p className="text-[9.5px] text-blue-600/70 dark:text-blue-400/70 mt-0.5">{kmCache.saran.length} riwayat mirip ditemukan</p>
+                )}
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  <button type="button" onClick={() => onPilihRiwayat(item.id, kmCache.saran[0])}
+                    className="px-2 py-1 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold transition-colors">Pakai riwayat ini</button>
+                  {kmCache.saran.length > 1 && (
+                    <button type="button" onClick={() => onPilihRiwayat(item.id, null, 'lihatSemua')}
+                      className="px-2 py-1 rounded-md border border-blue-300 dark:border-blue-500/40 text-blue-700 dark:text-blue-300 text-[10px] font-bold">Pilih lain</button>
+                  )}
+                  <button type="button" onClick={() => onPilihRiwayat(item.id, null, 'tolak')}
+                    className="px-2 py-1 rounded-md border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 text-[10px] font-bold">Item baru — isi manual</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-[10px] font-bold text-blue-700 dark:text-blue-300 mb-1">Pilih riwayat</p>
+                <div className="flex flex-col gap-1 max-h-40 overflow-y-auto">
+                  {kmCache.saran.map((s, i) => (
+                    <button type="button" key={i} onClick={() => onPilihRiwayat(item.id, s)}
+                      className="text-left px-2 py-1 rounded-md bg-white dark:bg-slate-900 border border-blue-100 dark:border-slate-700 hover:border-blue-300 transition-colors">
+                      <span className="block text-[10.5px] font-semibold text-slate-700 dark:text-slate-200 truncate">{s.penjelasan}</span>
+                      <span className="block text-[9.5px] text-slate-400 dark:text-slate-500">{fmtKM(s.km_pengajuan)} · {fmtTanggal(s.tanggal)}{s.nomor_pengajuan ? ` · ${s.nomor_pengajuan}` : ''}</span>
+                    </button>
+                  ))}
+                  <button type="button" onClick={() => onPilihRiwayat(item.id, null, 'tolak')}
+                    className="text-left px-2 py-1 rounded-md text-[10.5px] text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-600">Tidak ada riwayat — isi manual</button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
         {/* a. Tanggal terakhir */}
         <div className="flex items-center gap-2">
           <span className="w-28 text-slate-500 dark:text-slate-400 flex-shrink-0 text-[11px]">a. Tgl Terakhir</span>
@@ -183,8 +244,17 @@ function ItemKMSection({ item, kmCache, onItemUpdate }) {
           <span className="bg-blue-100 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded px-1.5 py-0.5 font-bold text-[9px] flex-shrink-0">AUTO</span>
         </div>
 
+        {/* v27: sumber riwayat bila pemohon memakai saran */}
+        {hasArsip && item.riwayat_dari && (
+          <p className="text-[9.5px] text-emerald-600 dark:text-emerald-400 pt-1">
+            Riwayat dari: <span className="font-semibold">{item.riwayat_dari}</span> — terkunci dari arsip
+            <button type="button" onClick={() => onPilihRiwayat(item.id, null, 'reset')}
+              className="ml-1.5 underline text-slate-400 dark:text-slate-500">ubah</button>
+          </p>
+        )}
+
         {/* Info banner jika arsip kosong */}
-        {!loading && !hasArsip && item.penjelasan?.trim() && (
+        {!loading && !hasArsip && !kmCache?.saran?.length && item.penjelasan?.trim() && (
           <p className="text-[9.5px] text-amber-600 dark:text-amber-400 italic pt-1">
             Tidak ada riwayat di arsip untuk item serupa di plat ini. Bisa diisi manual atau dibiarkan kosong.
           </p>
@@ -239,7 +309,7 @@ const CABANG_LIST = [
   'APLPKU','APLBDO','APLPDG','APLDJB','APLMES','APLPLM','PVPLM','PVMES','PVPKU','PVTKG','PVSUB','DHSCBT','NIC', 'ADM'
 ];
 
-function ItemRow({ item, idx, totalItems, vendorNum, onUpdate, onRemove, onBlurPenjelasan, kmCache, errors, isUmum, suggestions = [] }) {
+function ItemRow({ item, idx, totalItems, vendorNum, onUpdate, onRemove, onBlurPenjelasan, kmCache, errors, isUmum, suggestions = [], onPilihRiwayat }) {
   const eb = `item${vendorNum}_${idx}`;
   const handlePenjelasan = useCallback(e => onUpdate(item.id, 'penjelasan', e.target.value), [item.id, onUpdate]);
   const handleSatuan     = useCallback(e => onUpdate(item.id, 'satuan',     e.target.value), [item.id, onUpdate]);
@@ -353,12 +423,12 @@ function ItemRow({ item, idx, totalItems, vendorNum, onUpdate, onRemove, onBlurP
       )}
 
       {/* Per-item KM section (disembunyikan utk pengajuan umum) */}
-      {!isUmum && <ItemKMSection item={item} kmCache={kmCache} onItemUpdate={onUpdate}/>}
+      {!isUmum && <ItemKMSection item={item} kmCache={kmCache} onItemUpdate={onUpdate} onPilihRiwayat={onPilihRiwayat}/>}
     </div>
   );
 }
 
-function ItemsSection({ items, total, vendorNum, errors, onUpdate, onAdd, onRemove, onBlurPenjelasan, itemKMCache, isUmum, suggestions }) {
+function ItemsSection({ items, total, vendorNum, errors, onUpdate, onAdd, onRemove, onBlurPenjelasan, itemKMCache, isUmum, suggestions, onPilihRiwayat }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -368,7 +438,7 @@ function ItemsSection({ items, total, vendorNum, errors, onUpdate, onAdd, onRemo
       {items.map((item, idx) => (
         <ItemRow key={item.id} item={item} idx={idx} totalItems={items.length} vendorNum={vendorNum}
           errors={errors} onUpdate={onUpdate} onRemove={onRemove} onBlurPenjelasan={onBlurPenjelasan}
-          kmCache={itemKMCache[item.id]} isUmum={isUmum} suggestions={suggestions}/>
+          kmCache={itemKMCache[item.id]} isUmum={isUmum} suggestions={suggestions} onPilihRiwayat={onPilihRiwayat}/>
       ))}
       <div className="flex justify-between items-center bg-amber-50 dark:bg-amber-500/10 rounded-xl px-3 py-2.5">
         <span className="text-sm font-extrabold text-amber-800 dark:text-amber-300">TOTAL</span>
@@ -398,6 +468,7 @@ const newItem = () => ({
   kategori_biaya: '', // Kategori biaya (wajib) — utk laporan master data
   km_manual: '',      // KM terakhir manual jika arsip kosong
   tgl_manual: '',     // Tanggal terakhir manual jika arsip kosong
+  riwayat_dari: '',   // v27: nama item sumber riwayat bila pemohon memakai saran
 });
 
 /* ═══════════════════════════════════════════════════════════════ */
@@ -479,11 +550,51 @@ export default function NewFormPage() {
           }
         }));
       } else {
-        setItemKMCache(c => ({ ...c, [itemId]: { loading: false, hasArsip: false } }));
+        // v27: exact-match gagal → tawarkan riwayat mirip (longgar, terbaru per item)
+        const saran = cariRiwayatMirip(keyword, itemSuggestions);
+        setItemKMCache(c => ({ ...c, [itemId]: { loading: false, hasArsip: false, saran } }));
       }
     } catch {
       setItemKMCache(c => ({ ...c, [itemId]: { loading: false, hasArsip: false } }));
     }
+  }, [itemSuggestions]);
+
+  // v27: pemohon memilih riwayat dari saran (atau menolak/mengubah)
+  const pilihRiwayat = useCallback((itemId, sugg, aksi) => {
+    if (aksi === 'lihatSemua') {
+      setItemKMCache(c => ({ ...c, [itemId]: { ...c[itemId], lihatSemua: true } }));
+      return;
+    }
+    if (aksi === 'tolak') {
+      setItemKMCache(c => ({ ...c, [itemId]: { ...c[itemId], tolakSaran: true, lihatSemua: false } }));
+      return;
+    }
+    if (aksi === 'reset') {
+      setItemKMCache(c => ({ ...c, [itemId]: { loading: false, hasArsip: false, saran: c[itemId]?.saran || [], tolakSaran: false } }));
+      setForm(f => ({
+        ...f,
+        items1: f.items1.map(i => i.id === itemId ? { ...i, riwayat_dari: '' } : i),
+        items2: f.items2.map(i => i.id === itemId ? { ...i, riwayat_dari: '' } : i),
+      }));
+      return;
+    }
+    if (!sugg) return;
+    // Pakai riwayat: KM & tanggal dikunci dari arsip, sumber dicatat
+    setItemKMCache(c => ({
+      ...c,
+      [itemId]: {
+        loading: false, hasArsip: true,
+        kmTerakhir: sugg.km_pengajuan,
+        tanggalTerakhir: sugg.tanggal,
+        nomorTerakhir: sugg.nomor_pengajuan,
+        saran: c[itemId]?.saran || [], lihatSemua: false,
+      }
+    }));
+    setForm(f => ({
+      ...f,
+      items1: f.items1.map(i => i.id === itemId ? { ...i, riwayat_dari: sugg.penjelasan, km_manual: '', tgl_manual: '' } : i),
+      items2: f.items2.map(i => i.id === itemId ? { ...i, riwayat_dari: sugg.penjelasan, km_manual: '', tgl_manual: '' } : i),
+    }));
   }, []);
 
   // Handler saat user blur dari textarea penjelasan
@@ -547,6 +658,7 @@ export default function NewFormPage() {
       lines.push(`   b. KM Terakhir  : ${kmTerakhirEf != null ? fmtKM(kmTerakhirEf) : '—'}`);
       lines.push(`   c. KM Sekarang  : ${kmSekarang != null ? fmtKM(kmSekarang) : '—'}`);
       lines.push(`   d. Selisih KM   : ${selisih != null ? `${selisih >= 0 ? '+' : ''}${selisih.toLocaleString('id-ID')} KM` : '—'}`);
+      if (item.riwayat_dari?.trim()) lines.push(`      (riwayat dari: ${item.riwayat_dari.trim()})`);
       lines.push('');
     });
 
@@ -638,6 +750,7 @@ export default function NewFormPage() {
           kategori_biaya: i.kategori_biaya || '',
           km_manual: i.km_manual != null ? String(i.km_manual) : '',
           tgl_manual: i.tgl_manual || '',
+          riwayat_dari: i.riwayat_dari || '',
         });
         const items1 = v1.length ? v1.map(mapItem) : [newItem()];
         setForm(f => ({
@@ -714,6 +827,7 @@ export default function NewFormPage() {
           km_pengajuan: parseInt(i.km_pengajuan) || null,
           km_manual: parseInt(i.km_manual) || null,
           tgl_manual: i.tgl_manual || null,
+          riwayat_dari: i.riwayat_dari || '',
           kategori_biaya: i.kategori_biaya || 'Lainnya',
         })),
         ...(form.useVendor2?form.items2.map(i=>({
@@ -722,6 +836,7 @@ export default function NewFormPage() {
           km_pengajuan: parseInt(i.km_pengajuan) || null,
           km_manual: parseInt(i.km_manual) || null,
           tgl_manual: i.tgl_manual || null,
+          riwayat_dari: i.riwayat_dari || '',
           kategori_biaya: i.kategori_biaya || 'Lainnya',
         })):[]),
       ];
@@ -960,7 +1075,7 @@ export default function NewFormPage() {
               <ItemsSection items={form.items1} total={total1} vendorNum={1} errors={errors}
                 onUpdate={updateItem1} onAdd={addItem1} onRemove={removeItem1}
                 onBlurPenjelasan={handleBlurPenjelasan1} itemKMCache={itemKMCache} isUmum={form.is_umum}
-                suggestions={itemSuggestions}/>
+                suggestions={itemSuggestions} onPilihRiwayat={pilihRiwayat}/>
               {/* Ppn — satu nilai untuk seluruh pengajuan (opsional, menambah total) */}
               <div className="pt-3 mt-1 border-t border-slate-100 dark:border-slate-800 space-y-2.5">
                 <div className="flex items-center justify-between gap-3">
@@ -1006,7 +1121,7 @@ export default function NewFormPage() {
               <ItemsSection items={form.items2} total={total2} vendorNum={2} errors={errors}
                 onUpdate={updateItem2} onAdd={addItem2} onRemove={removeItem2}
                 onBlurPenjelasan={handleBlurPenjelasan2} itemKMCache={itemKMCache} isUmum={form.is_umum}
-                suggestions={itemSuggestions}/>
+                suggestions={itemSuggestions} onPilihRiwayat={pilihRiwayat}/>
             </div>
           )}
         </Card>
