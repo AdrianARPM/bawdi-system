@@ -18,6 +18,10 @@ const platCoarse = (kendaraan) => {
 /**
  * GET /api/history/vehicle
  */
+// v28: item yang dianggap sah = milik vendor terpilih (default Vendor 1 bila belum dipilih)
+const vendorSah = (sub) => (Number(sub?.vendor_pilihan) === 2 ? 2 : 1);
+const itemVendorSah = (it, sub) => (Number(it.vendor_num) || 1) === vendorSah(sub);
+
 async function getVehicleHistory(req, res) {
   try {
     const { kendaraan, limit = 5 } = req.query;
@@ -45,7 +49,8 @@ async function getVehicleHistory(req, res) {
 
     const result = submissions.slice(0, Number(limit)).map(sub => ({
       ...sub,
-      items_preview: sub.items?.slice(0, 3).map(i => i.penjelasan).join(', '),
+      items: (sub.items || []).filter(i => itemVendorSah(i, sub)),
+      items_preview: (sub.items || []).filter(i => itemVendorSah(i, sub)).slice(0, 3).map(i => i.penjelasan).join(', '),
     }));
     res.json({ data: result });
   } catch (err) {
@@ -101,6 +106,7 @@ async function getLastKM(req, res) {
       if (!sub) return false;
       if (normTxt(sub.kendaraan) !== platN) return false;
       if (!trustedStatus.includes(sub.status)) return false;
+      if (!itemVendorSah(it, sub)) return false;   // v28: abaikan item vendor pembanding
       return normTxt(it.penjelasan) === kwN;
     });
 
@@ -161,7 +167,7 @@ async function getVehicleItems(req, res) {
       .from('submission_items')
       .select(`
         penjelasan, km_pengajuan, satuan, harga, kategori_biaya,
-        submission:submissions!inner(nomor_pengajuan, tanggal, status, kendaraan)
+        submission:submissions!inner(nomor_pengajuan, tanggal, status, kendaraan, vendor_pilihan)
       `)
       .not('penjelasan', 'is', null)
       .order('id', { ascending: false })
@@ -179,6 +185,7 @@ async function getVehicleItems(req, res) {
       const key = normTxt(it.penjelasan);
       if (!key) continue;
       const prev = byPenj.get(key);
+      if (!itemVendorSah(it, sub)) continue;   // v28: abaikan item vendor pembanding
       if (!prev || new Date(sub.tanggal) > new Date(prev.tanggal)) {
         byPenj.set(key, {
           penjelasan:      it.penjelasan.trim(),
