@@ -198,7 +198,7 @@ try {                                                               // ✅ try a
     ],
     [
       { label: 'Tanggal Pengajuan', val: fmtDateExport(sub.tanggal) },
-      { label: 'Rekening Tujuan', val: sub.rekening_tujuan || '—' }
+      { label: 'Rekening Tujuan', val: (sub.vendor_pilihan === 2 ? sub.rekening_tujuan2 : sub.rekening_tujuan) || '—' }
     ],
     [
       { label: 'Cabang/Project', val: sub.cabang_manual || sub.cabang || sub.pemohon_cabang || '—' },
@@ -206,7 +206,7 @@ try {                                                               // ✅ try a
     ],
     [
       { label: 'Kendaraan / Plat', val: sub.kendaraan || '—', bold: true },
-      { label: 'NPWP/KTP', val: sub.npwp || '—' }
+      { label: 'NPWP/KTP', val: (sub.vendor_pilihan === 2 ? sub.npwp2 : sub.npwp) || '—' }
     ]
   ];
 
@@ -245,7 +245,9 @@ try {                                                               // ✅ try a
 
   // ── Tabel Item ────────────────────────────────────────────────
   // Kolom: No | Penjelasan Item | Satuan | Harga (Rp) | Total Harga
-  const items = sub.items || [];
+  // v28: hanya item vendor terpilih yang dicetak (default Vendor 1 bila belum dipilih)
+  const vTerpilih = sub.vendor_pilihan === 2 ? 2 : 1;
+  const items = (sub.items || []).filter(i => (Number(i.vendor_num) || 1) === vTerpilih);
   let sumGross = 0, sumDiskon = 0;
   const tableBody = items.map((item, i) => {
     const diskon = parseFloat(item.diskon) || 0;   // diskon nominal per item
