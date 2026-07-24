@@ -641,11 +641,9 @@ export default function NewFormPage() {
   const previewNomor = buildNomor(form.nomorUrut||'###', form.type, form.cabangManual||'CABANG');
 
   // Build riwayat dari semua items yang punya data KM
-  const buildRiwayat = () => {
-    const allItems = [
-      ...form.items1.map((i, idx) => ({ ...i, vendorNum: 1, idx })),
-      ...(form.useVendor2 ? form.items2.map((i, idx) => ({ ...i, vendorNum: 2, idx })) : []),
-    ];
+  // v29: riwayat dirakit TERPISAH per vendor (merek pembanding bisa berbeda)
+  const buildRiwayatDari = (daftarItem) => {
+    const allItems = daftarItem.map((i, idx) => ({ ...i, idx }));
 
     const lines = [];
     let counter = 0;
@@ -673,9 +671,12 @@ export default function NewFormPage() {
       lines.push('');
     });
 
-    if (!lines.length) return '(Tidak ada riwayat KM yang diisi)';
+    if (!lines.length) return '';
     return lines.join('\n').trim();
   };
+
+  const buildRiwayat  = () => buildRiwayatDari(form.items1) || '(Tidak ada riwayat KM yang diisi)';
+  const buildRiwayat2 = () => (form.useVendor2 ? buildRiwayatDari(form.items2) : '');
 
   const validate = s => {
     const e = {};
@@ -795,6 +796,7 @@ export default function NewFormPage() {
     setLoading(true);
     try {
       const riwayat = form.is_umum ? '' : buildRiwayat();
+      const riwayat2 = form.is_umum ? '' : buildRiwayat2();
 
       // ── MODE REVISI: simpan ke snapshot, bukan buat pengajuan baru ──
       if (isRevision) {
@@ -813,7 +815,7 @@ export default function NewFormPage() {
           kategori_biaya: i.kategori_biaya || 'Lainnya',
         }));
         const payload = {
-          alasan: form.alasan, riwayat,
+          alasan: form.alasan, riwayat, riwayat2,
           vendor: form.vendor, npwp: form.npwp, rekening_tujuan: form.rekening_tujuan,
           vendor2: form.vendor2, npwp2: form.npwp2, rekening_tujuan2: form.rekening_tujuan2,
           ppn: parseFloat(form.ppn)||0, pph23: form.pph23||'',
@@ -861,7 +863,7 @@ export default function NewFormPage() {
         kendaraan:form.is_umum?'':form.kendaraan, jenis_pembelian:form.jenis_pembelian,
         vendor:form.vendor, npwp:form.npwp, rekening_tujuan:form.rekening_tujuan,
         vendor2:form.useVendor2?form.vendor2:'', npwp2:form.useVendor2?form.npwp2:'', rekening_tujuan2:form.useVendor2?form.rekening_tujuan2:'',
-        alasan:form.alasan, alasan_type:form.alasan_type, riwayat, km_pengajuan: firstKM,
+        alasan:form.alasan, alasan_type:form.alasan_type, riwayat, riwayat2, km_pengajuan: firstKM,
         ppn: parseFloat(form.ppn)||0, pph23: form.pph23||'',
         batas_waktu_dana:form.batas_waktu_dana, batas_akhir_pembayaran:form.batas_akhir_pembayaran, items,
       };
