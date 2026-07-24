@@ -522,7 +522,7 @@ export default function NewFormPage() {
     kendaraan:'', jenis_pembelian:'',
     vendor:'', npwp:'', rekening_tujuan:'',
     items1:[newItem()],
-    useVendor2:false, vendor2:'', npwp2:'', items2:[newItem()],
+    useVendor2:false, vendor2:'', npwp2:'', rekening_tujuan2:'', items2:[newItem()],
     alasan:'', alasan_type:'', batas_waktu_dana:'', batas_akhir_pembayaran:'',
     ppn:'', pph23:'',
     kmMassal:'',
@@ -773,7 +773,7 @@ export default function NewFormPage() {
           batas_waktu_dana: snap.batas_waktu_dana || sub.batas_waktu_dana || '', batas_akhir_pembayaran: snap.batas_akhir_pembayaran || sub.batas_akhir_pembayaran || '',
           ppn: snap.ppn != null && snap.ppn !== '' ? String(snap.ppn) : '',
           vendor: snap.vendor || '', npwp: snap.npwp || '', rekening_tujuan: snap.rekening_tujuan || '',
-          vendor2: snap.vendor2 || '', npwp2: snap.npwp2 || '', useVendor2: v2.length > 0,
+          vendor2: snap.vendor2 || '', npwp2: snap.npwp2 || '', rekening_tujuan2: snap.rekening_tujuan2 || '', useVendor2: v2.length > 0,
           items1, items2: v2.length ? v2.map(mapItem) : [newItem()],
         }));
         setStep(1);
@@ -815,7 +815,7 @@ export default function NewFormPage() {
         const payload = {
           alasan: form.alasan, riwayat,
           vendor: form.vendor, npwp: form.npwp, rekening_tujuan: form.rekening_tujuan,
-          vendor2: form.vendor2, npwp2: form.npwp2,
+          vendor2: form.vendor2, npwp2: form.npwp2, rekening_tujuan2: form.rekening_tujuan2,
           ppn: parseFloat(form.ppn)||0, pph23: form.pph23||'',
           alasan_type: form.alasan_type || '',
           batas_waktu_dana: form.batas_waktu_dana || '',
@@ -860,7 +860,7 @@ export default function NewFormPage() {
         type:form.type, is_umum:form.is_umum,
         kendaraan:form.is_umum?'':form.kendaraan, jenis_pembelian:form.jenis_pembelian,
         vendor:form.vendor, npwp:form.npwp, rekening_tujuan:form.rekening_tujuan,
-        vendor2:form.useVendor2?form.vendor2:'', npwp2:form.useVendor2?form.npwp2:'',
+        vendor2:form.useVendor2?form.vendor2:'', npwp2:form.useVendor2?form.npwp2:'', rekening_tujuan2:form.useVendor2?form.rekening_tujuan2:'',
         alasan:form.alasan, alasan_type:form.alasan_type, riwayat, km_pengajuan: firstKM,
         ppn: parseFloat(form.ppn)||0, pph23: form.pph23||'',
         batas_waktu_dana:form.batas_waktu_dana, batas_akhir_pembayaran:form.batas_akhir_pembayaran, items,
@@ -1129,6 +1129,10 @@ export default function NewFormPage() {
                 <Field label="Nama Vendor 2 *" error={errors.vendor2}><input value={form.vendor2} onChange={e=>set('vendor2',e.target.value)} placeholder="Nama bengkel 2" className={ic('vendor2')}/></Field>
                 <Field label="NPWP (opsional)"><input value={form.npwp2} onChange={e=>set('npwp2',e.target.value)} placeholder="Opsional" className={ic('')}/></Field>
               </div>
+              <Field label="Rekening Tujuan Vendor 2 (opsional)" hint="Diisi bila vendor ini berpeluang dipilih — memudahkan pembayaran">
+                <textarea value={form.rekening_tujuan2} onChange={e=>set('rekening_tujuan2',e.target.value)} rows={2} placeholder="BCA — 1234567890 a/n Nama"
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 text-sm text-slate-800 dark:text-slate-100 outline-none resize-none placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:border-amber-400 focus:ring-2 focus:ring-amber-100 dark:focus:ring-amber-500/20"/>
+              </Field>
               <ItemsSection items={form.items2} total={total2} vendorNum={2} errors={errors}
                 onUpdate={updateItem2} onAdd={addItem2} onRemove={removeItem2}
                 onBlurPenjelasan={handleBlurPenjelasan2} itemKMCache={itemKMCache} isUmum={form.is_umum}
