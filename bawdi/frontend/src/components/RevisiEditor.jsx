@@ -195,6 +195,7 @@ export default function RevisiEditor({ snapshot, onClose, onSubmitted, isUmum = 
     vendor2:         snapshot.vendor2         || '',
     npwp2:           snapshot.npwp2           || '',
     rekening_tujuan: snapshot.rekening_tujuan || '',
+    rekening_tujuan2: snapshot.rekening_tujuan2 || '',
     ppn:             snapshot.ppn != null && snapshot.ppn !== '' ? String(snapshot.ppn) : '',
     pph23:           snapshot.pph23 || '',
     // Gunakan id asli dari database sebagai key yang stabil
