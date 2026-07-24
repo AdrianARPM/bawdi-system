@@ -190,6 +190,7 @@ export default function RevisiEditor({ snapshot, onClose, onSubmitted, isUmum = 
   const [form, setForm] = useState({
     alasan:          snapshot.alasan          || '',
     riwayat:         snapshot.riwayat         || '',
+    riwayat2:        snapshot.riwayat2        || '',
     vendor:          snapshot.vendor          || '',
     npwp:            snapshot.npwp            || '',
     vendor2:         snapshot.vendor2         || '',
@@ -251,27 +252,31 @@ export default function RevisiEditor({ snapshot, onClose, onSubmitted, isUmum = 
         return { item, arsip };
       }));
 
-      const lines = [];
-      let counter = 0;
+      // v29: dua keranjang — riwayat vendor 1 & vendor 2 dipisah
+      const lines = [], lines2 = [];
+      let counter = 0, counter2 = 0;
       results.forEach(({ item, arsip }) => {
+        const isV2 = Number(item.vendor_num) === 2;
+        const L = isV2 ? lines2 : lines;
         const hasArsip      = !!arsip;
         // fallback ke nilai manual bila arsip kosong (disamakan dgn NewFormPage)
         const kmTerakhirEf  = hasArsip ? arsip.km_pengajuan : (parseInt(item.km_manual) || null);
         const tglTerakhirEf = hasArsip ? arsip.tanggal      : (item.tgl_manual || null);
         const kmSekarang    = parseInt(item.km_pengajuan) || null;
         if (!kmSekarang && !kmTerakhirEf && !tglTerakhirEf) return;  // item tanpa data KM dilewati
-        counter++;
+        const no = isV2 ? ++counter2 : ++counter;
         const selisih = hitungSelisihKM(kmSekarang, kmTerakhirEf);
         const sumber  = hasArsip ? (arsip.nomor_pengajuan ? ` (${arsip.nomor_pengajuan})` : '') : ' (manual)';
-        lines.push(`${counter}. ${item.penjelasan || '(tanpa penjelasan)'}`);
-        lines.push(`   a. Tgl Terakhir : ${tglTerakhirEf ? fmtTanggal(tglTerakhirEf) + sumber : '—'}`);
-        lines.push(`   b. KM Terakhir  : ${kmTerakhirEf != null ? fmtKM(kmTerakhirEf) : '—'}`);
-        lines.push(`   c. KM Sekarang  : ${kmSekarang != null ? fmtKM(kmSekarang) : '—'}`);
-        lines.push(`   d. Selisih KM   : ${selisih != null ? `${selisih >= 0 ? '+' : ''}${selisih.toLocaleString('id-ID')} KM` : '—'}`);
-        if (item.riwayat_dari?.trim()) lines.push(`      (riwayat dari: ${item.riwayat_dari.trim()}${hasArsip ? '' : ' — manual'})`);
-        lines.push('');
+        L.push(`${no}. ${item.penjelasan || '(tanpa penjelasan)'}`);
+        L.push(`   a. Tgl Terakhir : ${tglTerakhirEf ? fmtTanggal(tglTerakhirEf) + sumber : '—'}`);
+        L.push(`   b. KM Terakhir  : ${kmTerakhirEf != null ? fmtKM(kmTerakhirEf) : '—'}`);
+        L.push(`   c. KM Sekarang  : ${kmSekarang != null ? fmtKM(kmSekarang) : '—'}`);
+        L.push(`   d. Selisih KM   : ${selisih != null ? `${selisih >= 0 ? '+' : ''}${selisih.toLocaleString('id-ID')} KM` : '—'}`);
+        if (item.riwayat_dari?.trim()) L.push(`      (riwayat dari: ${item.riwayat_dari.trim()}${hasArsip ? '' : ' — manual'})`);
+        L.push('');
       });
       setField('riwayat', lines.length ? lines.join('\n').trim() : '(Tidak ada riwayat KM yang diisi)');
+      setField('riwayat2', lines2.length ? lines2.join('\n').trim() : '');
       toast.success('Riwayat disusun otomatis dari data item');
     } catch {
       toast.error('Gagal menyusun riwayat');
