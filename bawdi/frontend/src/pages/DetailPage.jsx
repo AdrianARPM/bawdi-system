@@ -1618,45 +1618,65 @@ useEffect(() => {
             ))}
           </Card>
 
-          {/* v28: Vendor — dikelompokkan bila pengajuan memakai 2 vendor */}
-          {has2Vendor && (
-            <Card padding={false}>
-              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-4 pt-3 pb-2">Vendor</p>
+          {/* v29: 2 vendor → dua kolom (vendor + item + riwayat); 1 vendor → tampilan biasa */}
+          {has2Vendor ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 items-start">
               {[
-                { v: 1, nama: sub.vendor,  npwp: sub.npwp,  rek: sub.rekening_tujuan,  tot: totalV1 },
-                { v: 2, nama: sub.vendor2, npwp: sub.npwp2, rek: sub.rekening_tujuan2, tot: totalV2 },
-              ].map((d, i, arr) => (
-                <div key={d.v} className={`px-4 py-3 ${i < arr.length - 1 ? 'border-b border-slate-50 dark:border-slate-800' : ''} ${
-                  sub.vendor_pilihan === d.v ? 'bg-emerald-50/60 dark:bg-emerald-500/5' : ''}`}>
-                  <div className="flex items-start gap-2 mb-1.5">
-                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 mt-0.5 ${
-                      d.v === 1 ? 'bg-blue-100 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400' : 'bg-orange-100 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400'
-                    }`}>V{d.v}</span>
-                    <p className="text-sm font-medium text-slate-700 dark:text-slate-200 leading-relaxed flex-1 min-w-0">{d.nama || '—'}</p>
-                    {sub.vendor_pilihan === d.v && (
-                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 flex-shrink-0 mt-0.5">🏆 DIPILIH</span>
-                    )}
-                  </div>
-                  <div className="pl-7 space-y-0.5">
-                    <div className="flex justify-between gap-4">
-                      <span className="text-xs text-slate-400 dark:text-slate-500 flex-shrink-0">NPWP/KTP</span>
-                      <span className="text-xs text-slate-600 dark:text-slate-300 text-right">{d.npwp || '—'}</span>
+                { v: 1, nama: sub.vendor,  npwp: sub.npwp,  rek: sub.rekening_tujuan,  tot: totalV1, its: items1, riw: sub.riwayat },
+                { v: 2, nama: sub.vendor2, npwp: sub.npwp2, rek: sub.rekening_tujuan2, tot: totalV2, its: items2, riw: sub.riwayat2 },
+              ].map(d => {
+                const dipilih = sub.vendor_pilihan === d.v;
+                const redup   = !!sub.vendor_pilihan && !dipilih;
+                return (
+                  <Card key={d.v} padding={false} className={`${redup ? 'opacity-50' : ''} ${dipilih ? 'ring-1 ring-emerald-300 dark:ring-emerald-500/40' : ''} transition-opacity`}>
+                    {/* Kepala vendor */}
+                    <div className={`px-4 py-3 border-b border-slate-50 dark:border-slate-800 ${dipilih ? 'bg-emerald-50 dark:bg-emerald-500/10' : ''}`}>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${
+                          d.v === 1 ? 'bg-blue-100 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400' : 'bg-orange-100 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400'
+                        }`}>V{d.v}</span>
+                        <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate flex-1 min-w-0">{d.nama || '—'}</p>
+                        {dipilih && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500 text-white flex-shrink-0">DIPILIH</span>
+                        )}
+                      </div>
+                      <div className="space-y-0.5">
+                        <div className="flex justify-between gap-3">
+                          <span className="text-[11px] text-slate-400 dark:text-slate-500 flex-shrink-0">NPWP/KTP</span>
+                          <span className="text-[11px] text-slate-600 dark:text-slate-300 text-right">{d.npwp || '—'}</span>
+                        </div>
+                        <div className="flex justify-between gap-3">
+                          <span className="text-[11px] text-slate-400 dark:text-slate-500 flex-shrink-0">Rekening</span>
+                          <span className="text-[11px] text-slate-600 dark:text-slate-300 text-right whitespace-pre-line">{d.rek || '—'}</span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex justify-between gap-4">
-                      <span className="text-xs text-slate-400 dark:text-slate-500 flex-shrink-0">Rekening</span>
-                      <span className="text-xs text-slate-600 dark:text-slate-300 text-right whitespace-pre-line">{d.rek || '—'}</span>
-                    </div>
-                    <div className="flex justify-between gap-4 pt-0.5">
-                      <span className="text-xs text-slate-400 dark:text-slate-500 flex-shrink-0">Total</span>
-                      <span className="text-xs font-bold text-slate-700 dark:text-slate-200 text-right">{fmtCurrency(d.tot)}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </Card>
-          )}
 
-          {/* Items */}
+                    {/* Rincian item vendor ini */}
+                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-4 pt-3 pb-1.5">Rincian Item</p>
+                    {d.its.length === 0 && <p className="px-4 pb-3 text-xs text-slate-400 dark:text-slate-500">—</p>}
+                    {d.its.map((item, i) => (
+                      <div key={item.id || i} className="px-4 py-2 border-b border-slate-50 dark:border-slate-800">
+                        <p className="text-[13px] text-slate-700 dark:text-slate-200 leading-snug mb-0.5">{item.penjelasan}</p>
+                        <div className="flex justify-between">
+                          <span className="text-[11px] text-slate-400 dark:text-slate-500">{Number(item.harga) > 0 ? `${item.satuan} × ${fmtCurrency(item.harga)}` : item.satuan}</span>
+                          <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{fmtCurrency(item.total || item.harga)}</span>
+                        </div>
+                      </div>
+                    ))}
+                    <div className={`flex justify-between px-4 py-2.5 border-b border-slate-50 dark:border-slate-800 ${dipilih ? 'bg-emerald-50/60 dark:bg-emerald-500/5' : ''}`}>
+                      <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Total</span>
+                      <span className={`text-sm font-bold ${dipilih ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-700 dark:text-slate-200'}`}>{fmtCurrency(d.tot)}</span>
+                    </div>
+
+                    {/* Riwayat vendor ini */}
+                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-4 pt-3 pb-1.5">Riwayat</p>
+                    <p className="px-4 pb-3 text-xs text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line">{(d.riw || '').trim() || '—'}</p>
+                  </Card>
+                );
+              })}
+            </div>
+          ) : (
           <Card padding={false}>
             <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-4 pt-3 pb-2">Rincian Item</p>
             {[
@@ -1707,6 +1727,8 @@ useEffect(() => {
             </div>
           </Card>
 
+          )}
+
           {/* Keterangan */}
           <Card>
             <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Keterangan</p>
@@ -1727,10 +1749,12 @@ useEffect(() => {
                   <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-line">{sub.pph23}</p>
                 </div>
               )}
-              <div>
-                <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Riwayat</p>
-                <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-line">{sub.riwayat || '—'}</p>
-              </div>
+              {!has2Vendor && (
+                <div>
+                  <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Riwayat</p>
+                  <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-line">{sub.riwayat || '—'}</p>
+                </div>
+              )}
               {sub.alasan_tolak && (
                 <div className="bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 rounded-xl p-3">
                   <p className="text-[10px] font-bold text-red-500 uppercase mb-1">Alasan Penolakan</p>
