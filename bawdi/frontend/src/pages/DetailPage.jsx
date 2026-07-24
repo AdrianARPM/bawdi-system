@@ -80,6 +80,7 @@ function RevisiPanel({ snapshot, sub, user, onAction }) {
   const items1 = (snapshot.items || []).filter(i => i.vendor_num !== 2);
   const items2 = (snapshot.items || []).filter(i => i.vendor_num === 2);
   const total1 = items1.reduce((s, i) => s + (Number(i.total || i.harga) || 0), 0);
+  const has2VendorSnap = !!(snapshot.vendor2 && items2.length > 0);
 
   const [rejectReason, setRejectReason] = useState('');
   const [showReject,   setShowReject]   = useState(false);
@@ -213,6 +214,62 @@ function RevisiPanel({ snapshot, sub, user, onAction }) {
         ))}
       </Card>
 
+      {/* v29: 2 vendor → dua kolom (vendor + item + riwayat) */}
+      {has2VendorSnap ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 items-start">
+          {[
+            { v: 1, nama: snapshot.vendor,  npwp: snapshot.npwp,  rek: snapshot.rekening_tujuan,  its: items1, riw: snapshot.riwayat },
+            { v: 2, nama: snapshot.vendor2, npwp: snapshot.npwp2, rek: snapshot.rekening_tujuan2, its: items2, riw: snapshot.riwayat2 },
+          ].map(d => {
+            const totV    = d.its.reduce((s, i) => s + (Number(i.total || i.harga) || 0), 0);
+            const dipilih = sub?.vendor_pilihan === d.v;
+            const redup   = !!sub?.vendor_pilihan && !dipilih;
+            return (
+              <Card key={d.v} padding={false} className={`${redup ? 'opacity-50' : ''} ${dipilih ? 'ring-1 ring-emerald-300 dark:ring-emerald-500/40' : ''} transition-opacity`}>
+                <div className={`px-4 py-3 border-b border-slate-50 dark:border-slate-800 ${dipilih ? 'bg-emerald-50 dark:bg-emerald-500/10' : ''}`}>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${
+                      d.v === 1 ? 'bg-blue-100 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400' : 'bg-orange-100 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400'
+                    }`}>V{d.v}</span>
+                    <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate flex-1 min-w-0">{d.nama || '—'}</p>
+                    {dipilih && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500 text-white flex-shrink-0">DIPILIH</span>}
+                  </div>
+                  <div className="space-y-0.5">
+                    <div className="flex justify-between gap-3">
+                      <span className="text-[11px] text-slate-400 dark:text-slate-500 flex-shrink-0">NPWP/KTP</span>
+                      <span className="text-[11px] text-slate-600 dark:text-slate-300 text-right">{d.npwp || '—'}</span>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <span className="text-[11px] text-slate-400 dark:text-slate-500 flex-shrink-0">Rekening</span>
+                      <span className="text-[11px] text-slate-600 dark:text-slate-300 text-right whitespace-pre-line">{d.rek || '—'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-4 pt-3 pb-1.5">Rincian Item</p>
+                {d.its.length === 0 && <p className="px-4 pb-3 text-xs text-slate-400 dark:text-slate-500">—</p>}
+                {d.its.map((item, i) => (
+                  <div key={item.id || i} className="px-4 py-2 border-b border-slate-50 dark:border-slate-800">
+                    <p className="text-[13px] text-slate-700 dark:text-slate-200 leading-snug mb-0.5">{item.penjelasan}</p>
+                    <div className="flex justify-between">
+                      <span className="text-[11px] text-slate-400 dark:text-slate-500">{Number(item.harga) > 0 ? `${item.satuan} × ${fmtCurrency(item.harga)}` : item.satuan}</span>
+                      <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{fmtCurrency(item.total || item.harga)}</span>
+                    </div>
+                  </div>
+                ))}
+                <div className={`flex justify-between px-4 py-2.5 border-b border-slate-50 dark:border-slate-800 ${dipilih ? 'bg-emerald-50/60 dark:bg-emerald-500/5' : ''}`}>
+                  <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Total</span>
+                  <span className={`text-sm font-bold ${dipilih ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-700 dark:text-slate-200'}`}>{fmtCurrency(totV)}</span>
+                </div>
+
+                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-4 pt-3 pb-1.5">Riwayat</p>
+                <p className="px-4 pb-3 text-xs text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line">{(d.riw || '').trim() || '—'}</p>
+              </Card>
+            );
+          })}
+        </div>
+      ) : (
+        <>
       {/* Riwayat */}
       {snapshot.riwayat && (
         <Card>
@@ -221,7 +278,6 @@ function RevisiPanel({ snapshot, sub, user, onAction }) {
         </Card>
       )}
 
-      {/* Items */}
       {items1.length > 0 && (
         <Card padding={false}>
           <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-4 pt-3 pb-2">
@@ -274,6 +330,9 @@ function RevisiPanel({ snapshot, sub, user, onAction }) {
             <span className="text-base font-black text-amber-500">{fmtCurrency(snapshot.total_harga)}</span>
           </div>
         </Card>
+      )}
+
+        </>
       )}
 
       {/* Tanda tangan revisi */}
