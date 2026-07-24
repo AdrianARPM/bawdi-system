@@ -1599,10 +1599,12 @@ useEffect(() => {
               ['Cabang',           sub.cabang_manual || sub.cabang],
               ...(sub.is_umum ? [] : [['Kendaraan', sub.kendaraan]]),
               ['Jenis Pembelian',  sub.jenis_pembelian],
-              ['Vendor 1',         sub.vendor],
-              ...(sub.npwp              ? [['NPWP',           sub.npwp]]             : []),
-              ...(sub.rekening_tujuan   ? [['Rekening',        sub.rekening_tujuan]]  : []),
-              ...(sub.vendor2           ? [['Vendor 2',        sub.vendor2]]          : []),
+              // Bila 2 vendor, info vendor pindah ke kartu "Vendor" terpisah di bawah
+              ...(has2Vendor ? [] : [
+                ['Vendor',         sub.vendor],
+                ...(sub.npwp            ? [['NPWP/KTP',  sub.npwp]]            : []),
+                ...(sub.rekening_tujuan ? [['Rekening',  sub.rekening_tujuan]] : []),
+              ]),
               ['Tgl Pengajuan',    fmtDate(sub.tanggal)],
               ['Batas Waktu Dana', sub.batas_waktu_dana],
               ['Batas Akhir Bayar',sub.batas_akhir_pembayaran ? fmtDate(sub.batas_akhir_pembayaran) : '—'],
@@ -1615,6 +1617,44 @@ useEffect(() => {
               </div>
             ))}
           </Card>
+
+          {/* v28: Vendor — dikelompokkan bila pengajuan memakai 2 vendor */}
+          {has2Vendor && (
+            <Card padding={false}>
+              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-4 pt-3 pb-2">Vendor</p>
+              {[
+                { v: 1, nama: sub.vendor,  npwp: sub.npwp,  rek: sub.rekening_tujuan,  tot: totalV1 },
+                { v: 2, nama: sub.vendor2, npwp: sub.npwp2, rek: sub.rekening_tujuan2, tot: totalV2 },
+              ].map((d, i, arr) => (
+                <div key={d.v} className={`px-4 py-3 ${i < arr.length - 1 ? 'border-b border-slate-50 dark:border-slate-800' : ''} ${
+                  sub.vendor_pilihan === d.v ? 'bg-emerald-50/60 dark:bg-emerald-500/5' : ''}`}>
+                  <div className="flex items-start gap-2 mb-1.5">
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 mt-0.5 ${
+                      d.v === 1 ? 'bg-blue-100 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400' : 'bg-orange-100 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400'
+                    }`}>V{d.v}</span>
+                    <p className="text-sm font-medium text-slate-700 dark:text-slate-200 leading-relaxed flex-1 min-w-0">{d.nama || '—'}</p>
+                    {sub.vendor_pilihan === d.v && (
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 flex-shrink-0 mt-0.5">🏆 DIPILIH</span>
+                    )}
+                  </div>
+                  <div className="pl-7 space-y-0.5">
+                    <div className="flex justify-between gap-4">
+                      <span className="text-xs text-slate-400 dark:text-slate-500 flex-shrink-0">NPWP/KTP</span>
+                      <span className="text-xs text-slate-600 dark:text-slate-300 text-right">{d.npwp || '—'}</span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span className="text-xs text-slate-400 dark:text-slate-500 flex-shrink-0">Rekening</span>
+                      <span className="text-xs text-slate-600 dark:text-slate-300 text-right whitespace-pre-line">{d.rek || '—'}</span>
+                    </div>
+                    <div className="flex justify-between gap-4 pt-0.5">
+                      <span className="text-xs text-slate-400 dark:text-slate-500 flex-shrink-0">Total</span>
+                      <span className="text-xs font-bold text-slate-700 dark:text-slate-200 text-right">{fmtCurrency(d.tot)}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </Card>
+          )}
 
           {/* Items */}
           <Card padding={false}>
