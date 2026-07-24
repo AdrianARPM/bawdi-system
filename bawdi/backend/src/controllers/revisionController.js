@@ -101,7 +101,7 @@ async function requestRevision(req, res) {
     // ── FIX: query sederhana tanpa join yang bermasalah ──────────
     const { data: sub, error: subErr } = await supabase
       .from('submissions')
-      .select('id, type, nomor_pengajuan, status, pemohon_id, total_harga, alasan, riwayat, vendor, npwp, vendor2, npwp2, rekening_tujuan, revisi_diminta_oleh, ppn, pph23, jenis_pembelian, alasan_type, batas_waktu_dana, batas_akhir_pembayaran')
+      .select('id, type, nomor_pengajuan, status, pemohon_id, total_harga, alasan, riwayat, vendor, npwp, vendor2, npwp2, rekening_tujuan, rekening_tujuan2, revisi_diminta_oleh, ppn, pph23, jenis_pembelian, alasan_type, batas_waktu_dana, batas_akhir_pembayaran')
       .eq('id', submissionId)
       .single();
 
@@ -171,6 +171,7 @@ async function requestRevision(req, res) {
       vendor2:          sourceData.vendor2           || '',
       npwp2:            sourceData.npwp2             || '',
       rekening_tujuan:  sourceData.rekening_tujuan   || '',
+      rekening_tujuan2: sourceData.rekening_tujuan2  || '',
       total_harga:      sourceData.total_harga       || 0,
       ppn:              Number(sourceData.ppn) || 0,
       pph23:            sourceData.pph23             || '',
@@ -254,7 +255,7 @@ async function requestRevision(req, res) {
 // ── PUT /api/revisions/snapshot/:snapshotId — edit draft revisi ───
 async function editRevision(req, res) {
   try {
-    const { alasan, riwayat, vendor, npwp, vendor2, npwp2, rekening_tujuan, items, ppn, pph23, alasan_type, batas_waktu_dana, batas_akhir_pembayaran } = req.body;
+    const { alasan, riwayat, vendor, npwp, vendor2, npwp2, rekening_tujuan, rekening_tujuan2, items, ppn, pph23, alasan_type, batas_waktu_dana, batas_akhir_pembayaran } = req.body;
 
     const { data: snap, error: snapErr } = await supabase
       .from('revision_snapshots')
@@ -290,6 +291,7 @@ async function editRevision(req, res) {
       vendor: vendor || '', npwp: npwp || '',
       vendor2: vendor2 || '', npwp2: npwp2 || '',
       rekening_tujuan: rekening_tujuan || '',
+      rekening_tujuan2: rekening_tujuan2 || '',
       ppn: ppnVal, pph23: pph23Val,
       alasan_type:            alasan_type            != null ? alasan_type            : (snap.alasan_type || ''),
       batas_waktu_dana:       batas_waktu_dana       != null ? batas_waktu_dana       : (snap.batas_waktu_dana || ''),
@@ -330,7 +332,7 @@ async function submitRevision(req, res) {
   try {
     const { data: snap, error: snapErr } = await supabase
       .from('revision_snapshots')
-      .select('id, status, submission_id, revision_number, alasan, riwayat, vendor, npwp, vendor2, npwp2, rekening_tujuan, total_harga')
+      .select('id, status, submission_id, revision_number, alasan, riwayat, vendor, npwp, vendor2, npwp2, rekening_tujuan, rekening_tujuan2, total_harga')
       .eq('id', req.params.snapshotId)
       .single();
 
