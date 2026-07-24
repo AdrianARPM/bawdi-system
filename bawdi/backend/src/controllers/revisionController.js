@@ -101,7 +101,7 @@ async function requestRevision(req, res) {
     // ── FIX: query sederhana tanpa join yang bermasalah ──────────
     const { data: sub, error: subErr } = await supabase
       .from('submissions')
-      .select('id, type, nomor_pengajuan, status, pemohon_id, total_harga, alasan, riwayat, vendor, npwp, vendor2, npwp2, rekening_tujuan, rekening_tujuan2, revisi_diminta_oleh, ppn, pph23, jenis_pembelian, alasan_type, batas_waktu_dana, batas_akhir_pembayaran')
+      .select('id, type, nomor_pengajuan, status, pemohon_id, total_harga, alasan, riwayat, riwayat2, vendor, npwp, vendor2, npwp2, rekening_tujuan, rekening_tujuan2, revisi_diminta_oleh, ppn, pph23, jenis_pembelian, alasan_type, batas_waktu_dana, batas_akhir_pembayaran')
       .eq('id', submissionId)
       .single();
 
@@ -166,6 +166,7 @@ async function requestRevision(req, res) {
       revision_number:  revisionNumber,
       alasan:           sourceData.alasan           || '',
       riwayat:          sourceData.riwayat          || '',
+      riwayat2:         sourceData.riwayat2         || '',
       vendor:           sourceData.vendor            || '',
       npwp:             sourceData.npwp              || '',
       vendor2:          sourceData.vendor2           || '',
@@ -255,7 +256,7 @@ async function requestRevision(req, res) {
 // ── PUT /api/revisions/snapshot/:snapshotId — edit draft revisi ───
 async function editRevision(req, res) {
   try {
-    const { alasan, riwayat, vendor, npwp, vendor2, npwp2, rekening_tujuan, rekening_tujuan2, items, ppn, pph23, alasan_type, batas_waktu_dana, batas_akhir_pembayaran } = req.body;
+    const { alasan, riwayat, riwayat2, vendor, npwp, vendor2, npwp2, rekening_tujuan, rekening_tujuan2, items, ppn, pph23, alasan_type, batas_waktu_dana, batas_akhir_pembayaran } = req.body;
 
     const { data: snap, error: snapErr } = await supabase
       .from('revision_snapshots')
@@ -287,7 +288,7 @@ async function editRevision(req, res) {
     const total_harga = items.filter(i => (i.vendor_num || 1) !== 2).reduce((s, i) => s + calcRow(i), 0) + ppnVal;
 
     await supabase.from('revision_snapshots').update({
-      alasan: alasan || '', riwayat: riwayat || '',
+      alasan: alasan || '', riwayat: riwayat || '', riwayat2: riwayat2 || '',
       vendor: vendor || '', npwp: npwp || '',
       vendor2: vendor2 || '', npwp2: npwp2 || '',
       rekening_tujuan: rekening_tujuan || '',
