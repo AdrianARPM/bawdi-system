@@ -333,7 +333,8 @@ try {                                                               // ✅ try a
 
   // KM Sekarang selalu sama utk semua item dalam satu pengajuan →
   // tampilkan SEKALI di atas Riwayat, buang baris "KM Sekarang" per item, renumber d→c.
-  let riwayatText  = (sub.riwayat || '—').replace(/\n\s*\n/g, '\n');
+  const riwayatSumber = (sub.vendor_pilihan === 2 && (sub.riwayat2 || '').trim()) ? sub.riwayat2 : sub.riwayat;
+  let riwayatText  = (riwayatSumber || '—').replace(/\n\s*\n/g, '\n');
   let kmSekarangVal = null;
   const kmMatch = riwayatText.match(/KM Sekarang\s*:\s*([^\n]+)/);
   if (kmMatch) {
