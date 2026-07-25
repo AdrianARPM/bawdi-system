@@ -21,6 +21,9 @@ import { Card, Button, Spinner, fmtCurrency } from '../components/ui';
 import VehicleHistoryPanel from '../components/VehicleHistoryPanel';
 import useAuthStore from '../context/authStore';
 
+// v30: fitur Vendor Pembanding dinonaktifkan sementara (penolakan beberapa pihak).
+// Ubah ke true untuk mengaktifkan kembali — tidak ada kode yang dihapus.
+const VENDOR2_ENABLED = false;
 const STEPS = ['Jenis & Nomor', 'Pemohon', 'Vendor 1', 'Vendor 2', 'Foto', 'Review'];
 
 function buildNomor(nomorUrut, type, cabangManual) {
@@ -731,8 +734,8 @@ export default function NewFormPage() {
     finally { setCekDup(false); }
   }, [form.items1, form.kendaraan, form.cabangManual, form.jenis_pembelian, form.is_umum, isRevision]);
 
-  const handleNext = () => { if (!validate(step)){toast.error('Lengkapi field yang wajib');return;} if(isRevision){ if(step===1){setStep(2);} return; } if(step===2){cekDuplikat();} if(step===3&&!form.useVendor2){setStep(4);return;} setStep(s=>s+1); };
-  const handleBack = () => { setErrors({}); if(isRevision){ if(step===2){setStep(1);} else {navigate(-1);} return; } if(step===4&&!form.useVendor2){setStep(2);return;} setStep(s=>s-1); };
+  const handleNext = () => { if (!validate(step)){toast.error('Lengkapi field yang wajib');return;} if(isRevision){ if(step===1){setStep(2);} return; } if(step===2){cekDuplikat();} const lewatV2=!VENDOR2_ENABLED&&!(isRevision&&form.useVendor2); if(step===2&&lewatV2){setStep(4);return;} if(step===3&&!form.useVendor2){setStep(4);return;} setStep(s=>s+1); };
+  const handleBack = () => { setErrors({}); if(isRevision){ if(step===2){setStep(1);} else {navigate(-1);} return; } const lewatV2b=!VENDOR2_ENABLED&&!(isRevision&&form.useVendor2); if(step===4&&(!form.useVendor2||lewatV2b)){setStep(2);return;} setStep(s=>s-1); };
 
   // Pre-fill dari submission (konteks) + snapshot (data revisi) saat mode revisi
   useEffect(() => {
@@ -900,10 +903,10 @@ export default function NewFormPage() {
       </div>
 
       <div className={`flex items-center overflow-x-auto pb-1 ${isRevision?'hidden':''}`}>
-        {STEPS.map((s,i)=>(
+        {STEPS.map((s,i)=>i===3&&!VENDOR2_ENABLED&&!(isRevision&&form.useVendor2)?null:(
           <div key={s} className="flex items-center flex-shrink-0">
             <div className="flex flex-col items-center">
-              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${i<step?'bg-emerald-500 text-white':i===step?'bg-amber-500 text-white':'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500'}`}>{i<step?<Check size={12}/>:i+1}</div>
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${i<step?'bg-emerald-500 text-white':i===step?'bg-amber-500 text-white':'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500'}`}>{i<step?<Check size={12}/>:(!VENDOR2_ENABLED&&!(isRevision&&form.useVendor2)&&i>3?i:i+1)}</div>
               <span className={`text-[9px] mt-1 font-medium whitespace-nowrap ${i===step?'text-amber-500':'text-slate-400 dark:text-slate-500'}`}>{s}</span>
             </div>
             {i<STEPS.length-1&&<div className={`w-5 h-0.5 mx-1 mb-3 flex-shrink-0 ${i<step?'bg-emerald-400':'bg-slate-200 dark:bg-slate-700'}`}/>}
@@ -1113,7 +1116,7 @@ export default function NewFormPage() {
         </div>
       )}
 
-      {step===3&&(
+      {step===3&&(VENDOR2_ENABLED||(isRevision&&form.useVendor2))&&(
         <Card>
           <div className="flex items-center gap-2 mb-4">
             <div className="w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center"><span className="text-white text-[10px] font-black">2</span></div>
