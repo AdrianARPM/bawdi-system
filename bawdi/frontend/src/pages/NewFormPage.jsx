@@ -320,7 +320,7 @@ const PPH23_WAJIB = [
 ];
 // Daftar Cabang/Project — tambah manual di sini jika ada cabang baru
 const CABANG_LIST = [
-  'APLPKU','APLBDO','APLPDG','APLDJB','APLMES','APLPLM','PVPLM','PVMES','PVPKU','PVTKG','PVSUB','DHSCBT','NIC', 'ADM'
+  'APLPKU','APLBDO','APLPDG','APLDJB','APLMES','APLPLM','PVPLM','PVMES','PVPKU','PVTKG','PVSUB','DHSCBT','NIC', 'MTKA', 'ADM'
 ];
 
 function ItemRow({ item, idx, totalItems, vendorNum, onUpdate, onRemove, onBlurPenjelasan, kmCache, errors, isUmum, suggestions = [], onPilihRiwayat }) {
