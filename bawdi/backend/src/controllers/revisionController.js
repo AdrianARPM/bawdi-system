@@ -858,7 +858,7 @@ const NAMA_BULAN = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
                     'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
 // Ambil baris arsip langsung dari submissions (status Disetujui/Selesai).
-async function fetchArsipRows({ kendaraan, tahun } = {}) {
+async function fetchArsipRows({ kendaraan, tahun, bulan } = {}) {
   let query = supabase.from('submissions')
     .select(`id, nomor_pengajuan, type, status, tanggal, approval_at, tanggal_bayar, pemohon_id,
              jumlah_bayar, jumlah_dp, total_harga, jenis_pembelian, kendaraan, cabang, cabang_manual,
@@ -867,7 +867,15 @@ async function fetchArsipRows({ kendaraan, tahun } = {}) {
     .in('status', ['Disetujui', 'Selesai'])
     .order('tanggal', { ascending: true });
   if (kendaraan) query = query.ilike('kendaraan', `%${kendaraan}%`);
-  if (tahun)     query = query.gte('tanggal', `${tahun}-01-01`).lt('tanggal', `${Number(tahun) + 1}-01-01`);
+  if (tahun && bulan) {
+    // Satu bulan spesifik: dari tgl 1 bulan itu s/d tgl 1 bulan berikutnya
+    const b = Number(bulan), y = Number(tahun);
+    const awal = `${y}-${String(b).padStart(2, '0')}-01`;
+    const akhir = b === 12 ? `${y + 1}-01-01` : `${y}-${String(b + 1).padStart(2, '0')}-01`;
+    query = query.gte('tanggal', awal).lt('tanggal', akhir);
+  } else if (tahun) {
+    query = query.gte('tanggal', `${tahun}-01-01`).lt('tanggal', `${Number(tahun) + 1}-01-01`);
+  }
   const { data, error } = await query;
   if (error) throw error;
   return (data || []).map(s => {
@@ -1025,19 +1033,22 @@ async function exportArsipExcel(req, res) {
   try {
     const year = Number(req.query.tahun) || new Date().getFullYear();
     const kendaraan = req.query.kendaraan || '';
-    const rows = await fetchArsipRows({ kendaraan, tahun: year });
+    const bulan = req.query.bulan ? Number(req.query.bulan) : null;
+    const rows = await fetchArsipRows({ kendaraan, tahun: year, bulan });
 
     const byCabang = {};
     for (const r of rows) (byCabang[r.cabang] = byCabang[r.cabang] || []).push(r);
     const cabangs = Object.keys(byCabang).sort();
-    if (!cabangs.length) return res.status(404).json({ error: `Tidak ada arsip pada tahun ${year}` });
+    const NAMA_BULAN = ['','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+    const periode = bulan ? `${NAMA_BULAN[bulan]} ${year}` : `${year}`;
+    if (!cabangs.length) return res.status(404).json({ error: `Tidak ada arsip pada periode ${periode}` });
 
     const wb = new ExcelJS.Workbook();
     wb.creator = 'BAWDI Maintenance System';
     wb.created = new Date();
     for (const c of cabangs) writeArsipSheet(wb, c, year, byCabang[c]);
 
-    const fname = `BAWDI - Rekap Arsip ${year}.xlsx`;
+    const fname = `BAWDI - Rekap Arsip ${periode}.xlsx`;
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fname)}"`);
     await wb.xlsx.write(res);
