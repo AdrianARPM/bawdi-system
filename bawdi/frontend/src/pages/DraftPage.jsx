@@ -113,6 +113,7 @@ export default function DraftPage() {
   const cabangNames = Object.keys(groups).sort();
 
   const totalBayar = filtered.reduce((s, d) => s + (Number(d.dibayar) || 0), 0);
+  const totalBelum = filtered.reduce((s, d) => s + statusTagihan(d.total_harga, d.dibayar).sisa, 0);
 
   // Label periode aktif utk kartu ringkasan
   const periodeLabel = filterBulan
@@ -164,7 +165,7 @@ export default function DraftPage() {
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <Card className="!p-4">
           <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Total Arsip</p>
           <p className="text-3xl font-black text-slate-800 dark:text-slate-100">{filtered.length}</p>
@@ -173,6 +174,11 @@ export default function DraftPage() {
         <Card className="!p-4">
           <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Total Dibayar</p>
           <p className="text-lg font-black text-emerald-600 dark:text-emerald-400">{fmtCurrency(totalBayar)}</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{periodeLabel}</p>
+        </Card>
+        <Card className="!p-4">
+          <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Belum Dibayar</p>
+          <p className="text-lg font-black text-red-500 dark:text-red-400">{fmtCurrency(totalBelum)}</p>
           <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{periodeLabel}</p>
         </Card>
       </div>
