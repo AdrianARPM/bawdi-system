@@ -126,6 +126,7 @@ export default function DraftPage() {
       const params = {};
       if (filterKendaraan) params.kendaraan = filterKendaraan;
       params.tahun = filterTahun || new Date().getFullYear();
+      if (filterBulan) params.bulan = filterBulan;
       await revisionAPI.exportArsip(params);
       toast.success('Excel berhasil diunduh!', { id: 'export' });
     } catch (err) {
