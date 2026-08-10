@@ -98,7 +98,9 @@ export const revisionAPI = {
       const url = URL.createObjectURL(res.data);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `BAWDI - Rekap Arsip ${params.tahun || new Date().getFullYear()}.xlsx`;
+      const _bln = ['','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+      const _periode = params.bulan ? `${_bln[Number(params.bulan)]} ${params.tahun}` : `${params.tahun || new Date().getFullYear()}`;
+      a.download = `BAWDI - Rekap Arsip ${_periode}.xlsx`;
       document.body.appendChild(a); a.click(); a.remove();
       URL.revokeObjectURL(url);
     } catch (err) {
