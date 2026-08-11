@@ -95,17 +95,20 @@ function StatCard({ icon: Icon, label, value, sub, color }) {
 }
 
 const BULAN_NAMA = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-function daftarBulanTerakhir(n = 18) {
+// Batas awal data: PWA mulai dipakai Juli 2026. Daftar mundur dari bulan ini s/d batas itu.
+const AWAL_DATA = { tahun: 2026, bulan: 7 };
+function daftarBulan() {
   const out = [];
   const d = new Date();
-  for (let i = 0; i < n; i++) {
+  const batas = new Date(AWAL_DATA.tahun, AWAL_DATA.bulan - 1, 1);
+  while (d >= batas) {
     const b = d.getMonth() + 1, y = d.getFullYear();
     out.push({ value: `${y}-${b}`, label: `${BULAN_NAMA[b - 1]} ${y}`, bulan: b, tahun: y });
     d.setMonth(d.getMonth() - 1);
   }
   return out;
 }
-const BULAN_OPSI = daftarBulanTerakhir();
+const BULAN_OPSI = daftarBulan();
 
 export default function AnalyticsPage() {
   const [months, setMonths]   = useState(6);
