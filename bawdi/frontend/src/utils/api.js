@@ -152,7 +152,7 @@ export const historyAPI = {
 };
 
 export const analyticsAPI = {
-  get: (months = 6) => api.get('/analytics', { params: { months } }),
+  get: (params = {}) => api.get('/analytics', { params: typeof params === 'number' ? { months: params } : params }),
 };
 
 const QUEUE_KEY = 'bawdi_offline_queue';
