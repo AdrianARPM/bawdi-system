@@ -94,26 +94,45 @@ function StatCard({ icon: Icon, label, value, sub, color }) {
   );
 }
 
+const BULAN_NAMA = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+function daftarBulanTerakhir(n = 18) {
+  const out = [];
+  const d = new Date();
+  for (let i = 0; i < n; i++) {
+    const b = d.getMonth() + 1, y = d.getFullYear();
+    out.push({ value: `${y}-${b}`, label: `${BULAN_NAMA[b - 1]} ${y}`, bulan: b, tahun: y });
+    d.setMonth(d.getMonth() - 1);
+  }
+  return out;
+}
+const BULAN_OPSI = daftarBulanTerakhir();
+
 export default function AnalyticsPage() {
   const [months, setMonths]   = useState(6);
+  const [pilihBulan, setPilihBulan] = useState(''); // '' = mode rentang; 'YYYY-M' = bulan spesifik
   const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let alive = true;
     setLoading(true);
-    analyticsAPI.get(months)
+    const opsi = BULAN_OPSI.find(b => b.value === pilihBulan);
+    const params = opsi ? { bulan: opsi.bulan, tahun: opsi.tahun } : { months };
+    analyticsAPI.get(params)
       .then(({ data: res }) => { if (alive) setData(res); })
       .catch(err => { if (alive) toast.error(err.response?.data?.error || 'Gagal memuat analitik'); })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
-  }, [months]);
+  }, [months, pilihBulan]);
+
+  const opsiAktif = BULAN_OPSI.find(b => b.value === pilihBulan);
+  const periodeLabel = opsiAktif ? opsiAktif.label : `${months} bulan terakhir`;
 
   const exportCSV = () => {
     if (!data) return;
     const rows = [];
     rows.push(['LAPORAN ANALITIK MAINTENANCE BAWDI']);
-    rows.push([`Periode: ${months} bulan terakhir`]);
+    rows.push([`Periode: ${periodeLabel}`]);
     rows.push([`Digenerate: ${new Date().toLocaleString('id-ID')}`]);
     rows.push([]);
     rows.push(['RINGKASAN']);
@@ -146,7 +165,7 @@ export default function AnalyticsPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `Analitik-BAWDI-${months}bulan-${new Date().toISOString().slice(0,10)}.csv`;
+    a.download = `Analitik-BAWDI-${opsiAktif ? opsiAktif.label.replace(' ','-') : months+'bulan'}-${new Date().toISOString().slice(0,10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
     toast.success('Laporan CSV berhasil diunduh');
@@ -172,18 +191,23 @@ export default function AnalyticsPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-xl font-black text-slate-800 dark:text-slate-100">Dashboard Analitik</h1>
-          <p className="text-xs text-slate-400 dark:text-slate-500">Laporan pengeluaran maintenance — {months} bulan terakhir</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500">Laporan pengeluaran maintenance — {periodeLabel}</p>
         </div>
         <div className="flex items-center gap-2">
           {/* Period selector */}
           <div className="flex bg-slate-100 dark:bg-slate-800 rounded-xl p-1">
             {PERIODS.map(p => (
-              <button key={p.value} onClick={() => setMonths(p.value)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${months===p.value?'bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-sm':'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>
+              <button key={p.value} onClick={() => { setPilihBulan(''); setMonths(p.value); }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${!pilihBulan && months===p.value?'bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-sm':'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>
                 {p.label}
               </button>
             ))}
           </div>
+          <select value={pilihBulan} onChange={e => setPilihBulan(e.target.value)}
+            className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 outline-none focus:border-amber-400 cursor-pointer">
+            <option value="">Rentang (3/6/12)</option>
+            {BULAN_OPSI.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
+          </select>
           <button onClick={exportCSV}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition-colors">
             <Download size={14}/> Export CSV
