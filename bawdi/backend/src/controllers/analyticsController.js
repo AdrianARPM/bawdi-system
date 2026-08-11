@@ -18,10 +18,21 @@ async function getAnalytics(req, res) {
     if (!isManager(req.user))
       return res.status(403).json({ error: 'Hanya manajemen yang dapat mengakses analitik' });
 
+    // Mode B: bulan+tahun spesifik → satu bulan itu. Mode lama: N bulan rolling.
+    const bulanSpesifik = req.query.bulan ? parseInt(req.query.bulan) : null; // 1-12
+    const tahunSpesifik = req.query.tahun ? parseInt(req.query.tahun) : null;
+    const modeSpesifik  = !!(bulanSpesifik && tahunSpesifik);
+
     const months = Math.min(Math.max(parseInt(req.query.months) || 6, 1), 24);
-    const since  = new Date();
-    since.setMonth(since.getMonth() - months + 1);
-    since.setDate(1); since.setHours(0, 0, 0, 0);
+    let since, until = null;
+    if (modeSpesifik) {
+      since = new Date(tahunSpesifik, bulanSpesifik - 1, 1, 0, 0, 0, 0);
+      until = new Date(tahunSpesifik, bulanSpesifik, 1, 0, 0, 0, 0); // tgl 1 bulan berikutnya
+    } else {
+      since = new Date();
+      since.setMonth(since.getMonth() - months + 1);
+      since.setDate(1); since.setHours(0, 0, 0, 0);
+    }
 
     // Ambil semua pengajuan dengan status terpercaya (komitmen biaya nyata)
     const { data: subs, error } = await supabase
@@ -33,31 +44,40 @@ async function getAnalytics(req, res) {
       .in('status', ['Disetujui', 'Selesai'])
       .gte('tanggal', since.toISOString())
       .order('tanggal', { ascending: true });
+    // (filter batas atas 'until' diterapkan di bawah untuk mode bulan spesifik)
 
     if (error) throw error;
 
-    const data = subs || [];
+    let data = subs || [];
 
     // Nilai pengeluaran: pakai jumlah_bayar jika ada, jika tidak pakai total_harga
     const nilai = (s) => Number(s.jumlah_bayar) || Number(s.total_harga) || 0;
 
     // ── Summary ───────────────────────────────────────────────
+    // Mode bulan spesifik: buang yang di luar bulan (>= until)
+    if (until) data = data.filter(s => new Date(s.tanggal) < until);
+
     const totalPengeluaran = data.reduce((sum, s) => sum + nilai(s), 0);
     const totalPengajuan   = data.length;
     const rataRata         = totalPengajuan ? Math.round(totalPengeluaran / totalPengajuan) : 0;
 
-    const now = new Date();
+    const acuan = modeSpesifik ? new Date(tahunSpesifik, bulanSpesifik - 1, 1) : new Date();
     const pengajuanBulanIni = data.filter(s => {
       const d = new Date(s.tanggal);
-      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      return d.getMonth() === acuan.getMonth() && d.getFullYear() === acuan.getFullYear();
     }).length;
 
     // ── Per Bulan ─────────────────────────────────────────────
     const bulanMap = {};
-    for (let i = months - 1; i >= 0; i--) {
-      const d = new Date(); d.setMonth(d.getMonth() - i);
-      const key = `${d.getFullYear()}-${d.getMonth()}`;
-      bulanMap[key] = { label: `${BULAN_ID[d.getMonth()]} ${String(d.getFullYear()).slice(-2)}`, total: 0, count: 0 };
+    if (modeSpesifik) {
+      const key = `${tahunSpesifik}-${bulanSpesifik - 1}`;
+      bulanMap[key] = { label: `${BULAN_ID[bulanSpesifik - 1]} ${String(tahunSpesifik).slice(-2)}`, total: 0, count: 0 };
+    } else {
+      for (let i = months - 1; i >= 0; i--) {
+        const d = new Date(); d.setMonth(d.getMonth() - i);
+        const key = `${d.getFullYear()}-${d.getMonth()}`;
+        bulanMap[key] = { label: `${BULAN_ID[d.getMonth()]} ${String(d.getFullYear()).slice(-2)}`, total: 0, count: 0 };
+      }
     }
     data.forEach(s => {
       const d = new Date(s.tanggal);
@@ -105,7 +125,7 @@ async function getAnalytics(req, res) {
     const perCabang = Object.values(cabangMap).sort((a, b) => b.total - a.total);
 
     res.json({
-      summary: { totalPengeluaran, totalPengajuan, rataRata, pengajuanBulanIni, months },
+      summary: { totalPengeluaran, totalPengajuan, rataRata, pengajuanBulanIni, months, bulan: bulanSpesifik, tahun: tahunSpesifik },
       perBulan, perKendaraan, perJenis, perVendor, perCabang,
     });
   } catch (err) {
