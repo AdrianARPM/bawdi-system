@@ -304,6 +304,7 @@ const JENIS_UMUM = [
   'Beban Entertain',
   'Beban Internet',
   'Beban ATK',
+  'Beban Rumah Tangga Kantor',
   'Beban Pengiriman Barang',
   'Beban Bongkar',
   'Beban Parkir',
