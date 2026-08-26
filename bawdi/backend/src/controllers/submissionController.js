@@ -252,11 +252,12 @@ async function create(req, res) {
         .from('submissions')
         .select('*', { count: 'exact', head: true })
         .eq('nomor_urut', nomor_urut)
+        .eq('type', type)
         .ilike('cabang_manual', cabang_manual.trim())
       .neq('status', 'Dibatalkan');
       if (count > 0) {
         return res.status(400).json({
-          error: `Nomor urut ${nomor_urut} sudah digunakan di project/cabang ${cabang_manual}.`
+          error: `Nomor urut ${nomor_urut} sudah digunakan untuk ${type} di project/cabang ${cabang_manual}.`
         });
       }
     }
