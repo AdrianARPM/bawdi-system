@@ -51,7 +51,7 @@ function Lightbox({ photo, onClose }) {
       <div className="max-w-3xl max-h-full" onClick={e => e.stopPropagation()}>
         <p className="text-white text-sm font-semibold mb-3 text-center">{photo.file_name}</p>
         {isImg
-          ? <img src={photo.file_url} alt={photo.file_name} className="max-w-full max-h-[75vh] object-contain rounded-2xl"/>
+          ? <img src={photo.file_url} alt={photo.file_name} className="max-w-full max-h-[90vh] object-contain rounded-2xl"/>
           : (
             <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 text-center">
               <p className="mb-4">📄 {photo.file_name}</p>
