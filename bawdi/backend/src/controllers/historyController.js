@@ -8,6 +8,39 @@ const supabase = require('../../config/supabase');
 // Normalisasi teks: trim + lowercase + rapikan spasi ganda.
 const normTxt = (v) => (v || '').trim().toLowerCase().replace(/\s+/g, ' ');
 
+// v31: KM item bisa diisi/dikoreksi lewat REVISI (tersimpan di revision_snapshot_items),
+// sedangkan submission_items menyimpan dokumen ASLI (sengaja tidak diubah saat approve).
+// Helper ini mengambil km_pengajuan efektif = nilai dari revisi aktif bila ada,
+// jatuh ke nilai asli bila item itu tidak tersentuh revisi.
+// Mengembalikan Map: `${submission_id}::${penjelasan ternormalisasi}` → km_pengajuan (revisi).
+async function ambilKmRevisi(submissionIds) {
+  const ids = [...new Set((submissionIds || []).filter(Boolean))];
+  if (!ids.length) return new Map();
+  // Hanya snapshot yang menjadi active_revision_id pengajuan (revisi final yang berlaku)
+  const { data: subs } = await supabase
+    .from('submissions')
+    .select('id, active_revision_id')
+    .in('id', ids)
+    .not('active_revision_id', 'is', null);
+  const snapIds = (subs || []).map(s => s.active_revision_id).filter(Boolean);
+  if (!snapIds.length) return new Map();
+  const snapToSub = new Map((subs || []).map(s => [s.active_revision_id, s.id]));
+
+  const { data: rItems } = await supabase
+    .from('revision_snapshot_items')
+    .select('snapshot_id, penjelasan, km_pengajuan')
+    .in('snapshot_id', snapIds);
+
+  const map = new Map();
+  for (const ri of rItems || []) {
+    if (ri.km_pengajuan == null) continue;      // revisi tak mengisi KM → jangan menimpa
+    const subId = snapToSub.get(ri.snapshot_id);
+    if (!subId) continue;
+    map.set(`${subId}::${normTxt(ri.penjelasan)}`, ri.km_pengajuan);
+  }
+  return map;
+}
+
 // Filter kasar sisi-DB untuk kas_kecil: pakai digit plat (toleran beda format penulisan).
 // Pencocokan final tetap di JS (normTxt) — perilaku tidak berubah, volume tarikan terpangkas.
 const platCoarse = (kendaraan) => {
@@ -86,22 +119,30 @@ async function getLastKM(req, res) {
       .select(`
         id, penjelasan, km_pengajuan,
         submission:submissions!inner(
-          id, nomor_pengajuan, tanggal, status, kendaraan
+          id, nomor_pengajuan, tanggal, status, kendaraan, active_revision_id
         )
       `)
-      .not('km_pengajuan', 'is', null)
       .order('id', { ascending: false })
-      .limit(200);
+      .limit(400);
 
     if (error) throw error;
     if (!items?.length)
       return res.json({ data: null, message: 'Belum ada riwayat KM untuk item ini' });
 
+    // v31: terapkan KM dari revisi aktif (menimpa nilai asli yang mungkin kosong)
+    const kmRev = await ambilKmRevisi((items || []).map(it => it.submission?.id));
+    for (const it of items || []) {
+      const ov = kmRev.get(`${it.submission?.id}::${normTxt(it.penjelasan)}`);
+      if (ov != null) it.km_pengajuan = ov;
+    }
+    // Buang item yang tetap tanpa KM setelah override
+    const berKM = (items || []).filter(it => it.km_pengajuan != null);
+
     // Filter: plat match + status terpercaya + penjelasan match keyword
     const trustedStatus = ['Terverifikasi', 'Disetujui', 'Selesai'];
     // v17: cocok HANYA bila plat sama-persis & penjelasan item SAMA-PERSIS
     //      (setelah dinormalisasi). Tidak lagi 'mengandung kata'.
-    const matched = items.filter(it => {
+    const matched = berKM.filter(it => {
       const sub = it.submission;
       if (!sub) return false;
       if (normTxt(sub.kendaraan) !== platN) return false;
@@ -167,7 +208,7 @@ async function getVehicleItems(req, res) {
       .from('submission_items')
       .select(`
         penjelasan, km_pengajuan, satuan, harga, kategori_biaya,
-        submission:submissions!inner(nomor_pengajuan, tanggal, status, kendaraan, vendor_pilihan)
+        submission:submissions!inner(id, nomor_pengajuan, tanggal, status, kendaraan, vendor_pilihan, active_revision_id)
       `)
       .not('penjelasan', 'is', null)
       .order('id', { ascending: false })
@@ -176,6 +217,12 @@ async function getVehicleItems(req, res) {
     if (error) throw error;
 
     const trusted = ['Terverifikasi', 'Disetujui', 'Selesai'];
+    // v31: terapkan KM dari revisi aktif
+    const kmRev = await ambilKmRevisi((items || []).map(it => it.submission?.id));
+    for (const it of items || []) {
+      const ov = kmRev.get(`${it.submission?.id}::${normTxt(it.penjelasan)}`);
+      if (ov != null) it.km_pengajuan = ov;
+    }
     const byPenj = new Map(); // key: penjelasan ternormalisasi → entri terbaru
     for (const it of items || []) {
       const sub = it.submission;
