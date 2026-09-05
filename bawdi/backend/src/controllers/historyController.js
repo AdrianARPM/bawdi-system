@@ -16,15 +16,23 @@ const normTxt = (v) => (v || '').trim().toLowerCase().replace(/\s+/g, ' ');
 async function ambilKmRevisi(submissionIds) {
   const ids = [...new Set((submissionIds || []).filter(Boolean))];
   if (!ids.length) return new Map();
-  // Hanya snapshot yang menjadi active_revision_id pengajuan (revisi final yang berlaku)
-  const { data: subs } = await supabase
-    .from('submissions')
-    .select('id, active_revision_id')
-    .in('id', ids)
-    .not('active_revision_id', 'is', null);
-  const snapIds = (subs || []).map(s => s.active_revision_id).filter(Boolean);
-  if (!snapIds.length) return new Map();
-  const snapToSub = new Map((subs || []).map(s => [s.active_revision_id, s.id]));
+  // v31 (fix): snapshot final dikenali dari status 'disetujui' + revision_number tertinggi
+  // per pengajuan (kolom active_revision_id tidak pernah diisi — jangan diandalkan).
+  const { data: snaps } = await supabase
+    .from('revision_snapshots')
+    .select('id, submission_id, revision_number')
+    .in('submission_id', ids)
+    .eq('status', 'disetujui')
+    .order('revision_number', { ascending: false });
+  if (!snaps?.length) return new Map();
+
+  // Ambil snapshot revisi TERTINGGI untuk tiap pengajuan (yang pertama muncul karena sudah diurut desc)
+  const finalSnap = new Map();     // submission_id → snapshot_id final
+  for (const s of snaps) {
+    if (!finalSnap.has(s.submission_id)) finalSnap.set(s.submission_id, s.id);
+  }
+  const snapIds = [...finalSnap.values()];
+  const snapToSub = new Map([...finalSnap.entries()].map(([sub, snap]) => [snap, sub]));
 
   const { data: rItems } = await supabase
     .from('revision_snapshot_items')
