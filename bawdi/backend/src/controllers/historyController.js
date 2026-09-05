@@ -130,8 +130,9 @@ async function getLastKM(req, res) {
           id, nomor_pengajuan, tanggal, status, kendaraan, active_revision_id
         )
       `)
+      .ilike('submission.kendaraan', platCoarse(kendaraan))  // v31: saring kasar di DB (digit plat), presisi tetap di JS
       .order('id', { ascending: false })
-      .limit(400);
+      .limit(500);
 
     if (error) throw error;
     if (!items?.length)
@@ -219,6 +220,7 @@ async function getVehicleItems(req, res) {
         submission:submissions!inner(id, nomor_pengajuan, tanggal, status, kendaraan, vendor_pilihan, active_revision_id)
       `)
       .not('penjelasan', 'is', null)
+      .ilike('submission.kendaraan', platCoarse(kendaraan))  // v31: saring kasar di DB (digit plat), presisi tetap di JS
       .order('id', { ascending: false })
       .limit(500);
 
