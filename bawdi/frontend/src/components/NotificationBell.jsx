@@ -101,9 +101,23 @@ export default function NotificationBell({ variant = 'light' }) {
     try { const { data } = await notifAPI.list(); setItems(data.data || []); } catch {}
   };
   useEffect(() => {
+    // v32: polling hanya saat tab TERLIHAT — hemat request & RAM saat tab di-background
+    let t = null;
+    const mulai = () => { if (!t) t = setInterval(load, 30000); };
+    const henti = () => { if (t) { clearInterval(t); t = null; } };
+    const onVisibility = () => {
+      if (document.hidden) {
+        henti();                 // tab tak dilihat → stop polling
+      } else {
+        load();                  // tab kembali dilihat → refresh sekali, lalu lanjut
+        mulai();
+      }
+    };
+    // Kondisi awal: hanya mulai polling bila tab memang sedang terlihat
     load();
-    const t = setInterval(load, 30000);
-    return () => clearInterval(t);
+    if (!document.hidden) mulai();
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => { henti(); document.removeEventListener('visibilitychange', onVisibility); };
   }, []);
 
   const unread = items.filter(n => !n.is_read).length;
