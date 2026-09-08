@@ -1954,7 +1954,8 @@ useEffect(() => {
                   </div>
                   <div className={`max-w-[72%] flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
                     <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-1">{m.user?.name}</p>
-                    <div className={`px-3 py-2 text-sm rounded-2xl leading-relaxed ${
+                    
+                    <div className={`px-3 py-2 text-sm rounded-2xl leading-relaxed whitespace-pre-wrap break-words ${
                       isMe ? 'bg-amber-500 text-white rounded-br-sm' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-bl-sm'
                     }`}>{m.message}</div>
                     <p className="text-[9px] text-slate-300 dark:text-slate-600 mt-1">{fmtDateTime(m.created_at)}</p>
