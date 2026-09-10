@@ -115,16 +115,22 @@ async function stats(req, res) {
         : alertQuery.eq('pemohon_id', req.user.id);
     const { data: alerts } = await alertQuery;
     result.alerts = alerts || [];
-    // Card Request Pembayaran (Admin/Verifikator/Approval): request yang belum dibayar
+    // Card Request Pembayaran (Admin/Verifikator/Approval): request yang belum dilunasi
+    // v33: mencakup request AWAL (belum dibayar) DAN request KEKURANGAN (sudah dibayar tapi
+    // jumlah_bayar < total_harga akibat revisi harga naik). Filter lunas dilakukan di JS
+    // karena Supabase tak bisa membandingkan dua kolom langsung di query.
     if (['Admin', 'Verifikator', 'Approval'].includes(req.user.role)) {
       const { data: reqs } = await supabase.from('submissions')
-        .select('id, nomor_pengajuan, bayar_diminta_at')
+        .select('id, nomor_pengajuan, bayar_diminta_at, tanggal_bayar, jumlah_bayar, total_harga')
         .not('bayar_diminta_at', 'is', null)
-        .is('tanggal_bayar', null)
         .eq('status', 'Disetujui')
         .order('bayar_diminta_at', { ascending: true })
-        .limit(20);
-      result.payment_requests = reqs || [];
+        .limit(50);
+      // Buang yang sudah LUNAS (jumlah_bayar >= total_harga); sisakan belum bayar & kurang bayar
+      result.payment_requests = (reqs || [])
+        .filter(s => !s.tanggal_bayar || (Number(s.jumlah_bayar) || 0) < (Number(s.total_harga) || 0))
+        .slice(0, 20)
+        .map(({ id, nomor_pengajuan, bayar_diminta_at }) => ({ id, nomor_pengajuan, bayar_diminta_at }));
     }
 
     // Card Request Verifikasi (khusus Verifikator): hilang otomatis saat diverifikasi/dibatalkan
