@@ -36,15 +36,18 @@ async function ambilKmRevisi(submissionIds) {
 
   const { data: rItems } = await supabase
     .from('revision_snapshot_items')
-    .select('snapshot_id, penjelasan, km_pengajuan')
+    .select('snapshot_id, penjelasan, km_pengajuan, urutan')
     .in('snapshot_id', snapIds);
 
+  // v33: dua kunci pencocokan — by NAMA (utama) & by URUTAN (fallback).
+  // Nama bisa berubah saat revisi (mis. ganti merek), jadi urutan jadi cadangan.
   const map = new Map();
   for (const ri of rItems || []) {
     if (ri.km_pengajuan == null) continue;      // revisi tak mengisi KM → jangan menimpa
     const subId = snapToSub.get(ri.snapshot_id);
     if (!subId) continue;
-    map.set(`${subId}::${normTxt(ri.penjelasan)}`, ri.km_pengajuan);
+    map.set(`${subId}::nama::${normTxt(ri.penjelasan)}`, ri.km_pengajuan);
+    if (ri.urutan != null) map.set(`${subId}::urut::${ri.urutan}`, ri.km_pengajuan);
   }
   return map;
 }
@@ -141,7 +144,9 @@ async function getLastKM(req, res) {
     // v31: terapkan KM dari revisi aktif (menimpa nilai asli yang mungkin kosong)
     const kmRev = await ambilKmRevisi((items || []).map(it => it.submission?.id));
     for (const it of items || []) {
-      const ov = kmRev.get(`${it.submission?.id}::${normTxt(it.penjelasan)}`);
+      const sid = it.submission?.id;
+      const ov = kmRev.get(`${sid}::nama::${normTxt(it.penjelasan)}`)
+              ?? (it.urutan != null ? kmRev.get(`${sid}::urut::${it.urutan}`) : undefined);
       if (ov != null) it.km_pengajuan = ov;
     }
     // Buang item yang tetap tanpa KM setelah override
@@ -230,7 +235,9 @@ async function getVehicleItems(req, res) {
     // v31: terapkan KM dari revisi aktif
     const kmRev = await ambilKmRevisi((items || []).map(it => it.submission?.id));
     for (const it of items || []) {
-      const ov = kmRev.get(`${it.submission?.id}::${normTxt(it.penjelasan)}`);
+      const sid = it.submission?.id;
+      const ov = kmRev.get(`${sid}::nama::${normTxt(it.penjelasan)}`)
+              ?? (it.urutan != null ? kmRev.get(`${sid}::urut::${it.urutan}`) : undefined);
       if (ov != null) it.km_pengajuan = ov;
     }
     const byPenj = new Map(); // key: penjelasan ternormalisasi → entri terbaru
