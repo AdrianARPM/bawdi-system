@@ -220,6 +220,10 @@ async function requestRevision(req, res) {
       revisi_catatan:      alasan_revisi.trim(),
       revisi_selesai_at:   null,
       revisi_count:        revisionNumber,
+      // v33: reset penanda request pembayaran — bila total berubah, pemohon boleh
+      // meminta pembayaran (kekurangan) lagi setelah revisi disetujui.
+      bayar_diminta_at:    null,
+      bayar_diminta_oleh:  null,
     }).eq('id', submissionId);
 
     // System message di chat
@@ -766,26 +770,35 @@ async function recordDP(req, res) {
 
 async function recordPayment(req, res) {
   try {
-    const { tanggal_bayar, jumlah_bayar, catatan_bayar, is_koreksi } = req.body;
+    const { tanggal_bayar, jumlah_bayar, catatan_bayar, is_koreksi, is_kekurangan } = req.body;
     if (!tanggal_bayar) return res.status(400).json({ error: 'Tanggal pembayaran wajib' });
     if (!jumlah_bayar || Number(jumlah_bayar) <= 0) return res.status(400).json({ error: 'Jumlah pembayaran wajib' });
 
     const { data: sub } = await supabase.from('submissions')
-      .select('status, nomor_pengajuan, pemohon_id, nota_url').eq('id', req.params.submissionId).single();
+      .select('status, nomor_pengajuan, pemohon_id, nota_url, jumlah_bayar, total_harga').eq('id', req.params.submissionId).single();
     if (!sub) return res.status(404).json({ error: 'Pengajuan tidak ditemukan' });
     if (sub.status !== 'Disetujui') return res.status(400).json({ error: 'Pembayaran hanya bisa dicatat setelah Disetujui' });
     //if (!sub.nota_url) return res.status(400).json({ error: 'Upload nota dulu sebelum mencatat pembayaran' });
 
-    const fmt = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(Number(jumlah_bayar));
+    // v33: mode kekurangan → TAMBAH ke jumlah_bayar (bukan menimpa), jaga jejak audit tiap pembayaran.
+    // Mode normal & koreksi tetap MENIMPA seperti sebelumnya.
+    const bayarLama    = Number(sub.jumlah_bayar) || 0;
+    const nominalInput = Number(jumlah_bayar);
+    const jumlahEfektif = is_kekurangan ? (bayarLama + nominalInput) : nominalInput;
+
+    const fmt      = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(nominalInput);
+    const fmtTotal = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(jumlahEfektif);
 
     await supabase.from('submissions').update({
       tanggal_bayar, dibayar_oleh: req.user.id,
-      jumlah_bayar: Number(jumlah_bayar), catatan_bayar: catatan_bayar || '',
+      jumlah_bayar: jumlahEfektif, catatan_bayar: catatan_bayar || '',
     }).eq('id', req.params.submissionId);
 
     await supabase.from('messages').insert({
       id: uuidv4(), submission_id: req.params.submissionId, user_id: req.user.id,
-      message: `💰 Pembayaran ${fmt} ${is_koreksi ? 'DIKOREKSI' : 'dicatat'} oleh ${req.user.name} pada ${new Date(tanggal_bayar).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}`,
+      message: is_kekurangan
+        ? `💰 Pembayaran KEKURANGAN ${fmt} dicatat oleh ${req.user.name} pada ${new Date(tanggal_bayar).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} (total dibayar kini ${fmtTotal})`
+        : `💰 Pembayaran ${fmt} ${is_koreksi ? 'DIKOREKSI' : 'dicatat'} oleh ${req.user.name} pada ${new Date(tanggal_bayar).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}`,
       is_system: true,
     });
 
@@ -806,7 +819,7 @@ async function recordPayment(req, res) {
       } catch (e) { console.warn('[recordPayment] pengingat nota dilewati:', e.message); }
     }
 
-    logAudit(req, { action: is_koreksi ? 'bayar_koreksi' : 'bayar', target: sub.nomor_pengajuan, submissionId: req.params.submissionId, detail: `${is_koreksi ? 'KOREKSI → ' : ''}Bayar ${Number(jumlah_bayar).toLocaleString('id-ID')}` });
+    logAudit(req, { action: is_kekurangan ? 'bayar_kekurangan' : (is_koreksi ? 'bayar_koreksi' : 'bayar'), target: sub.nomor_pengajuan, submissionId: req.params.submissionId, detail: `${is_kekurangan ? 'KEKURANGAN → ' : (is_koreksi ? 'KOREKSI → ' : '')}Bayar ${nominalInput.toLocaleString('id-ID')}${is_kekurangan ? ` (total ${jumlahEfektif.toLocaleString('id-ID')})` : ''}` });
     res.json({ message: is_koreksi ? 'Pembayaran berhasil dikoreksi' : 'Pembayaran berhasil dicatat' });
   } catch (err) {
     res.status(500).json({ error: 'Gagal mencatat pembayaran: ' + err.message });
