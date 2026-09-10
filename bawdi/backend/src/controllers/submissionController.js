@@ -827,15 +827,20 @@ async function checkDuplicate(req, res) {
 async function requestPayment(req, res) {
   try {
     const { data: sub } = await supabase.from('submissions')
-      .select('id, status, pemohon_id, nomor_pengajuan, bayar_diminta_at, tanggal_bayar')
+      .select('id, status, pemohon_id, nomor_pengajuan, bayar_diminta_at, tanggal_bayar, jumlah_bayar, total_harga')
       .eq('id', req.params.id).single();
     if (!sub) return res.status(404).json({ error: 'Pengajuan tidak ditemukan' });
     if (req.user.id !== sub.pemohon_id)
       return res.status(403).json({ error: 'Hanya pemohon pengajuan ini yang dapat meminta pembayaran' });
     if (sub.status !== 'Disetujui')
       return res.status(400).json({ error: 'Request pembayaran hanya untuk pengajuan berstatus Disetujui' });
-    if (sub.tanggal_bayar)
-      return res.status(400).json({ error: 'Pengajuan ini sudah dibayarkan' });
+    // v33: deteksi kekurangan bayar (mis. akibat revisi harga NAIK setelah dibayar)
+    const sudahBayar = Number(sub.jumlah_bayar) || 0;
+    const totalKini  = Number(sub.total_harga) || 0;
+    const adaKekurangan = !!sub.tanggal_bayar && sudahBayar > 0 && sudahBayar < totalKini;
+
+    if (sub.tanggal_bayar && !adaKekurangan)
+      return res.status(400).json({ error: 'Pengajuan ini sudah lunas dibayarkan' });
     if (sub.bayar_diminta_at)
       return res.status(400).json({ error: 'Pembayaran sudah pernah direquest' });
 
