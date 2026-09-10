@@ -128,7 +128,7 @@ async function getLastKM(req, res) {
     const { data: items, error } = await supabase
       .from('submission_items')
       .select(`
-        id, penjelasan, km_pengajuan,
+        id, penjelasan, km_pengajuan, urutan,
         submission:submissions!inner(
           id, nomor_pengajuan, tanggal, status, kendaraan, active_revision_id
         )
@@ -221,7 +221,7 @@ async function getVehicleItems(req, res) {
     const { data: items, error } = await supabase
       .from('submission_items')
       .select(`
-        penjelasan, km_pengajuan, satuan, harga, kategori_biaya,
+        penjelasan, km_pengajuan, satuan, harga, kategori_biaya, urutan,
         submission:submissions!inner(id, nomor_pengajuan, tanggal, status, kendaraan, vendor_pilihan, active_revision_id)
       `)
       .not('penjelasan', 'is', null)
