@@ -379,6 +379,7 @@ function PaymentPanel({ sub, user, onRefresh }) {
   // Mode koreksi pencatatan DP / pembayaran (bila ada salah input)
   const [editDP,  setEditDP]  = useState(false);
   const [editPay, setEditPay] = useState(false);
+  const [modeKekurangan, setModeKekurangan] = useState(false); // v33: catat pembayaran kekurangan (TAMBAH)
   const [payDate,   setPayDate]  = useState('');
   const [payTime,   setPayTime]  = useState('');
   const [payJumlah, setPayJumlah]= useState('');
@@ -446,12 +447,13 @@ function PaymentPanel({ sub, user, onRefresh }) {
     try {
      const tgl = new Date(`${payDate}T${payTime || '00:00'}:00+07:00`).toISOString();
       await revisionAPI.recordPayment(sub.id, {
-        is_koreksi: editPay,
+        is_koreksi: editPay && !modeKekurangan,
+        is_kekurangan: modeKekurangan,
         tanggal_bayar: tgl, jumlah_bayar: payJumlah, catatan_bayar: payCat,
       });
       await onRefresh();
-      toast.success(editPay ? 'Pembayaran berhasil dikoreksi!' : 'Pembayaran dicatat!');
-      setEditPay(false);
+      toast.success(modeKekurangan ? 'Pembayaran kekurangan dicatat!' : (editPay ? 'Pembayaran berhasil dikoreksi!' : 'Pembayaran dicatat!'));
+      setEditPay(false); setModeKekurangan(false);
     } catch (err) {
       toast.error(err.response?.data?.error || 'Gagal mencatat pembayaran');
     }
@@ -491,6 +493,9 @@ function PaymentPanel({ sub, user, onRefresh }) {
   
   const isDiSetujui = sub.status === 'Disetujui';
   const isSelesai   = sub.status === 'Selesai';
+  // v33: kekurangan bayar (mis. akibat revisi harga NAIK setelah dibayar)
+  const sisaKurang  = Math.max(0, (Number(sub.total_harga) || 0) - (Number(sub.jumlah_bayar) || 0));
+  const adaKekurangan = !!sub.tanggal_bayar && (Number(sub.jumlah_bayar) || 0) > 0 && sisaKurang > 0;
 
   return (
     <div className="space-y-4">
@@ -665,11 +670,27 @@ function PaymentPanel({ sub, user, onRefresh }) {
             )}
           </div>
 
-          {sub.tanggal_bayar && !editPay ? (
-            <div className="bg-emerald-50 dark:bg-emerald-500/10 rounded-xl p-3 space-y-1">
-              <p className="text-xs text-emerald-600 dark:text-emerald-400">Tanggal: <strong>{fmtDateTime(sub.tanggal_bayar)}</strong></p>
-              <p className="text-xs text-emerald-600 dark:text-emerald-400">Jumlah: <strong>{fmtCurrency(sub.jumlah_bayar)}</strong></p>
-              {sub.catatan_bayar && <p className="text-xs text-emerald-600 dark:text-emerald-400">Catatan: {sub.catatan_bayar}</p>}
+          {sub.tanggal_bayar && !editPay && !modeKekurangan ? (
+            <div className="space-y-2">
+              <div className="bg-emerald-50 dark:bg-emerald-500/10 rounded-xl p-3 space-y-1">
+                <p className="text-xs text-emerald-600 dark:text-emerald-400">Tanggal: <strong>{fmtDateTime(sub.tanggal_bayar)}</strong></p>
+                <p className="text-xs text-emerald-600 dark:text-emerald-400">Jumlah: <strong>{fmtCurrency(sub.jumlah_bayar)}</strong></p>
+                {sub.catatan_bayar && <p className="text-xs text-emerald-600 dark:text-emerald-400">Catatan: {sub.catatan_bayar}</p>}
+              </div>
+              {adaKekurangan && (
+                <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-xl p-3">
+                  <p className="text-xs font-bold text-amber-700 dark:text-amber-300 mb-0.5">
+                    Kurang bayar: {fmtCurrency(sisaKurang)}
+                  </p>
+                  <p className="text-[10px] text-amber-600 dark:text-amber-400 mb-2">
+                    Total kini {fmtCurrency(sub.total_harga)}, sudah dibayar {fmtCurrency(sub.jumlah_bayar)} (kemungkinan akibat revisi harga).
+                  </p>
+                  <button onClick={() => { setModeKekurangan(true); setPayDate(''); setPayTime(''); setPayJumlah(String(sisaKurang)); setPayCat(''); }}
+                    className="w-full py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-colors">
+                    + Catat Pembayaran Kekurangan
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <div className="space-y-3">
@@ -697,20 +718,25 @@ function PaymentPanel({ sub, user, onRefresh }) {
               <textarea value={payCat} onChange={e => setPayCat(e.target.value)} rows={2}
                 placeholder="Catatan pembayaran (opsional)..."
                 className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 text-sm outline-none resize-none focus:border-emerald-400"/>
-              {editPay && (
+              {editPay && !modeKekurangan && (
                 <p className="text-[10px] text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-500/10 rounded-lg px-2.5 py-1.5">
                   ✏️ Mode koreksi — menyimpan akan <b>menimpa</b> data pembayaran sebelumnya. Perubahan tercatat di log audit.
                 </p>
               )}
+              {modeKekurangan && (
+                <p className="text-[10px] text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-500/10 rounded-lg px-2.5 py-1.5">
+                  + Mode kekurangan — nominal ini <b>ditambahkan</b> ke pembayaran sebelumnya ({fmtCurrency(sub.jumlah_bayar)}). Tercatat terpisah di log audit.
+                </p>
+              )}
               <div className="flex gap-2.5">
-                {editPay && (
-                  <Button variant="secondary" className="flex-1" onClick={() => setEditPay(false)} disabled={saving === 'pay'}>
+                {(editPay || modeKekurangan) && (
+                  <Button variant="secondary" className="flex-1" onClick={() => { setEditPay(false); setModeKekurangan(false); }} disabled={saving === 'pay'}>
                     Batal
                   </Button>
                 )}
                 <Button variant="success" className="flex-1" onClick={handlePay}
                   loading={saving === 'pay'} disabled={!payDate || !payJumlah}>
-                  💰 {editPay ? 'Simpan Koreksi' : 'Simpan Data Pembayaran'}
+                  💰 {modeKekurangan ? 'Simpan Kekurangan' : (editPay ? 'Simpan Koreksi' : 'Simpan Data Pembayaran')}
                 </Button>
               </div>
             </div>
@@ -1594,6 +1620,30 @@ useEffect(() => {
             className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm font-bold transition-colors">
             {reqPayLoading ? <Loader size={14} className="animate-spin"/> : <Send size={14}/>} Request Pembayaran
           </button>
+        )
+      )}
+
+      {/* v33: Request Kekurangan — pemohon, saat sudah dibayar tapi total naik (revisi) */}
+      {user.id === sub.pemohon_id && sub.status === 'Disetujui' && sub.tanggal_bayar &&
+       (Number(sub.jumlah_bayar) || 0) > 0 &&
+       (Number(sub.jumlah_bayar) || 0) < (Number(sub.total_harga) || 0) && (
+        sub.bayar_diminta_at ? (
+          <div className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 text-amber-700 dark:text-amber-300 text-sm font-semibold">
+            ✓ Kekurangan sudah direquest · {fmtDate(sub.bayar_diminta_at)}
+          </div>
+        ) : (
+          <div className="w-full rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 p-3">
+            <p className="text-sm font-bold text-amber-700 dark:text-amber-300 mb-0.5">
+              Kurang bayar: {fmtCurrency(Math.max(0, (Number(sub.total_harga)||0) - (Number(sub.jumlah_bayar)||0)))}
+            </p>
+            <p className="text-[11px] text-amber-600 dark:text-amber-400 mb-2.5">
+              Total pengajuan naik jadi {fmtCurrency(sub.total_harga)} (revisi), sudah dibayar {fmtCurrency(sub.jumlah_bayar)}.
+            </p>
+            <button onClick={handleRequestPayment} disabled={reqPayLoading}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white text-sm font-bold transition-colors">
+              {reqPayLoading ? <Loader size={14} className="animate-spin"/> : <Send size={14}/>} Request Kekurangan
+            </button>
+          </div>
         )
       )}
 
