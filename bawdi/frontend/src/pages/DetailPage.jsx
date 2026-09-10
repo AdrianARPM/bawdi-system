@@ -1056,6 +1056,11 @@ useEffect(() => {
   const has2Vendor       = !!(sub.vendor2 && items2.length > 0);
   const totalV1          = items1.reduce((s, i) => s + (Number(i.total) || 0), 0);
   const totalV2          = items2.reduce((s, i) => s + (Number(i.total) || 0), 0);
+  // v33: total ASLI utk tab Pengajuan Asli = jumlah item asli + Ppn asli.
+  // sub.total_harga sengaja TIDAK dipakai di sini karena ditimpa nilai revisi (untuk tracking bayar).
+  const totalAsli        = (items1.reduce((s, i) => s + (Number(i.total) || 0), 0)
+                          + items2.reduce((s, i) => s + (Number(i.total) || 0), 0)
+                          + (Number(sub.ppn) || 0));
   const bolehPilihVendor = ['Approval', 'Admin'].includes(user.role);
   const perluPilihVendor = has2Vendor && !sub.vendor_pilihan && bolehPilihVendor;
 
@@ -1782,7 +1787,7 @@ useEffect(() => {
             )}
             <div className="flex justify-between px-4 py-3 bg-amber-50 dark:bg-amber-500/10 border-t border-amber-100 dark:border-amber-500/20">
               <span className="text-sm font-extrabold text-amber-800 dark:text-amber-300">TOTAL</span>
-              <span className="text-base font-black text-amber-500">{fmtCurrency(sub.total_harga)}</span>
+              <span className="text-base font-black text-amber-500">{fmtCurrency(totalAsli)}</span>
             </div>
           </Card>
 
