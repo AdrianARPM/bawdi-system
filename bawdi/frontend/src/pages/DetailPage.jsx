@@ -474,6 +474,8 @@ function PaymentPanel({ sub, user, onRefresh }) {
 
   const canClose    = sub.nota_url && sub.tanggal_bayar && sub.jumlah_bayar > 0;
   const isAA        = ['Approval', 'Admin'].includes(user.role);
+  // v34: Verifikator kini boleh mencatat DP/pembayaran & menutup pengajuan (bukan hanya lihat).
+  const canBayar    = isAA || user.role === 'Verifikator';
 // v20: yang boleh hapus nota = Approval/Admin atau Operasional pemohon asli
   const canManageNota = isAA || (user.role === 'Operasional' && sub.pemohon_id === user.id);
 
@@ -563,9 +565,9 @@ function PaymentPanel({ sub, user, onRefresh }) {
         )}
       </Card>
 
-      {/* Rincian Pembayaran — READ-ONLY untuk non-Approval/Admin (mis. Verifikator).
-          Approval/Admin memakai kartu "Catat DP/Pembayaran" di bawah untuk mengubah. */}
-      {!isAA && (isDiSetujui || isSelesai) && (
+      {/* Rincian Pembayaran — READ-ONLY untuk role yang tidak boleh mencatat (mis. Operasional).
+          Approval/Admin/Verifikator memakai kartu "Catat DP/Pembayaran" di bawah untuk mengubah. */}
+      {!canBayar && (isDiSetujui || isSelesai) && (
         <Card>
           <div className="flex items-center gap-2 mb-3">
             <CreditCard size={15} className="text-emerald-500"/>
@@ -609,7 +611,7 @@ function PaymentPanel({ sub, user, onRefresh }) {
       )}
 
       {/* Catat DP (opsional) */}
-      {isDiSetujui && !isSelesai && isAA && (
+      {isDiSetujui && !isSelesai && canBayar && (
         <Card>
           <div className="flex items-center gap-2 mb-3">
             <CreditCard size={15} className="text-amber-500"/>
@@ -691,7 +693,7 @@ function PaymentPanel({ sub, user, onRefresh }) {
       )}
 
       {/* Catat Pembayaran */}
-      {isDiSetujui && !isSelesai && isAA && (
+      {isDiSetujui && !isSelesai && canBayar && (
         <Card>
           <div className="flex items-center gap-2 mb-3">
             <CreditCard size={15} className="text-emerald-500"/>
@@ -790,7 +792,7 @@ function PaymentPanel({ sub, user, onRefresh }) {
       )}
 
       {/* Tutup Pengajuan */}
-      {isDiSetujui && !isSelesai && isAA && (
+      {isDiSetujui && !isSelesai && canBayar && (
         <Card className={canClose ? 'border-emerald-200 dark:border-emerald-500/30' : 'border-slate-200 dark:border-slate-700 opacity-75'}>
           <div className="flex items-center gap-2 mb-2">
             <Lock size={14} className={canClose ? 'text-emerald-500' : 'text-slate-400 dark:text-slate-500'}/>
