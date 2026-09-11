@@ -563,6 +563,51 @@ function PaymentPanel({ sub, user, onRefresh }) {
         )}
       </Card>
 
+      {/* Rincian Pembayaran — READ-ONLY untuk non-Approval/Admin (mis. Verifikator).
+          Approval/Admin memakai kartu "Catat DP/Pembayaran" di bawah untuk mengubah. */}
+      {!isAA && (isDiSetujui || isSelesai) && (
+        <Card>
+          <div className="flex items-center gap-2 mb-3">
+            <CreditCard size={15} className="text-emerald-500"/>
+            <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Rincian Pembayaran</p>
+            <span className="text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded-full ml-auto">lihat saja</span>
+          </div>
+
+          {!sub.tanggal_dp && !sub.tanggal_bayar ? (
+            <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-3">
+              <p className="text-xs text-slate-500 dark:text-slate-400">Belum ada pembayaran yang dicatat.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {sub.tanggal_dp && (
+                <div className="bg-amber-50 dark:bg-amber-500/10 rounded-xl p-3 space-y-1">
+                  <p className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wide">DP (Uang Muka)</p>
+                  <p className="text-xs text-amber-600 dark:text-amber-400">Tanggal: <strong>{fmtDateTime(sub.tanggal_dp)}</strong></p>
+                  <p className="text-xs text-amber-600 dark:text-amber-400">Jumlah: <strong>{fmtCurrency(sub.jumlah_dp)}</strong></p>
+                  {sub.catatan_dp && <p className="text-xs text-amber-600 dark:text-amber-400">Catatan: {sub.catatan_dp}</p>}
+                </div>
+              )}
+              {sub.tanggal_bayar && (
+                <div className="bg-emerald-50 dark:bg-emerald-500/10 rounded-xl p-3 space-y-1">
+                  <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">Pembayaran</p>
+                  <p className="text-xs text-emerald-600 dark:text-emerald-400">Tanggal: <strong>{fmtDateTime(sub.tanggal_bayar)}</strong></p>
+                  <p className="text-xs text-emerald-600 dark:text-emerald-400">Jumlah: <strong>{fmtCurrency(sub.jumlah_bayar)}</strong></p>
+                  {sub.catatan_bayar && <p className="text-xs text-emerald-600 dark:text-emerald-400">Catatan: {sub.catatan_bayar}</p>}
+                </div>
+              )}
+              {adaKekurangan && (
+                <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-xl p-3">
+                  <p className="text-xs font-bold text-amber-700 dark:text-amber-300">Kurang bayar: {fmtCurrency(sisaKurang)}</p>
+                  <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-0.5">
+                    Total kini {fmtCurrency(sub.total_harga)}, sudah dibayar {fmtCurrency(sub.jumlah_bayar)}.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </Card>
+      )}
+
       {/* Catat DP (opsional) */}
       {isDiSetujui && !isSelesai && isAA && (
         <Card>
