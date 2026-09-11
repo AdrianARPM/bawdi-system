@@ -1,7 +1,7 @@
 // src/components/Layout.jsx  — v8 (Dark Mode Tahap 1: toggle Terang/Gelap/Sistem + dark variants in web)
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-import { LayoutDashboard, FileText, Plus, Users, LogOut, Menu, Truck, Archive, BarChart3, Activity, Building2, Sun, Moon, Monitor } from 'lucide-react';
+import { LayoutDashboard, FileText, Plus, Users, LogOut, Menu, Truck, Archive, BarChart3, Activity, Building2, Store, Tags, Sun, Moon, Monitor } from 'lucide-react';
 import useAuthStore from '../context/authStore';
 import NotificationBell from './NotificationBell';
 import { getThemePref, setThemePref } from '../utils/theme';
@@ -61,7 +61,7 @@ export default function Layout() {
   const sidebar = (
     <div className="flex flex-col h-full bg-slate-900">
       {/* Logo */}
-      <div className="px-4 py-4 border-b border-slate-800">
+      <div className="px-4 py-4 border-b border-slate-800 flex-shrink-0">
         <div className="flex items-center gap-2.5">
           {/* Logo di sidebar */}
             <div className="px-4 py-4 border-b border-slate-800">
@@ -75,7 +75,7 @@ export default function Layout() {
       </div>
 
       {/* User badge */}
-      <div className="px-3 py-2.5 border-b border-slate-800">
+      <div className="px-3 py-2.5 border-b border-slate-800 flex-shrink-0">
         <div className="flex items-center gap-2.5 bg-slate-800 rounded-xl px-3 py-2">
           <div className={`w-7 h-7 rounded-full ${ROLE_COLOR[user?.role]||'bg-amber-500'} flex items-center justify-center flex-shrink-0`}>
             <span className="text-white text-[10px] font-bold">{user?.avatar_initials||'?'}</span>
@@ -90,7 +90,7 @@ export default function Layout() {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-2.5 py-3">
+      <nav className="flex-1 min-h-0 overflow-y-auto px-2.5 py-3 scrollbar-hide">
         <NavItem to="/"            icon={LayoutDashboard} label="Dashboard"      onClick={close}/>
         <NavItem to="/submissions" icon={FileText}
           label={user?.role==='Operasional'?'Pengajuan Saya':'Semua Pengajuan'} onClick={close}/>
@@ -109,7 +109,9 @@ export default function Layout() {
         <NavItem to="/vehicles" icon={Truck} label="Super Track" onClick={close}/>
         {user?.role === 'Admin' && (
           <>
-            <NavItem to="/cabang" icon={Building2} label="Master Cabang" onClick={close}/>
+            <NavItem to="/cabang"  icon={Building2} label="Master Cabang" onClick={close}/>
+            <NavItem to="/vendors" icon={Store}    label="Master Vendor" onClick={close}/>
+            <NavItem to="/jenis"   icon={Tags}     label="Master Jenis"  onClick={close}/>
             <NavItem to="/users"  icon={Users}    label="Kelola User"   onClick={close}/>
             <NavItem to="/status" icon={Activity} label="Status Sistem" onClick={close}/>
           </>
@@ -117,7 +119,7 @@ export default function Layout() {
       </nav>
 
       {/* Tema + Logout */}
-      <div className="px-2.5 py-3 border-t border-slate-800 space-y-2">
+      <div className="px-2.5 py-3 border-t border-slate-800 space-y-2 flex-shrink-0">
         <ThemeToggle/>
         <button onClick={doLogout}
           className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-all font-[inherit]">

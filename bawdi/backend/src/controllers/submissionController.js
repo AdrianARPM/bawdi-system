@@ -8,6 +8,7 @@ const supabase = require('../../config/supabase');
 const { v4: uuidv4 } = require('uuid');
 const { sendEmailToRole, sendEmailToUser, emailTemplates } = require('../utils/emailService');
 const { autoRegisterVehicle } = require('./vehicleController');
+const { isPph23Wajib } = require('./jenisController');
 const { logAudit } = require('../utils/auditLogger');
 
 // Helper: cek apakah user adalah Kepala Operasional
@@ -153,7 +154,7 @@ async function stats(req, res) {
 // ── GET /api/submissions ──────────────────────────────────────────
 async function list(req, res) {
   try {
-   const { status, type, q, belum_bayar, belum_nota, page = 1, limit = 20 } = req.query;
+   const { status, type, q, belum_bayar, belum_nota, cabang, page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
     let query = supabase
       .from('submissions')
@@ -176,6 +177,8 @@ async function list(req, res) {
     if (belum_bayar) query = query.eq('status', 'Disetujui').or('jumlah_bayar.is.null,jumlah_bayar.eq.0');
     if (belum_nota) query = query.eq('status', 'Disetujui').gt('jumlah_bayar', 0).or('nota_url.is.null,nota_url.eq.');
     if (type)   query = query.eq('type', type);
+    // Filter cabang = cabang project (cabang_manual), yang tampil di nomor pengajuan.
+    if (cabang) query = query.eq('cabang_manual', cabang);
     // Pencarian server-side: nomor pengajuan + cabang (bersihkan karakter khusus PostgREST)
     if (q && q.trim()) {
       const term = q.replace(/[,()%*]/g, '').trim();
@@ -248,8 +251,9 @@ async function create(req, res) {
       return res.status(400).json({ error: 'Semua field wajib diisi' });
     if (!is_umum && !kendaraan)
       return res.status(400).json({ error: 'Kendaraan wajib diisi' });
-    const PPH23_WAJIB = ['Beban Perbaikan','Beban Perbaikan dan Suku Cadang','Beban Perbaikan dan Perlengkapan Kendaraan','Beban Perbaikan Box','Beban Perawatan','Beban Perawatan dan Suku Cadang','Beban Sewa Kendaraan'];
-    if (PPH23_WAJIB.includes(jenis_pembelian) && !(pph23 || '').trim())
+    // Aturan "PPh23 wajib" kini dibaca dari Master Jenis Pembelian (data-driven),
+    // dengan fallback ke daftar lama bila tabel master belum ada.
+    if (await isPph23Wajib(jenis_pembelian) && !(pph23 || '').trim())
       return res.status(400).json({ error: `Pph23 wajib diisi untuk jenis pembelian ${jenis_pembelian}` });
 
     // Cek duplikat nomor dalam project/cabang yang sama

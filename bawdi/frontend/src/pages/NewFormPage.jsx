@@ -16,7 +16,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Plus, Trash2, Check, ChevronLeft, Upload, X, AlertCircle, Loader } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { submissionAPI, photoAPI, historyAPI, vehicleAPI, cabangAPI, offlineQueue, revisionAPI } from '../utils/api';
+import { submissionAPI, photoAPI, historyAPI, vehicleAPI, cabangAPI, vendorAPI, jenisAPI, offlineQueue, revisionAPI } from '../utils/api';
 import { Card, Button, Spinner, fmtCurrency } from '../components/ui';
 import VehicleHistoryPanel from '../components/VehicleHistoryPanel';
 import useAuthStore from '../context/authStore';
@@ -524,6 +524,38 @@ export default function NewFormPage() {
       .catch(() => {}); // pertahankan fallback CABANG_LIST
   }, []);
 
+  // Master Vendor — untuk autofill NPWP & rekening saat vendor dipilih.
+  const [vendorList, setVendorList] = useState([]);
+  useEffect(() => {
+    vendorAPI.list()
+      .then(res => setVendorList(res.data?.data || []))
+      .catch(() => setVendorList([])); // gagal/offline → tetap bisa ketik manual
+  }, []);
+  // Saat nama vendor cocok persis dgn master → isi otomatis NPWP & rekening.
+  // `field` = 'vendor'/'vendor2' agar bisa dipakai kedua vendor.
+  const pilihVendor = useCallback((field, val) => {
+    const npwpKey = field === 'vendor2' ? 'npwp2' : 'npwp';
+    const rekKey  = field === 'vendor2' ? 'rekening_tujuan2' : 'rekening_tujuan';
+    const m = vendorList.find(v => (v.nama || '').trim().toLowerCase() === (val || '').trim().toLowerCase());
+    setForm(f => ({
+      ...f,
+      [field]: val,
+      ...(m ? { [npwpKey]: m.npwp || f[npwpKey], [rekKey]: m.rekening || f[rekKey] } : {}),
+    }));
+    setErrors(e => ({ ...e, [field]: '' }));
+  }, [vendorList]);
+
+  // Master Jenis Pembelian (fallback ke daftar hardcode bila gagal/offline).
+  const [jenisMaster, setJenisMaster] = useState([]);
+  useEffect(() => {
+    jenisAPI.list()
+      .then(res => setJenisMaster(res.data?.data || []))
+      .catch(() => setJenisMaster([]));
+  }, []);
+  const jenisKendaraanOpts = jenisMaster.length ? jenisMaster.filter(j => j.for_kendaraan).map(j => j.nama) : JENIS_KENDARAAN;
+  const jenisUmumOpts      = jenisMaster.length ? jenisMaster.filter(j => j.for_umum).map(j => j.nama)      : JENIS_UMUM;
+  const pph23WajibSet      = new Set(jenisMaster.length ? jenisMaster.filter(j => j.pph23_wajib).map(j => j.nama) : PPH23_WAJIB);
+
   // Cache KM history per item.id
   // { [itemId]: { loading, hasArsip, kmTerakhir, tanggalTerakhir, nomorTerakhir } }
   const [itemKMCache, setItemKMCache] = useState({});
@@ -542,6 +574,10 @@ export default function NewFormPage() {
     ppn:'', pph23:'',
     kmMassal:'',
   });
+
+  // Turunan dari master jenis — butuh `form`, jadi ditaruh SETELAH form dibuat.
+  const jenisOpts  = form.is_umum ? jenisUmumOpts : jenisKendaraanOpts;
+  const perluPph23 = pph23WajibSet.has(form.jenis_pembelian);
 
   const set = useCallback((k, v) => { setForm(f=>({...f,[k]:v})); setErrors(e=>({...e,[k]:''})); }, []);
 
@@ -702,7 +738,7 @@ export default function NewFormPage() {
       if (!form.alasan.trim())          e.alasan='Wajib';
       if (!form.batas_waktu_dana.trim())  e.batas_waktu_dana='Wajib';
       if (!form.batas_akhir_pembayaran)   e.batas_akhir_pembayaran='Wajib';
-      if (PPH23_WAJIB.includes(form.jenis_pembelian) && !form.pph23.trim()) e.pph23 = 'Wajib diisi untuk jenis pembelian ini';
+      if (pph23WajibSet.has(form.jenis_pembelian) && !form.pph23.trim()) e.pph23 = 'Wajib diisi untuk jenis pembelian ini';
     }
     if (s===2) {
       if (!form.vendor.trim()) e.vendor='Wajib';
@@ -906,6 +942,10 @@ export default function NewFormPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-5">
+      {/* Opsi vendor dari Master Vendor — selalu ter-mount agar tersedia di semua step */}
+      <datalist id="vendor-master">
+        {vendorList.map(v => <option key={v.id} value={v.nama}/>)}
+      </datalist>
       <div className="flex items-center gap-3">
         <button onClick={()=>navigate(-1)} className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/60"><ChevronLeft size={18} className="text-slate-600 dark:text-slate-300"/></button>
         <div>
@@ -1047,7 +1087,7 @@ export default function NewFormPage() {
             <Field label="Jenis Pembelian" required error={errors.jenis_pembelian}>
               <select value={form.jenis_pembelian} onChange={e=>set('jenis_pembelian',e.target.value)} disabled={isRevision} className={ic('jenis_pembelian')}>
                 <option value="">— Pilih Jenis Pembelian —</option>
-                {(form.is_umum ? JENIS_UMUM : JENIS_KENDARAAN).map(j => (
+                {jenisOpts.map(j => (
                   <option key={j} value={j}>{j}</option>
                 ))}
               </select>
@@ -1060,12 +1100,19 @@ export default function NewFormPage() {
               <textarea value={form.alasan} onChange={e=>set('alasan',e.target.value)} rows={3} placeholder="Jelaskan alasan pengajuan..."
                 className={`w-full px-3 py-2.5 rounded-xl border text-sm text-slate-800 dark:text-slate-100 dark:bg-slate-900 outline-none resize-none placeholder:text-slate-300 dark:placeholder:text-slate-600 transition-colors leading-relaxed focus:ring-2 ${errors.alasan?'border-red-300 dark:border-red-500/40 focus:border-red-400 focus:ring-red-50 dark:focus:ring-red-500/15':'border-slate-200 dark:border-slate-700 focus:border-amber-400 focus:ring-amber-100 dark:focus:ring-amber-500/20'}`}/>
             </Field>
-            <Field label={PPH23_WAJIB.includes(form.jenis_pembelian) ? 'Pph23' : 'Pph23 (opsional)'} required={PPH23_WAJIB.includes(form.jenis_pembelian)} error={errors.pph23} hint="Teks bebas — tampil di detail & PDF, di bawah alasan">
+            <Field label={perluPph23 ? 'Pph23' : 'Pph23 (opsional)'} required={perluPph23} error={errors.pph23} hint="Teks bebas — tampil di detail & PDF, di bawah alasan">
               <textarea value={form.pph23} onChange={e=>set('pph23',e.target.value)} rows={2} placeholder="Contoh: Pph23 Rp.--- x 2% = ..."
                 className={`w-full px-3 py-2.5 rounded-xl border text-sm text-slate-800 dark:text-slate-100 dark:bg-slate-900 outline-none resize-none placeholder:text-slate-300 dark:placeholder:text-slate-600 leading-relaxed focus:ring-2 ${errors.pph23?'border-red-300 dark:border-red-500/40 focus:border-red-400 focus:ring-red-50 dark:focus:ring-red-500/15':'border-slate-200 dark:border-slate-700 focus:border-amber-400 focus:ring-amber-100 dark:focus:ring-amber-500/20'}`}/>
             </Field>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Batas Waktu Dana" required error={errors.batas_waktu_dana}><input value={form.batas_waktu_dana} onChange={e=>set('batas_waktu_dana',e.target.value)} placeholder="30 Hari"  className={ic('batas_waktu_dana')}/></Field>
+              <Field label="Batas Waktu Dana" required error={errors.batas_waktu_dana} hint="Jumlah hari — angka saja">
+                <div className="relative">
+                  <input value={form.batas_waktu_dana} inputMode="numeric"
+                    onChange={e=>set('batas_waktu_dana', e.target.value.replace(/\D/g,''))}
+                    placeholder="30" className={`${ic('batas_waktu_dana')} pr-12`}/>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 dark:text-slate-500 pointer-events-none">Hari</span>
+                </div>
+              </Field>
               <Field label="Batas Akhir Pembayaran" required error={errors.batas_akhir_pembayaran}><input type="date" value={form.batas_akhir_pembayaran} onChange={e=>set('batas_akhir_pembayaran',e.target.value)}  className={ic('batas_akhir_pembayaran')}/></Field>
             </div>
           </div>
@@ -1081,7 +1128,7 @@ export default function NewFormPage() {
             </div>
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Nama Vendor *" error={errors.vendor}><input value={form.vendor} onChange={e=>set('vendor',e.target.value)} placeholder="Nama bengkel" className={ic('vendor')}/></Field>
+                <Field label="Nama Vendor *" error={errors.vendor} hint={vendorList.length ? 'Pilih dari daftar → NPWP & rekening terisi otomatis' : undefined}><input list="vendor-master" value={form.vendor} onChange={e=>pilihVendor('vendor',e.target.value)} placeholder="Nama bengkel" className={ic('vendor')}/></Field>
                 <Field label="NPWP/KTP (opsional)"><input value={form.npwp} onChange={e=>set('npwp',e.target.value)} placeholder="XX.XXX..." className={ic('')}/></Field>
               </div>
               <Field label="Rekening Tujuan Pembayaran" hint="Bank — Nomor a/n Nama">
@@ -1143,7 +1190,7 @@ export default function NewFormPage() {
           {form.useVendor2&&(
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Nama Vendor 2 *" error={errors.vendor2}><input value={form.vendor2} onChange={e=>set('vendor2',e.target.value)} placeholder="Nama bengkel 2" className={ic('vendor2')}/></Field>
+                <Field label="Nama Vendor 2 *" error={errors.vendor2}><input list="vendor-master" value={form.vendor2} onChange={e=>pilihVendor('vendor2',e.target.value)} placeholder="Nama bengkel 2" className={ic('vendor2')}/></Field>
                 <Field label="NPWP (opsional)"><input value={form.npwp2} onChange={e=>set('npwp2',e.target.value)} placeholder="Opsional" className={ic('')}/></Field>
               </div>
               <Field label="Rekening Tujuan Vendor 2 (opsional)" hint="Diisi bila vendor ini berpeluang dipilih — memudahkan pembayaran">
@@ -1177,7 +1224,7 @@ export default function NewFormPage() {
               <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-1">Nomor Pengajuan</p>
               <p className="text-base font-black text-amber-400">{buildNomor(form.nomorUrut,form.type,form.cabangManual)}</p>
             </div>
-            {[['Jenis',form.type],...(form.is_umum?[['Mode','Barang Kantor / Umum']]:[]),['Pemohon',user?.name],...(form.is_umum?[]:[['Kendaraan',form.kendaraan]]),['Jenis Pembelian',form.jenis_pembelian],['Vendor 1',form.vendor],...(form.rekening_tujuan?[['Rekening',form.rekening_tujuan]]:[]),['Total Vendor 1',fmtCurrency(total1)],...((parseFloat(form.ppn)||0)>0?[['Ppn',fmtCurrency(parseFloat(form.ppn)||0)],['Total Akhir',fmtCurrency(total1+(parseFloat(form.ppn)||0))]]:[]),...(form.useVendor2?[['Vendor 2',form.vendor2],['Total Vendor 2',fmtCurrency(total2)]]:[]),['Batas Waktu',form.batas_waktu_dana],['Batas Bayar',form.batas_akhir_pembayaran],['Foto',`${photos.length} foto`]].map(([k,v],i,arr)=>(
+            {[['Jenis',form.type],...(form.is_umum?[['Mode','Barang Kantor / Umum']]:[]),['Pemohon',user?.name],...(form.is_umum?[]:[['Kendaraan',form.kendaraan]]),['Jenis Pembelian',form.jenis_pembelian],['Vendor 1',form.vendor],...(form.rekening_tujuan?[['Rekening',form.rekening_tujuan]]:[]),['Total Vendor 1',fmtCurrency(total1)],...((parseFloat(form.ppn)||0)>0?[['Ppn',fmtCurrency(parseFloat(form.ppn)||0)],['Total Akhir',fmtCurrency(total1+(parseFloat(form.ppn)||0))]]:[]),...(form.useVendor2?[['Vendor 2',form.vendor2],['Total Vendor 2',fmtCurrency(total2)]]:[]),['Batas Waktu',form.batas_waktu_dana ? `${form.batas_waktu_dana} Hari` : ''],['Batas Bayar',form.batas_akhir_pembayaran],['Foto',`${photos.length} foto`]].map(([k,v],i,arr)=>(
               <div key={k} className={`flex justify-between gap-4 py-2 ${i<arr.length-1?'border-b border-slate-50 dark:border-slate-800':''}`}>
                 <span className="text-xs text-slate-400 dark:text-slate-500">{k}</span><span className="text-xs font-bold text-slate-700 dark:text-slate-200 text-right">{v}</span>
               </div>

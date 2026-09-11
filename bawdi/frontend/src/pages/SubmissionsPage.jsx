@@ -1,10 +1,12 @@
 // src/pages/SubmissionsPage.jsx — v2 (Dark Mode Tahap 2: hanya penambahan varian dark:, tanpa perubahan fitur)
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Search, Plus, FileText } from 'lucide-react';
-import { submissionAPI } from '../utils/api';
+import { Search, Plus, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
+import { submissionAPI, cabangAPI } from '../utils/api';
 import { Pill, Card, Spinner, Empty, fmtDate, fmtCurrency, daysSince, RevisiBadge } from '../components/ui';
 import useAuthStore from '../context/authStore';
+
+const LIMIT = 20;
 
 const STATUSES = ['Semua','Menunggu Verifikasi','Terverifikasi','Disetujui','Belum Dibayar','Belum Ada Nota','Selesai','Ditolak','Dibatalkan'];
 const STATUS_KEY = {
@@ -23,9 +25,18 @@ export default function SubmissionsPage() {
   const [subs, setSubs] = useState([]);
   const [counts, setCounts] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [cabangOpts, setCabangOpts] = useState([]);
   const [searchParams, setSearchParams] = useSearchParams();
   const filter = searchParams.get('status') || 'Semua';
   const q = searchParams.get('q') || '';
+  const cabang = searchParams.get('cabang') || '';
+  const setCabang = (val) => setSearchParams(prev => {
+    const p = new URLSearchParams(prev);
+    if (val) p.set('cabang', val); else p.delete('cabang');
+    return p;
+  }, { replace: true });
   const setFilter = (val) => setSearchParams(prev => {
     const p = new URLSearchParams(prev);
     if (val && val !== 'Semua') p.set('status', val); else p.delete('status');
@@ -44,25 +55,34 @@ export default function SubmissionsPage() {
     return () => clearTimeout(t);
   }, [q]);
 
-  // Pencarian & filter status dikerjakan di server; Opsi A: muat semua saat tak mencari
+  // Statistik (badge jumlah per status) + daftar cabang untuk dropdown filter
   useEffect(() => {
     submissionAPI.stats().then(({ data }) => setCounts(data)).catch(() => {});
+    cabangAPI.list().then(({ data }) => setCabangOpts((data.data || []).map(c => c.kode))).catch(() => {});
   }, []);
 
+  // Kembali ke halaman 1 setiap filter/pencarian/cabang berubah
+  useEffect(() => { setPage(1); }, [filter, debouncedQ, cabang]);
+
+  // Muat satu halaman (server-side pagination + filter)
   useEffect(() => {
     const load = async () => {
       try {
-        const params = { limit: 1000 };
+        const params = { page, limit: LIMIT };
         if (filter === 'Belum Dibayar') params.belum_bayar = 1;
         else if (filter === 'Belum Ada Nota') params.belum_nota = 1;
         else if (filter !== 'Semua')    params.status = filter;
         if (debouncedQ.trim())   params.q = debouncedQ.trim();
+        if (cabang)              params.cabang = cabang;
         const { data } = await submissionAPI.list(params);
         setSubs(data.data || []);
+        setTotal(data.total || 0);
       } catch {} finally { setLoading(false); }
     };
     load();
-  }, [filter, debouncedQ]);
+  }, [filter, debouncedQ, cabang, page]);
+
+  const totalPages = Math.max(1, Math.ceil(total / LIMIT));
 
   if (loading) return <Spinner size={32} />;
 
@@ -81,9 +101,17 @@ export default function SubmissionsPage() {
 
       <div className="relative">
         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
-        <input value={q} onChange={e => setQ(e.target.value)} placeholder="Cari nomor, kendaraan, atau pemohon..."
+        <input value={q} onChange={e => setQ(e.target.value)} placeholder="Cari nomor pengajuan atau cabang..."
           className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 text-sm text-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-brand-500/20" />
       </div>
+
+      {cabangOpts.length > 0 && (
+        <select value={cabang} onChange={e => setCabang(e.target.value)}
+          className="w-full sm:w-56 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 text-sm text-slate-700 dark:text-slate-200 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-brand-500/20">
+          <option value="">Semua Cabang</option>
+          {cabangOpts.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+      )}
 
       <div className="flex gap-2 overflow-x-auto sm:overflow-visible sm:flex-wrap pb-1 scrollbar-hide">
         {STATUSES.map(s => (
@@ -148,6 +176,26 @@ export default function SubmissionsPage() {
           );
         })}
       </div>
+
+      {/* Paginasi ber-nomor */}
+      {total > LIMIT && (
+        <div className="flex items-center justify-between gap-3 pt-1">
+          <p className="text-xs text-slate-400 dark:text-slate-500">
+            {(page - 1) * LIMIT + 1}–{Math.min(page * LIMIT, total)} dari {total}
+          </p>
+          <div className="flex items-center gap-1.5">
+            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}
+              className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 disabled:opacity-40 disabled:cursor-not-allowed">
+              <ChevronLeft size={16} />
+            </button>
+            <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 px-1.5">Hal {page}/{totalPages}</span>
+            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}
+              className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 disabled:opacity-40 disabled:cursor-not-allowed">
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

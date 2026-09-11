@@ -300,6 +300,19 @@ function ReportView({ plat, year, onBack, onExport, exporting, user }) {
 }
 
 /* ── Modal tambah/edit kendaraan (Admin) ── */
+// Didefinisikan di level MODUL (bukan di dalam VehicleModal) agar identitas
+// komponen stabil — kalau di dalam, tiap render membuat fungsi baru sehingga
+// input di-remount dan fokus hilang tiap ketik satu huruf.
+function ModalField({ label, k, ph, f, set }) {
+  return (
+    <div>
+      <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400">{label}</label>
+      <input value={f[k]} onChange={e => set(k, e.target.value)} placeholder={ph || ''}
+        className="w-full mt-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-sm dark:bg-slate-900 outline-none focus:border-amber-400 placeholder:text-slate-300 dark:placeholder:text-slate-600"/>
+    </div>
+  );
+}
+
 function VehicleModal({ vehicle, onClose, onSaved }) {
   const isEdit = !!vehicle;
   const [f, setF] = useState({
@@ -324,14 +337,6 @@ function VehicleModal({ vehicle, onClose, onSaved }) {
     } finally { setSaving(false); }
   };
 
-  const Field = ({ label, k, ph }) => (
-    <div>
-      <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400">{label}</label>
-      <input value={f[k]} onChange={e => set(k, e.target.value)} placeholder={ph || ''}
-        className="w-full mt-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-sm dark:bg-slate-900 outline-none focus:border-amber-400 placeholder:text-slate-300 dark:placeholder:text-slate-600"/>
-    </div>
-  );
-
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md p-5 space-y-3" onClick={e => e.stopPropagation()}>
@@ -339,17 +344,17 @@ function VehicleModal({ vehicle, onClose, onSaved }) {
           <h3 className="font-black text-slate-800 dark:text-slate-100">{isEdit ? `Edit ${vehicle.plat}` : 'Tambah Kendaraan'}</h3>
           <button onClick={onClose} className="text-slate-300 dark:text-slate-600 hover:text-slate-500 dark:hover:text-slate-400"><X size={18}/></button>
         </div>
-        {!isEdit && <Field label="Plat Nomor *" k="plat" ph="BM 1234 AA"/>}
+        {!isEdit && <ModalField label="Plat Nomor *" k="plat" ph="BM 1234 AA" f={f} set={set}/>}
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Jenis" k="jenis" ph="Supertruck"/>
-          <Field label="Cabang" k="cabang" ph="APL PKU"/>
+          <ModalField label="Jenis" k="jenis" ph="Supertruck" f={f} set={set}/>
+          <ModalField label="Cabang" k="cabang" ph="APL PKU" f={f} set={set}/>
         </div>
         <div className="grid grid-cols-3 gap-3">
-          <Field label="Pemilik" k="pemilik"/>
-          <Field label="STNK" k="stnk"/>
-          <Field label="Pajak" k="pajak"/>
+          <ModalField label="Pemilik" k="pemilik" f={f} set={set}/>
+          <ModalField label="STNK" k="stnk" f={f} set={set}/>
+          <ModalField label="Pajak" k="pajak" f={f} set={set}/>
         </div>
-        <Field label="Keterangan" k="keterangan"/>
+        <ModalField label="Keterangan" k="keterangan" f={f} set={set}/>
         {isEdit && (
           <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
             <input type="checkbox" checked={f.is_active} onChange={e => set('is_active', e.target.checked)}

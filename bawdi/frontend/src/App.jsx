@@ -13,6 +13,8 @@ import DraftPage        from './pages/DraftPage';
 import AnalyticsPage    from './pages/AnalyticsPage';
 import VehiclesPage     from './pages/VehiclesPage';
 import CabangPage       from './pages/CabangPage';
+import VendorPage       from './pages/VendorPage';
+import JenisPage        from './pages/JenisPage';
 import StatusPage       from './pages/StatusPage';
 import Layout           from './components/Layout';
 
@@ -47,6 +49,8 @@ export default function App() {
           <Route path="analytics"       element={<PrivateRoute roles={['Admin','Verifikator','Approval','Pengawas']}><AnalyticsPage /></PrivateRoute>} />
           <Route path="vehicles"        element={<VehiclesPage />} />
           <Route path="cabang"          element={<PrivateRoute roles={['Admin']}><CabangPage /></PrivateRoute>} />
+          <Route path="vendors"         element={<PrivateRoute roles={['Admin']}><VendorPage /></PrivateRoute>} />
+          <Route path="jenis"           element={<PrivateRoute roles={['Admin']}><JenisPage /></PrivateRoute>} />
           <Route path="status"          element={<PrivateRoute roles={['Admin']}><StatusPage /></PrivateRoute>} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

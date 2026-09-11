@@ -147,6 +147,16 @@ export const cabangAPI = {
   create: (d)     => api.post('/cabang', d),
   update: (id, d) => api.put(`/cabang/${id}`, d),
 };
+export const vendorAPI = {
+  list:   (all)   => api.get('/vendors', { params: all ? { all: 1 } : {} }),
+  create: (d)     => api.post('/vendors', d),
+  update: (id, d) => api.put(`/vendors/${id}`, d),
+};
+export const jenisAPI = {
+  list:   (all)   => api.get('/jenis', { params: all ? { all: 1 } : {} }),
+  create: (d)     => api.post('/jenis', d),
+  update: (id, d) => api.put(`/jenis/${id}`, d),
+};
 export const historyAPI = {
   getVehicleHistory: (kendaraan, limit = 5) =>
     api.get('/history/vehicle', { params: { kendaraan, limit } }),

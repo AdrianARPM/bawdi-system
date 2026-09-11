@@ -198,7 +198,7 @@ function RevisiPanel({ snapshot, sub, user, onAction }) {
         {[
           ['Alasan',    snapshot.alasan],
           ...(snapshot.alasan_type            ? [['Type',              snapshot.alasan_type]]            : []),
-          ...(snapshot.batas_waktu_dana       ? [['Batas Waktu Dana',  snapshot.batas_waktu_dana]]       : []),
+          ...(snapshot.batas_waktu_dana       ? [['Batas Waktu Dana',  /^\d+$/.test(String(snapshot.batas_waktu_dana).trim()) ? `${snapshot.batas_waktu_dana} Hari` : snapshot.batas_waktu_dana]] : []),
           ...(snapshot.batas_akhir_pembayaran ? [['Batas Akhir Bayar', fmtDate(snapshot.batas_akhir_pembayaran)]] : []),
           ...(snapshot.pph23 ? [['Pph23', snapshot.pph23]] : []),
           ['Vendor 1',  snapshot.vendor],
@@ -1767,7 +1767,7 @@ useEffect(() => {
                 ...(sub.rekening_tujuan ? [['Rekening',  sub.rekening_tujuan]] : []),
               ]),
               ['Tgl Pengajuan',    fmtDate(sub.tanggal)],
-              ['Batas Waktu Dana', sub.batas_waktu_dana],
+              ['Batas Waktu Dana', /^\d+$/.test(String(sub.batas_waktu_dana||'').trim()) ? `${sub.batas_waktu_dana} Hari` : sub.batas_waktu_dana],
               ['Batas Akhir Bayar',sub.batas_akhir_pembayaran ? fmtDate(sub.batas_akhir_pembayaran) : '—'],
               ['Total',            fmtCurrency(sub.total_harga)],
               ...(sub.jumlah_bayar > 0 ? [['Dibayar', fmtCurrency(sub.jumlah_bayar)]] : []),

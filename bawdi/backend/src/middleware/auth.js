@@ -1,6 +1,11 @@
 // src/middleware/auth.js
 const jwt = require('jsonwebtoken');
 
+// PENTING: harus SAMA dengan secret di authController.js saat sign token.
+// Tanpa fallback ini, jika JWT_SECRET tak diset di .env, verify memakai
+// `undefined` sementara sign memakai fallback → semua request 401 (loop login).
+const JWT_SECRET = process.env.JWT_SECRET || 'bawdi_secret_2024';
+
 /**
  * Middleware: verifikasi JWT token dari header Authorization
  */
@@ -12,7 +17,7 @@ function authenticate(req, res, next) {
 
   const token = header.split(' ')[1];
   try {
-   const decoded = jwt.verify(token, process.env.JWT_SECRET);
+   const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded; // { id, nik, name, role, jabatan, cabang }
     // Pengawas bersifat hanya-lihat: blokir semua aksi tulis, kecuali endpoint auth (ganti password)
     if (decoded.role === 'Pengawas' && req.method !== 'GET' && !req.originalUrl.includes('/auth'))
