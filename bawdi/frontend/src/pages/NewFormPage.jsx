@@ -16,7 +16,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Plus, Trash2, Check, ChevronLeft, Upload, X, AlertCircle, Loader } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { submissionAPI, photoAPI, historyAPI, vehicleAPI, offlineQueue, revisionAPI } from '../utils/api';
+import { submissionAPI, photoAPI, historyAPI, vehicleAPI, cabangAPI, offlineQueue, revisionAPI } from '../utils/api';
 import { Card, Button, Spinner, fmtCurrency } from '../components/ui';
 import VehicleHistoryPanel from '../components/VehicleHistoryPanel';
 import useAuthStore from '../context/authStore';
@@ -513,6 +513,17 @@ export default function NewFormPage() {
       .catch(() => setPlatList([])); // master kosong/gagal → fallback ketik manual
   }, []);
 
+  // Dropdown cabang dari Master Cabang (fallback ke CABANG_LIST bila gagal/offline)
+  const [cabangOpts, setCabangOpts] = useState(CABANG_LIST);
+  useEffect(() => {
+    cabangAPI.list()
+      .then(res => {
+        const kode = (res.data?.data || []).map(c => c.kode).filter(Boolean);
+        if (kode.length) setCabangOpts(kode);
+      })
+      .catch(() => {}); // pertahankan fallback CABANG_LIST
+  }, []);
+
   // Cache KM history per item.id
   // { [itemId]: { loading, hasArsip, kmTerakhir, tanggalTerakhir, nomorTerakhir } }
   const [itemKMCache, setItemKMCache] = useState({});
@@ -986,7 +997,7 @@ export default function NewFormPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Nomor Urut" required error={errors.nomorUrut} hint="Contoh: 009"><input value={form.nomorUrut} onChange={e=>set('nomorUrut',e.target.value)} placeholder="009" className={ic('nomorUrut')}/></Field>
-              <Field label="Cabang / Project" required error={errors.cabangManual}><select value={CABANG_LIST.includes(form.cabangManual) ? form.cabangManual : ''} onChange={e=>set('cabangManual',e.target.value)} className={ic('cabangManual')}><option value="" disabled>Pilih cabang...</option>{CABANG_LIST.map(c=><option key={c} value={c}>{c}</option>)}</select></Field>
+              <Field label="Cabang / Project" required error={errors.cabangManual}><select value={cabangOpts.includes(form.cabangManual) ? form.cabangManual : ''} onChange={e=>set('cabangManual',e.target.value)} className={ic('cabangManual')}><option value="" disabled>Pilih cabang...</option>{cabangOpts.map(c=><option key={c} value={c}>{c}</option>)}</select></Field>
             </div>
           </div>
         </Card>

@@ -1,2 +1,6 @@
 bawdi/frontend/node_modules/
 bawdi/frontend/dist/
+bawdi/backend/node_modules/
+bawdi/backend/dist/
+bawdi/backend/.env
+bawdi/frontend/.env

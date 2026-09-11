@@ -142,6 +142,11 @@ export const vehicleAPI = {
     URL.revokeObjectURL(url);
   },
 };
+export const cabangAPI = {
+  list:   (all)   => api.get('/cabang', { params: all ? { all: 1 } : {} }),
+  create: (d)     => api.post('/cabang', d),
+  update: (id, d) => api.put(`/cabang/${id}`, d),
+};
 export const historyAPI = {
   getVehicleHistory: (kendaraan, limit = 5) =>
     api.get('/history/vehicle', { params: { kendaraan, limit } }),

@@ -1,7 +1,7 @@
 // src/components/Layout.jsx  — v8 (Dark Mode Tahap 1: toggle Terang/Gelap/Sistem + dark variants in web)
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-import { LayoutDashboard, FileText, Plus, Users, LogOut, Menu, Truck, Archive, BarChart3, Activity, Sun, Moon, Monitor } from 'lucide-react';
+import { LayoutDashboard, FileText, Plus, Users, LogOut, Menu, Truck, Archive, BarChart3, Activity, Building2, Sun, Moon, Monitor } from 'lucide-react';
 import useAuthStore from '../context/authStore';
 import NotificationBell from './NotificationBell';
 import { getThemePref, setThemePref } from '../utils/theme';
@@ -109,6 +109,7 @@ export default function Layout() {
         <NavItem to="/vehicles" icon={Truck} label="Super Track" onClick={close}/>
         {user?.role === 'Admin' && (
           <>
+            <NavItem to="/cabang" icon={Building2} label="Master Cabang" onClick={close}/>
             <NavItem to="/users"  icon={Users}    label="Kelola User"   onClick={close}/>
             <NavItem to="/status" icon={Activity} label="Status Sistem" onClick={close}/>
           </>
