@@ -1,5 +1,5 @@
 // src/pages/DraftPage.jsx  — v10 (Arsip ringan: default filter tahun berjalan + grup cabang bisa dilipat/accordion — basis v9 dark mode)
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Archive, Search, Filter, X, FileSpreadsheet,
@@ -26,6 +26,64 @@ function statusTagihan(total, bayar) {
     else                                { label = 'DP';    cls = 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300'; }
   }
   return { sisa, label, cls };
+}
+
+// Combobox plat kendaraan — ringkas & bisa dicari (menggantikan grid ~80 tombol).
+// Didefinisikan di level modul agar identitasnya stabil (input tak kehilangan fokus).
+function PlatFilter({ value, options, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [term, setTerm] = useState('');
+  const ref = useRef(null);
+  useEffect(() => {
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+  const filtered = term.trim()
+    ? options.filter(o => o.toLowerCase().includes(term.trim().toLowerCase()))
+    : options;
+  const pick = (v) => { onChange(v); setOpen(false); setTerm(''); };
+  return (
+    <div className="relative w-full sm:w-80" ref={ref}>
+      <button type="button" onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 dark:focus:ring-amber-500/20">
+        <span className={value ? 'font-semibold text-amber-600 dark:text-amber-400' : 'text-slate-400 dark:text-slate-500'}>
+          {value || 'Semua Kendaraan'}
+        </span>
+        <span className="flex items-center gap-1 flex-shrink-0">
+          {value && (
+            <span role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); pick(''); }}
+              className="p-0.5 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400"><X size={13}/></span>
+          )}
+          <ChevronDown size={14} className="text-slate-400 dark:text-slate-500"/>
+        </span>
+      </button>
+      {open && (
+        <div className="absolute z-30 mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg overflow-hidden">
+          <div className="p-2 border-b border-slate-100 dark:border-slate-800">
+            <input autoFocus value={term} onChange={e => setTerm(e.target.value)}
+              placeholder="Cari plat..."
+              className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 text-sm outline-none focus:border-amber-400"/>
+          </div>
+          <div className="max-h-56 overflow-y-auto py-1 scrollbar-hide">
+            <button onClick={() => pick('')}
+              className={`w-full text-left px-3 py-1.5 text-xs font-semibold ${!value ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
+              Semua Kendaraan
+            </button>
+            {filtered.map(o => (
+              <button key={o} onClick={() => pick(o)}
+                className={`w-full text-left px-3 py-1.5 text-xs ${value === o ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 font-semibold' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
+                {o}
+              </button>
+            ))}
+            {filtered.length === 0 && (
+              <p className="px-3 py-3 text-xs text-slate-400 dark:text-slate-500 text-center">Tidak ada plat cocok</p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function DraftPage() {
@@ -191,8 +249,8 @@ export default function DraftPage() {
           className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 text-sm outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 dark:focus:ring-amber-500/20"/>
       </div>
 
-      {/* Filter */}
-      <Card className="!p-4">
+      {/* Filter — overflow-visible agar dropdown plat tidak terpotong kartu */}
+      <Card className="!p-4 !overflow-visible">
         <div className="flex items-center gap-2 mb-3">
           <Filter size={14} className="text-slate-500 dark:text-slate-400"/>
           <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Filter</p>
@@ -235,19 +293,11 @@ export default function DraftPage() {
           </div>
         </div>
         <div>
-          <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5"><Truck size={12}/> Plat Kendaraan</label>
-          <div className="flex flex-wrap gap-1.5">
-            <button onClick={() => setFilterKendaraan('')}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${!filterKendaraan ? 'bg-amber-500 border-amber-500 text-white' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400'}`}>
-              Semua
-            </button>
-            {kendaraanList.map(k => (
-              <button key={k} onClick={() => setFilterKendaraan(k)}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${filterKendaraan===k ? 'bg-amber-500 border-amber-500 text-white' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400'}`}>
-                {k}
-              </button>
-            ))}
-          </div>
+          <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
+            <Truck size={12}/> Plat Kendaraan
+            {kendaraanList.length > 0 && <span className="text-slate-300 dark:text-slate-600 font-normal">({kendaraanList.length})</span>}
+          </label>
+          <PlatFilter value={filterKendaraan} options={kendaraanList} onChange={setFilterKendaraan}/>
         </div>
       </Card>
 
