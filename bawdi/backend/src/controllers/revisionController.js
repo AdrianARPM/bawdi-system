@@ -673,6 +673,8 @@ async function uploadNota(req, res) {
       message: `🧾 Nota "${fileName}" diupload oleh ${req.user.name}`, is_system: true,
     });
 
+    logAudit(req, { action: 'upload_nota', target: sub.nomor_pengajuan, submissionId: req.params.submissionId, detail: `Nota "${fileName}" diunggah` });
+
     res.status(201).json({ message: 'Nota berhasil diupload', nota });
   } catch (err) {
     res.status(500).json({ error: 'Gagal upload nota: ' + err.message });

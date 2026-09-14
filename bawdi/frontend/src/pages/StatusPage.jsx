@@ -218,6 +218,7 @@ export default function StatusPage() {
                         verifikasi: 'bg-blue-100 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300', setujui: 'bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
                         tolak: 'bg-rose-100 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300', tutup_arsip: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300',
                         hapus_nota: 'bg-amber-100 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300',
+                        upload_nota: 'bg-blue-100 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300',
                       }[a.action] || (a.action?.startsWith('revisi') ? 'bg-purple-100 dark:bg-purple-500/10 text-purple-700 dark:text-purple-300'
                         : a.action?.startsWith('user') ? 'bg-violet-100 dark:bg-violet-500/10 text-violet-700 dark:text-violet-300'
                         : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300');
