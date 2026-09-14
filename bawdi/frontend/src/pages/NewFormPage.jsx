@@ -506,11 +506,18 @@ export default function NewFormPage() {
 
   // v12: Dropdown plat dari Master Kendaraan (+ opsi plat baru)
   const [platList, setPlatList] = useState([]);   // plat aktif dari master
+  const [platInfo, setPlatInfo] = useState({});   // plat → { jenis, tahun, pajak, ... } utk autofill Type
   const [platBaru, setPlatBaru] = useState(false); // mode input plat baru
   useEffect(() => {
     vehicleAPI.list()
-      .then(res => setPlatList((res.data?.data || []).filter(v => v.is_active).map(v => v.plat)))
-      .catch(() => setPlatList([])); // master kosong/gagal → fallback ketik manual
+      .then(res => {
+        const aktif = (res.data?.data || []).filter(v => v.is_active);
+        setPlatList(aktif.map(v => v.plat));
+        const map = {};
+        aktif.forEach(v => { map[v.plat] = v; });
+        setPlatInfo(map);
+      })
+      .catch(() => { setPlatList([]); setPlatInfo({}); }); // master kosong/gagal → fallback ketik manual
   }, []);
 
   // Dropdown cabang dari Master Cabang (fallback ke CABANG_LIST bila gagal/offline)
@@ -580,6 +587,18 @@ export default function NewFormPage() {
   const perluPph23 = pph23WajibSet.has(form.jenis_pembelian);
 
   const set = useCallback((k, v) => { setForm(f=>({...f,[k]:v})); setErrors(e=>({...e,[k]:''})); }, []);
+
+  // Pilih plat dari master → set kendaraan + autofill Type (jenis + tahun) BILA kosong.
+  const pilihPlat = useCallback((plat) => {
+    const v = platInfo[plat];
+    const typ = v ? [v.jenis, v.tahun].filter(Boolean).join(' ').trim() : '';
+    setForm(f => ({
+      ...f,
+      kendaraan: plat,
+      alasan_type: (f.alasan_type?.trim() || !typ) ? f.alasan_type : typ,
+    }));
+    setErrors(e => ({ ...e, kendaraan: '' }));
+  }, [platInfo]);
 
   // v17: muat daftar item untuk autocomplete tiap kali kendaraan berubah
   useEffect(() => {
@@ -1058,7 +1077,7 @@ export default function NewFormPage() {
                   value={platList.includes(form.kendaraan) ? form.kendaraan : ''}
                   onChange={e => {
                     if (e.target.value === '__new__') { setPlatBaru(true); set('kendaraan', ''); }
-                    else set('kendaraan', e.target.value);
+                    else pilihPlat(e.target.value);
                   }}
                   disabled={isRevision}
                   className={`${ic('kendaraan')} bg-white dark:bg-slate-900 ${form.kendaraan ? 'text-slate-800 dark:text-slate-100' : 'text-slate-400 dark:text-slate-500'}`}>
@@ -1081,6 +1100,13 @@ export default function NewFormPage() {
                     </p>
                   )}
                 </div>
+              )}
+              {form.kendaraan && platInfo[form.kendaraan] && (
+                <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">
+                  Dari master:{' '}
+                  {[platInfo[form.kendaraan].jenis, platInfo[form.kendaraan].tahun].filter(Boolean).join(' ') || 'Type belum diisi'}
+                  {platInfo[form.kendaraan].pajak ? ` · Pajak: ${platInfo[form.kendaraan].pajak}` : ''}
+                </p>
               )}
             </Field>
             )}

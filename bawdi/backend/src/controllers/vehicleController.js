@@ -89,14 +89,14 @@ async function list(req, res) {
 // ── POST /api/vehicles ──────────────────────────────────────────
 async function create(req, res) {
   try {
-    const { plat, pemilik, stnk, pajak, jenis, cabang, keterangan } = req.body;
+    const { plat, pemilik, stnk, pajak, jenis, tahun, cabang, keterangan } = req.body;
     const clean = normPlat(plat);
     if (!clean) return res.status(400).json({ error: 'Plat kendaraan wajib diisi' });
 
     const { data, error } = await supabase.from('vehicles').insert({
       id: uuidv4(), plat: clean,
       pemilik: pemilik || '', stnk: stnk || '', pajak: pajak || '',
-      jenis: jenis || '', cabang: cabang || '', keterangan: keterangan || '',
+      jenis: jenis || '', tahun: tahun || '', cabang: cabang || '', keterangan: keterangan || '',
     }).select().single();
 
     if (error) {
@@ -114,12 +114,13 @@ async function create(req, res) {
 // ── PUT /api/vehicles/:id ───────────────────────────────────────
 async function update(req, res) {
   try {
-    const { pemilik, stnk, pajak, jenis, cabang, keterangan, is_active } = req.body;
+    const { pemilik, stnk, pajak, jenis, tahun, cabang, keterangan, is_active } = req.body;
     const patch = {};
     if (pemilik    !== undefined) patch.pemilik    = pemilik;
     if (stnk       !== undefined) patch.stnk       = stnk;
     if (pajak      !== undefined) patch.pajak      = pajak;
     if (jenis      !== undefined) patch.jenis      = jenis;
+    if (tahun      !== undefined) patch.tahun      = tahun;
     if (cabang     !== undefined) patch.cabang     = cabang;
     if (keterangan !== undefined) patch.keterangan = keterangan;
     if (is_active  !== undefined) patch.is_active  = !!is_active;

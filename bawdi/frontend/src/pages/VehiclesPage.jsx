@@ -318,7 +318,7 @@ function VehicleModal({ vehicle, onClose, onSaved }) {
   const [f, setF] = useState({
     plat: vehicle?.plat || '', pemilik: vehicle?.pemilik || '',
     stnk: vehicle?.stnk || '', pajak: vehicle?.pajak || '',
-    jenis: vehicle?.jenis || '', cabang: vehicle?.cabang || '',
+    jenis: vehicle?.jenis || '', tahun: vehicle?.tahun || '', cabang: vehicle?.cabang || '',
     keterangan: vehicle?.keterangan || '', is_active: vehicle?.is_active ?? true,
   });
   const [saving, setSaving] = useState(false);
@@ -346,9 +346,10 @@ function VehicleModal({ vehicle, onClose, onSaved }) {
         </div>
         {!isEdit && <ModalField label="Plat Nomor *" k="plat" ph="BM 1234 AA" f={f} set={set}/>}
         <div className="grid grid-cols-2 gap-3">
-          <ModalField label="Jenis" k="jenis" ph="Supertruck" f={f} set={set}/>
-          <ModalField label="Cabang" k="cabang" ph="APL PKU" f={f} set={set}/>
+          <ModalField label="Type / Model" k="jenis" ph="Revo / Supertruck" f={f} set={set}/>
+          <ModalField label="Tahun" k="tahun" ph="2010" f={f} set={set}/>
         </div>
+        <ModalField label="Cabang" k="cabang" ph="APL PKU" f={f} set={set}/>
         <div className="grid grid-cols-3 gap-3">
           <ModalField label="Pemilik" k="pemilik" f={f} set={set}/>
           <ModalField label="STNK" k="stnk" f={f} set={set}/>
