@@ -220,6 +220,10 @@ async function requestRevision(req, res) {
       revisi_catatan:      alasan_revisi.trim(),
       revisi_selesai_at:   null,
       revisi_count:        revisionNumber,
+      // Usulan revisi dari pemohon (bila ada) sudah ditindaklanjuti → bersihkan.
+      usul_revisi_at:      null,
+      usul_revisi_oleh:    null,
+      usul_revisi_alasan:  '',
       // v33: reset penanda request pembayaran — bila total berubah, pemohon boleh
       // meminta pembayaran (kekurangan) lagi setelah revisi disetujui.
       bayar_diminta_at:    null,

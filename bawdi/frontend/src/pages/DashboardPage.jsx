@@ -42,7 +42,8 @@ if (loading) return <Spinner size={32} />;
   // Card Request Pembayaran → kolom kanan (khusus Admin/Verifikator/Approval, hanya bila ada isinya)
   const hasPayReq   = ['Admin','Verifikator','Approval'].includes(user?.role) && stats?.payment_requests?.length > 0;
   const hasVerifReq = user?.role === 'Verifikator' && stats?.verification_requests?.length > 0;
-  const showReqCol  = hasPayReq || hasVerifReq;
+  const hasRevReq   = ['Admin','Verifikator','Approval'].includes(user?.role) && stats?.revisi_requests?.length > 0;
+  const showReqCol  = hasPayReq || hasVerifReq || hasRevReq;
   const verifCard = (
     <Card padding={false}>
       <div className="px-4 py-3 border-b border-slate-50 dark:border-slate-800">
@@ -73,6 +74,26 @@ if (loading) return <Spinner size={32} />;
       ))}
     </Card>
   );
+  const revisiCard = (
+    <Card padding={false}>
+      <div className="px-4 py-3 border-b border-slate-50 dark:border-slate-800">
+        <p className="text-sm font-bold text-slate-700 dark:text-slate-200">📝 Request Revisi</p>
+      </div>
+      {(stats?.revisi_requests || []).map((r, i) => (
+        <Link key={r.id} to={`/submissions/${r.id}`}
+          className={`block px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors ${i < stats.revisi_requests.length-1 ? 'border-b border-slate-50 dark:border-slate-800' : ''}`}>
+          <div className="flex items-center gap-2.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-purple-500 flex-shrink-0"/>
+            <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">{r.nomor_pengajuan}</span>
+            <span className="ml-auto text-[10px] text-slate-400 dark:text-slate-500 flex-shrink-0">{fmtDate(r.usul_revisi_at)}</span>
+          </div>
+          {r.usul_revisi_alasan && (
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 pl-4 line-clamp-2">{r.usul_revisi_alasan}</p>
+          )}
+        </Link>
+      ))}
+    </Card>
+  );
 
   return (
     <div className={showReqCol ? "flex flex-col lg:flex-row gap-5 max-w-5xl mx-auto items-start" : "space-y-5 max-w-2xl mx-auto"}>
@@ -82,6 +103,7 @@ if (loading) return <Spinner size={32} />;
         <div className="w-full lg:w-72 lg:order-2 flex-shrink-0 space-y-5">
           {hasVerifReq && verifCard}
           {hasPayReq && reqCard}
+          {hasRevReq && revisiCard}
         </div>
       )}
       <div className={showReqCol ? "flex-1 min-w-0 lg:order-1 space-y-5 w-full" : "contents"}>

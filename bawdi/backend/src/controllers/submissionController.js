@@ -134,6 +134,18 @@ async function stats(req, res) {
         .map(({ id, nomor_pengajuan, bayar_diminta_at }) => ({ id, nomor_pengajuan, bayar_diminta_at }));
     }
 
+    // Card Request Revisi (Admin/Verifikator/Approval): usulan revisi dari pemohon.
+    // Hilang otomatis saat status keluar dari daftar aktif (mis. jadi Perlu Revisi).
+    if (['Admin', 'Verifikator', 'Approval'].includes(req.user.role)) {
+      const { data: rreqs } = await supabase.from('submissions')
+        .select('id, nomor_pengajuan, usul_revisi_at, usul_revisi_alasan')
+        .not('usul_revisi_at', 'is', null)
+        .in('status', ['Menunggu Verifikasi', 'Terverifikasi', 'Disetujui'])
+        .order('usul_revisi_at', { ascending: true })
+        .limit(20);
+      result.revisi_requests = rreqs || [];
+    }
+
     // Card Request Verifikasi (khusus Verifikator): hilang otomatis saat diverifikasi/dibatalkan
     if (req.user.role === 'Verifikator') {
       const { data: vreqs } = await supabase.from('submissions')
@@ -891,6 +903,57 @@ async function requestPayment(req, res) {
   }
 }
 
+// ── PUT /api/submissions/:id/request-revisi ─────────────────────────
+// Pemohon MENGAJUKAN usulan revisi + alasan (arah pemohon → approver).
+// Muncul sbg kartu di dashboard Verifikator/Approval/Admin. Idempoten.
+const STATUS_USUL_REVISI = ['Menunggu Verifikasi', 'Terverifikasi', 'Disetujui'];
+async function requestRevisi(req, res) {
+  try {
+    const { alasan } = req.body;
+    if (!alasan || !alasan.trim())
+      return res.status(400).json({ error: 'Alasan revisi wajib diisi' });
+
+    const { data: sub } = await supabase.from('submissions')
+      .select('id, status, pemohon_id, nomor_pengajuan, usul_revisi_at')
+      .eq('id', req.params.id).single();
+    if (!sub) return res.status(404).json({ error: 'Pengajuan tidak ditemukan' });
+    if (req.user.id !== sub.pemohon_id)
+      return res.status(403).json({ error: 'Hanya pemohon pengajuan ini yang dapat mengajukan revisi' });
+    if (!STATUS_USUL_REVISI.includes(sub.status))
+      return res.status(400).json({ error: `Usulan revisi tidak bisa diajukan untuk status ${sub.status}` });
+    if (sub.usul_revisi_at)
+      return res.status(400).json({ error: 'Usulan revisi sudah pernah diajukan' });
+
+    // Idempoten (race-safe terhadap double click): set hanya bila masih kosong.
+    const { data: updated } = await supabase.from('submissions')
+      .update({
+        usul_revisi_at: new Date().toISOString(),
+        usul_revisi_oleh: req.user.id,
+        usul_revisi_alasan: alasan.trim(),
+      })
+      .eq('id', sub.id).is('usul_revisi_at', null)
+      .select('id');
+    if (!updated?.length)
+      return res.status(400).json({ error: 'Usulan revisi sudah pernah diajukan' });
+
+    await supabase.from('messages').insert({
+      id: uuidv4(), submission_id: sub.id, user_id: req.user.id,
+      message: `📝 ${req.user.name} mengajukan REVISI: ${alasan.trim()}`,
+      is_system: true,
+    });
+
+    await notifyRole('Verifikator', sub.id, 'need_approval',
+      `📝 ${req.user.name} mengajukan revisi ${sub.nomor_pengajuan}`);
+    await notifyRole('Approval', sub.id, 'need_approval',
+      `📝 ${req.user.name} mengajukan revisi ${sub.nomor_pengajuan}`);
+
+    res.json({ message: 'Usulan revisi terkirim' });
+  } catch (err) {
+    console.error('[requestRevisi]', err);
+    res.status(500).json({ error: 'Gagal mengirim usulan revisi' });
+  }
+}
+
 // ── PUT /api/submissions/:id/request-verification ───────────────────
 // Pemohon meminta verifikasi setelah pengajuan menggantung ≥ 2 hari (sekali, idempoten)
 async function requestVerification(req, res) {
@@ -984,4 +1047,4 @@ async function tundaSubmission(req, res) {
   }
 }
 
-module.exports = { list, getOne, create, verify, approve, reject, stats, selectVendor, overdueForAction, cancelSubmission, hardDeleteSubmission, checkDuplicate, requestPayment, requestVerification, tundaSubmission };
+module.exports = { list, getOne, create, verify, approve, reject, stats, selectVendor, overdueForAction, cancelSubmission, hardDeleteSubmission, checkDuplicate, requestPayment, requestVerification, requestRevisi, tundaSubmission };

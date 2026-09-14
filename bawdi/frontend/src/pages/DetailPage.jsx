@@ -872,6 +872,9 @@ export default function DetailPage() {
   const [editSnap,      setEditSnap]      = useState(null); // snapshot yang sedang diedit
   const [exporting,     setExporting]     = useState(false);
   const [reqPayLoading, setReqPayLoading] = useState(false);
+  const [reqRevLoading, setReqRevLoading] = useState(false);
+  const [revAlasan, setRevAlasan] = useState('');
+  const [showRevForm, setShowRevForm] = useState(false);
   const [reqVerifLoading, setReqVerifLoading] = useState(false);
   const [vendorAlasan,  setVendorAlasan]  = useState('');
   const [vendorLoading, setVendorLoading] = useState(0);
@@ -925,6 +928,21 @@ export default function DetailPage() {
       toast.error(err.response?.data?.error || 'Gagal mengirim request pembayaran');
     }
     setReqPayLoading(false);
+  };
+
+  const handleRequestRevisi = async () => {
+    if (reqRevLoading || sub?.usul_revisi_at) return; // anti double-click sisi klien
+    if (!revAlasan.trim()) { toast.error('Isi alasan revisi dulu'); return; }
+    setReqRevLoading(true);
+    try {
+      await submissionAPI.requestRevisi(id, revAlasan.trim());
+      toast.success('Usulan revisi terkirim!');
+      setRevAlasan(''); setShowRevForm(false);
+      await load();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Gagal mengirim usulan revisi');
+    }
+    setReqRevLoading(false);
   };
 
   const load = async () => {
@@ -1691,6 +1709,39 @@ useEffect(() => {
               {reqPayLoading ? <Loader size={14} className="animate-spin"/> : <Send size={14}/>} Request Kekurangan
             </button>
           </div>
+        )
+      )}
+
+      {/* Request Revisi — pemohon mengusulkan revisi + alasan (status masih aktif) */}
+      {user.id === sub.pemohon_id &&
+       ['Menunggu Verifikasi', 'Terverifikasi', 'Disetujui'].includes(sub.status) && (
+        sub.usul_revisi_at ? (
+          <div className="w-full py-2.5 px-3 rounded-2xl bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/30 text-purple-700 dark:text-purple-300 text-sm font-semibold text-center">
+            ✓ Revisi sudah diusulkan · {fmtDate(sub.usul_revisi_at)}
+            {sub.usul_revisi_alasan && <p className="text-[11px] font-normal mt-0.5">{sub.usul_revisi_alasan}</p>}
+          </div>
+        ) : showRevForm ? (
+          <div className="w-full rounded-2xl bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/30 p-3">
+            <p className="text-sm font-bold text-purple-700 dark:text-purple-300 mb-2">Ajukan Revisi</p>
+            <textarea value={revAlasan} onChange={e => setRevAlasan(e.target.value)} rows={2}
+              placeholder="Alasan perlu revisi (mis. salah harga item, ganti vendor)..."
+              className="w-full px-3 py-2.5 rounded-xl border border-purple-200 dark:border-purple-500/30 dark:bg-slate-900 dark:text-slate-100 text-sm outline-none resize-none focus:border-purple-400 mb-2.5"/>
+            <div className="flex gap-2">
+              <button onClick={() => { setShowRevForm(false); setRevAlasan(''); }}
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-sm font-bold">
+                Batal
+              </button>
+              <button onClick={handleRequestRevisi} disabled={reqRevLoading || !revAlasan.trim()}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white text-sm font-bold transition-colors">
+                {reqRevLoading ? <Loader size={14} className="animate-spin"/> : <Send size={14}/>} Kirim Usulan
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button onClick={() => setShowRevForm(true)}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl border-2 border-dashed border-purple-300 dark:border-purple-500/40 hover:border-purple-500 text-purple-600 dark:text-purple-400 text-sm font-bold transition-colors">
+            <Send size={14}/> Request Revisi
+          </button>
         )
       )}
 
