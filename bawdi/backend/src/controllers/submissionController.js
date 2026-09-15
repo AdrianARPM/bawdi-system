@@ -163,6 +163,33 @@ async function stats(req, res) {
   }
 }
 
+// ── GET /api/submissions/calendar?from=YYYY-MM-DD&to=YYYY-MM-DD ─────
+// Data untuk Kalender Jatuh Tempo Pembayaran (berdasarkan batas_akhir_pembayaran).
+async function calendar(req, res) {
+  try {
+    const { from, to } = req.query;
+    if (!from || !to) return res.status(400).json({ error: 'Parameter from & to (YYYY-MM-DD) wajib' });
+    let query = supabase.from('submissions')
+      .select('id, nomor_pengajuan, kendaraan, vendor, cabang_manual, status, total_harga, jumlah_bayar, tanggal_bayar, batas_akhir_pembayaran')
+      .in('status', ['Disetujui', 'Selesai'])
+      .not('batas_akhir_pembayaran', 'is', null)
+      .gte('batas_akhir_pembayaran', from)
+      .lte('batas_akhir_pembayaran', to)
+      .order('batas_akhir_pembayaran', { ascending: true });
+    // Operasional biasa hanya lihat miliknya; Kepala Op & manajemen lihat semua.
+    if (req.user.role === 'Operasional' && !isKepalaOp(req.user))
+      query = isHRGA(req.user)
+        ? query.or(`pemohon_id.eq.${req.user.id},jenis_pembelian.eq."${DANA_SOSIAL}"`)
+        : query.eq('pemohon_id', req.user.id);
+    const { data, error } = await query;
+    if (error) throw error;
+    res.json({ data: data || [] });
+  } catch (err) {
+    console.error('[calendar]', err);
+    res.status(500).json({ error: 'Gagal mengambil kalender pembayaran' });
+  }
+}
+
 // ── GET /api/submissions ──────────────────────────────────────────
 async function list(req, res) {
   try {
@@ -1047,4 +1074,4 @@ async function tundaSubmission(req, res) {
   }
 }
 
-module.exports = { list, getOne, create, verify, approve, reject, stats, selectVendor, overdueForAction, cancelSubmission, hardDeleteSubmission, checkDuplicate, requestPayment, requestVerification, requestRevisi, tundaSubmission };
+module.exports = { list, getOne, create, verify, approve, reject, stats, selectVendor, overdueForAction, cancelSubmission, hardDeleteSubmission, checkDuplicate, requestPayment, requestVerification, requestRevisi, tundaSubmission, calendar };

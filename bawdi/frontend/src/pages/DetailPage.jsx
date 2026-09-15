@@ -6,7 +6,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   ChevronLeft, Send, Check, User, Download, Eye,
   X, ZoomIn, Upload, FileText, CreditCard, Lock,
-  RefreshCw, Loader, Trash2, PauseCircle
+  RefreshCw, Loader, Trash2, PauseCircle, Copy
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { submissionAPI, messageAPI, revisionAPI, photoAPI } from '../utils/api';
@@ -945,6 +945,23 @@ export default function DetailPage() {
     setReqRevLoading(false);
   };
 
+  // Duplikat pengajuan → buka form baru dengan data tersalin (kecuali field sesaat)
+  const handleDuplikat = () => {
+    const pick = (it) => ({
+      penjelasan: it.penjelasan, satuan: it.satuan, harga: it.harga,
+      diskon: it.diskon, kategori_biaya: it.kategori_biaya,
+    });
+    const items1 = (sub.items || []).filter(i => (i.vendor_num || 1) !== 2).map(pick);
+    navigate('/new', { state: { duplicateFrom: {
+      type: sub.type, is_umum: sub.is_umum, kendaraan: sub.kendaraan,
+      jenis_pembelian: sub.jenis_pembelian,
+      vendor: sub.vendor, npwp: sub.npwp, rekening_tujuan: sub.rekening_tujuan,
+      alasan: sub.alasan, alasan_type: sub.alasan_type,
+      ppn: sub.ppn, pph23: sub.pph23,
+      items1,
+    } } });
+  };
+
   const load = async () => {
     try {
       const [subRes, revRes] = await Promise.all([
@@ -1427,6 +1444,13 @@ useEffect(() => {
             )}
           </div>
         </div>
+        {/* Duplikat — Operasional/Admin: buat pengajuan baru dari data ini */}
+        {['Operasional','Admin'].includes(user.role) && (
+        <button onClick={handleDuplikat} title="Duplikat jadi pengajuan baru"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-600 dark:text-slate-300 text-xs font-bold transition-all flex-shrink-0">
+          <Copy size={12}/> Duplikat
+        </button>
+        )}
         {/* Export PDF */}
         {user.role !== 'Pengawas' && (
         <button onClick={handleExportPDF} disabled={exporting}

@@ -1,7 +1,7 @@
 // src/components/Layout.jsx  — v8 (Dark Mode Tahap 1: toggle Terang/Gelap/Sistem + dark variants in web)
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-import { LayoutDashboard, FileText, Plus, Users, LogOut, Menu, Truck, Archive, BarChart3, Activity, Building2, Store, Tags, Sun, Moon, Monitor } from 'lucide-react';
+import { LayoutDashboard, FileText, Plus, Users, LogOut, Menu, Truck, Archive, BarChart3, Activity, Building2, Store, Tags, CalendarDays, Sun, Moon, Monitor } from 'lucide-react';
 import useAuthStore from '../context/authStore';
 import NotificationBell from './NotificationBell';
 import { getThemePref, setThemePref } from '../utils/theme';
@@ -105,12 +105,17 @@ export default function Layout() {
         {(['Admin','Verifikator','Approval','Pengawas'].includes(user?.role) || user?.jabatan === 'Kepala Operasional') && (
           <NavItem to="/analytics" icon={BarChart3} label="Analitik" onClick={close}/>
         )}
+        {/* Kalender Jatuh Tempo Pembayaran — semua role */}
+        <NavItem to="/kalender" icon={CalendarDays} label="Kalender Bayar" onClick={close}/>
         {/* Master Kendaraan — dapat dilihat semua user (edit hanya Admin) */}
         <NavItem to="/vehicles" icon={Truck} label="Super Track" onClick={close}/>
+        {/* Master Vendor — Admin & Operasional (Operasional: lihat + tambah) */}
+        {['Admin','Operasional'].includes(user?.role) && (
+          <NavItem to="/vendors" icon={Store} label="Master Vendor" onClick={close}/>
+        )}
         {user?.role === 'Admin' && (
           <>
             <NavItem to="/cabang"  icon={Building2} label="Master Cabang" onClick={close}/>
-            <NavItem to="/vendors" icon={Store}    label="Master Vendor" onClick={close}/>
             <NavItem to="/jenis"   icon={Tags}     label="Master Jenis"  onClick={close}/>
             <NavItem to="/users"  icon={Users}    label="Kelola User"   onClick={close}/>
             <NavItem to="/status" icon={Activity} label="Status Sistem" onClick={close}/>

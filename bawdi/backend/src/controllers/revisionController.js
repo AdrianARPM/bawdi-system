@@ -699,7 +699,7 @@ async function deleteNota(req, res) {
     if (!nota) return res.status(404).json({ error: 'Nota tidak ditemukan' });
 
     const { data: sub } = await supabase.from('submissions')
-      .select('pemohon_id, nota_url').eq('id', nota.submission_id).single();
+      .select('pemohon_id, nota_url, nomor_pengajuan').eq('id', nota.submission_id).single();
     if (!sub) return res.status(404).json({ error: 'Pengajuan tidak ditemukan' });
 
     const isOwnerOp = req.user.role === 'Operasional' && sub.pemohon_id === req.user.id;
@@ -732,7 +732,7 @@ async function deleteNota(req, res) {
       message: `🗑️ Nota "${nota.file_name}" dihapus oleh ${req.user.name}`, is_system: true,
     });
 
-    logAudit(req, { action: 'hapus_nota', submissionId: req.params.submissionId || null, detail: 'Nota dihapus' });
+    logAudit(req, { action: 'hapus_nota', target: sub.nomor_pengajuan, submissionId: nota.submission_id, detail: `Nota "${nota.file_name}" dihapus` });
     res.json({ message: 'Nota berhasil dihapus' });
   } catch (err) {
     res.status(500).json({ error: 'Gagal menghapus nota: ' + err.message });

@@ -4,10 +4,13 @@ import { Store, Plus, ToggleLeft, ToggleRight, Pencil, Search, ChevronLeft, Chev
 import toast from 'react-hot-toast';
 import { vendorAPI } from '../utils/api';
 import { Card, Spinner, Empty, Button, Input } from '../components/ui';
+import useAuthStore from '../context/authStore';
 
 const BLANK = { nama: '', npwp: '', bank: '', no_rekening: '', atas_nama: '', telepon: '', alamat: '' };
 
 export default function VendorPage() {
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'Admin';       // Operasional: hanya lihat + tambah
   const [rows,    setRows]    = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving,  setSaving]  = useState(false);
@@ -20,7 +23,7 @@ export default function VendorPage() {
 
   const load = async () => {
     try {
-      const { data } = await vendorAPI.list(true);       // ?all=1 → termasuk nonaktif
+      const { data } = await vendorAPI.list(isAdmin);    // Admin: termasuk nonaktif; Operasional: aktif saja
       setRows(data.data || []);
     } catch { toast.error('Gagal memuat master vendor'); }
     finally { setLoading(false); }
@@ -173,19 +176,21 @@ export default function VendorPage() {
                 {v.pengajuan_count ? ` · ${v.pengajuan_count}×` : ''}
               </p>
             </div>
-            <div className="flex items-center gap-1 flex-shrink-0">
-              <button onClick={() => openEdit(v)} title="Edit"
-                className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10">
-                <Pencil size={13} />
-              </button>
-              <button onClick={() => handleToggle(v)}
-                title={v.is_active ? 'Nonaktifkan' : 'Aktifkan'}
-                className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/60">
-                {v.is_active
-                  ? <ToggleRight size={15} className="text-emerald-500" />
-                  : <ToggleLeft size={15} className="text-slate-400 dark:text-slate-500" />}
-              </button>
-            </div>
+            {isAdmin && (
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <button onClick={() => openEdit(v)} title="Edit"
+                  className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10">
+                  <Pencil size={13} />
+                </button>
+                <button onClick={() => handleToggle(v)}
+                  title={v.is_active ? 'Nonaktifkan' : 'Aktifkan'}
+                  className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                  {v.is_active
+                    ? <ToggleRight size={15} className="text-emerald-500" />
+                    : <ToggleLeft size={15} className="text-slate-400 dark:text-slate-500" />}
+                </button>
+              </div>
+            )}
           </div>
         ))}
       </Card>

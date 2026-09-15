@@ -158,6 +158,12 @@ export const jenisAPI = {
   create: (d)     => api.post('/jenis', d),
   update: (id, d) => api.put(`/jenis/${id}`, d),
 };
+export const kalenderAPI = {
+  calendar: (from, to)          => api.get('/submissions/calendar', { params: { from, to } }),
+  notes:    (from, to)          => api.get('/kalender/notes', { params: { from, to } }),
+  addNote:  (tanggal, catatan)  => api.post('/kalender/notes', { tanggal, catatan }),
+  delNote:  (id)                => api.delete(`/kalender/notes/${id}`),
+};
 export const historyAPI = {
   getVehicleHistory: (kendaraan, limit = 5) =>
     api.get('/history/vehicle', { params: { kendaraan, limit } }),

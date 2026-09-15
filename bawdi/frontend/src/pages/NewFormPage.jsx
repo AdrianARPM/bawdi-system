@@ -13,12 +13,13 @@
 // 3. Auto-fetch KM berdasarkan plat + penjelasan item saat user blur penjelasan
 // 4. Jika arsip kosong, KM & tanggal terakhir bisa diisi manual per item
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { Plus, Trash2, Check, ChevronLeft, Upload, X, AlertCircle, Loader } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { submissionAPI, photoAPI, historyAPI, vehicleAPI, cabangAPI, vendorAPI, jenisAPI, offlineQueue, revisionAPI } from '../utils/api';
 import { Card, Button, Spinner, fmtCurrency } from '../components/ui';
 import VehicleHistoryPanel from '../components/VehicleHistoryPanel';
+import { getTemplates, saveTemplate, removeTemplate } from '../utils/formTemplates';
 import useAuthStore from '../context/authStore';
 
 // v30: fitur Vendor Pembanding dinonaktifkan sementara (penolakan beberapa pihak).
@@ -486,10 +487,43 @@ const newItem = () => ({
   riwayat_dari: '',   // v27: nama item sumber riwayat bila pemohon memakai saran
 });
 
+// Rakit state form dari sumber (duplikat pengajuan / template). Menyalin field
+// yang berguna diulang; field sesaat (nomor urut, KM, tanggal batas) dikosongkan.
+// keepKendaraan=true untuk Duplikat (kendaraan sama); false untuk Template (generik).
+const buildPrefillForm = (src, keepKendaraan, userCabang) => {
+  const mapItem = (it) => ({
+    ...newItem(),
+    penjelasan: it.penjelasan || '',
+    satuan: it.satuan || '',
+    harga:  it.harga  != null ? String(it.harga)  : '',
+    diskon: it.diskon != null ? String(it.diskon) : '',
+    kategori_biaya: it.kategori_biaya || '',
+  });
+  return {
+    type: src.type || 'PR',
+    nomorUrut: '',
+    cabangManual: userCabang || '',
+    is_umum: !!src.is_umum,
+    kendaraan: keepKendaraan ? (src.kendaraan || '') : '',
+    jenis_pembelian: src.jenis_pembelian || '',
+    vendor: src.vendor || '', npwp: src.npwp || '', rekening_tujuan: src.rekening_tujuan || '',
+    items1: (src.items1 && src.items1.length ? src.items1.map(mapItem) : [newItem()]),
+    useVendor2: !!src.useVendor2, vendor2: src.vendor2 || '', npwp2: src.npwp2 || '', rekening_tujuan2: src.rekening_tujuan2 || '',
+    items2: (src.items2 && src.items2.length ? src.items2.map(mapItem) : [newItem()]),
+    alasan: src.alasan || '', alasan_type: src.alasan_type || '',
+    batas_waktu_dana: '', batas_akhir_pembayaran: '',
+    ppn: src.ppn ? String(src.ppn) : '', pph23: src.pph23 || '',
+    kmMassal: '',
+  };
+};
+
 /* ═══════════════════════════════════════════════════════════════ */
 export default function NewFormPage() {
   const { user }  = useAuthStore();
   const navigate  = useNavigate();
+  const location  = useLocation();
+  const dupSource = location.state?.duplicateFrom || null; // data salinan dari Duplikat
+  const [templates, setTemplates] = useState(() => getTemplates());
   const [step, setStep]       = useState(0);
   // Deteksi pengajuan ganda — memperingatkan, tidak memblokir
   const [duplikat, setDuplikat] = useState([]);
@@ -570,7 +604,9 @@ export default function NewFormPage() {
   // v17: daftar item yg pernah diajukan utk kendaraan terpilih (untuk autocomplete)
   const [itemSuggestions, setItemSuggestions] = useState([]);
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(() => dupSource
+    ? buildPrefillForm(dupSource, true, user?.cabang)
+    : {
     type:'PR', nomorUrut:'', cabangManual: user?.cabang||'',
     is_umum:false,
     kendaraan:'', jenis_pembelian:'',
@@ -599,6 +635,26 @@ export default function NewFormPage() {
     }));
     setErrors(e => ({ ...e, kendaraan: '' }));
   }, [platInfo]);
+
+  // ── Template pengajuan ──────────────────────────────────────────
+  const applyTemplate = useCallback((tpl) => {
+    setForm(buildPrefillForm(tpl.data, false, user?.cabang));
+    setErrors({});
+    setStep(0);
+    toast.success(`Template "${tpl.nama}" diterapkan`);
+  }, [user?.cabang]);
+  const saveAsTemplate = () => {
+    const nama = window.prompt('Nama template:', form.jenis_pembelian || 'Template');
+    if (!nama || !nama.trim()) return;
+    saveTemplate(nama.trim(), form);
+    setTemplates(getTemplates());
+    toast.success('Template disimpan');
+  };
+  const hapusTemplate = (id, e) => {
+    e?.stopPropagation();
+    removeTemplate(id);
+    setTemplates(getTemplates());
+  };
 
   // v17: muat daftar item untuk autocomplete tiap kali kendaraan berubah
   useEffect(() => {
@@ -1025,6 +1081,33 @@ export default function NewFormPage() {
 
       {step===0&&(
         <Card>
+          {dupSource && (
+            <div className="mb-4 rounded-xl bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 px-3 py-2.5">
+              <p className="text-xs font-bold text-blue-700 dark:text-blue-300">📋 Data disalin dari pengajuan lain</p>
+              <p className="text-[11px] text-blue-600 dark:text-blue-400 mt-0.5">Nomor urut, KM, tanggal batas & foto sengaja dikosongkan — lengkapi kembali.</p>
+            </div>
+          )}
+          {!isRevision && !dupSource && templates.length > 0 && (
+            <div className="mb-5">
+              <p className="text-xs font-bold text-slate-700 dark:text-slate-200 mb-2">💾 Template Tersimpan</p>
+              <div className="flex flex-wrap gap-2">
+                {templates.map(tpl => (
+                  <div key={tpl.id}
+                    className="group flex items-center gap-1 pl-3 pr-1 py-1.5 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-amber-400 transition-colors">
+                    <button type="button" onClick={() => applyTemplate(tpl)}
+                      className="text-xs font-semibold text-slate-600 dark:text-slate-300 max-w-[160px] truncate">
+                      {tpl.nama}
+                    </button>
+                    <button type="button" onClick={(e) => hapusTemplate(tpl.id, e)} title="Hapus template"
+                      className="w-5 h-5 rounded-full flex items-center justify-center text-slate-300 dark:text-slate-600 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10">
+                      <X size={11}/>
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1.5">Klik template untuk mengisi form otomatis.</p>
+            </div>
+          )}
           <h2 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">Pilih Jenis Pengajuan</h2>
           <div className="grid grid-cols-2 gap-3 mb-5">
             {[['PR','Purchase Requisition','Permintaan pembelian rutin'],['PAR','Purchase Auth. Request','Otorisasi nilai besar']].map(([t,title,desc])=>(
@@ -1304,6 +1387,12 @@ export default function NewFormPage() {
             <div className="text-xs text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-line bg-slate-50 dark:bg-slate-800/60 rounded-xl px-3 py-2.5 border border-slate-200 dark:border-slate-700 font-mono">{buildRiwayat()}</div>
             </>)}
           </Card>
+          {!isRevision && (
+            <button type="button" onClick={saveAsTemplate}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-amber-400 text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 text-sm font-bold transition-colors">
+              💾 Simpan sbg Template
+            </button>
+          )}
         </div>
       )}
 

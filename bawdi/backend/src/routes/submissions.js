@@ -6,6 +6,7 @@ const ctrl = require('../controllers/submissionController');
 router.use(authenticate);
 
 router.get('/stats', ctrl.stats);
+router.get('/calendar', ctrl.calendar);
 router.get('/overdue-action', ctrl.overdueForAction);
 router.post('/check-duplicate', ctrl.checkDuplicate);
 router.get('/',      ctrl.list);
