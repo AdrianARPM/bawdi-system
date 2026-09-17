@@ -16,6 +16,7 @@ import CabangPage       from './pages/CabangPage';
 import VendorPage       from './pages/VendorPage';
 import JenisPage        from './pages/JenisPage';
 import KalenderPage     from './pages/KalenderPage';
+import LaporanPage      from './pages/LaporanPage';
 import StatusPage       from './pages/StatusPage';
 import Layout           from './components/Layout';
 
@@ -50,6 +51,7 @@ export default function App() {
           <Route path="analytics"       element={<PrivateRoute roles={['Admin','Verifikator','Approval','Pengawas']}><AnalyticsPage /></PrivateRoute>} />
           <Route path="vehicles"        element={<VehiclesPage />} />
           <Route path="kalender"        element={<KalenderPage />} />
+          <Route path="laporan"         element={<PrivateRoute roles={['Admin','Verifikator']}><LaporanPage /></PrivateRoute>} />
           <Route path="cabang"          element={<PrivateRoute roles={['Admin']}><CabangPage /></PrivateRoute>} />
           <Route path="vendors"         element={<PrivateRoute roles={['Admin','Operasional']}><VendorPage /></PrivateRoute>} />
           <Route path="jenis"           element={<PrivateRoute roles={['Admin']}><JenisPage /></PrivateRoute>} />

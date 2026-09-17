@@ -164,6 +164,23 @@ export const kalenderAPI = {
   addNote:  (tanggal, catatan)  => api.post('/kalender/notes', { tanggal, catatan }),
   delNote:  (id)                => api.delete(`/kalender/notes/${id}`),
 };
+export const laporanAPI = {
+  async download(kind, year, month, filename) {
+    try {
+      const res = await api.get(`/laporan/${kind}`, { params: { year, month }, responseType: 'blob' });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      if (err?.response?.data instanceof Blob) {
+        try { const j = JSON.parse(await err.response.data.text()); if (j.error) err.message = j.error; } catch {}
+      }
+      throw err;
+    }
+  },
+};
 export const historyAPI = {
   getVehicleHistory: (kendaraan, limit = 5) =>
     api.get('/history/vehicle', { params: { kendaraan, limit } }),

@@ -102,19 +102,29 @@ router.get('/export', async (req, res) => {
 });
 
 // ── GET /api/backup/export-pph23 — rekap Pph23 (Excel), kolom terurai dari teks ──
+// Parser toleran: PPh23 = angka setelah '=' terakhir; % = "<digit>%" pertama;
+// DPP = PPh23 / tarif. Menangani variasi "Rp.", spasi, "(Jasa)", "X" kapital, dll.
 function parsePph23(txt) {
-  const t = String(txt).replace(/\s/g, '');
-  const toInt = (s) => {
-    const c = s.replace(/[.,-]/g, '');
-    return /^\d+$/.test(c) ? parseInt(c, 10) : null;
-  };
-  // Pola A: "Rp DPP x N% = Rp PPH"  (mis. Rp.350.000,- x 2% = Rp.7.000,-)
-  let m = t.match(/([\d.]+),?-?x(\d+)%=(?:Rp\.?)?([\d.]+)/i);
-  if (m) return { dpp: toInt(m[1]), persen: parseInt(m[2], 10), pph: toInt(m[3]) };
-  // Pola B: "N% x DPP = PPH"  (mis. 2% x 200.000., = 4.000)
-  m = t.match(/(\d+)%x([\d.]+)[.,-]*=([\d.]+)/i);
-  if (m) return { dpp: toInt(m[2]), persen: parseInt(m[1], 10), pph: toInt(m[3]) };
-  return { dpp: null, persen: null, pph: null };
+  const raw = String(txt || '').trim();
+  const digits = raw.replace(/[^\d]/g, '');
+  if (!digits || /^0+$/.test(digits)) return { dpp: null, persen: null, pph: null };
+  const t = raw.replace(/\s/g, '');
+  const toInt = (s) => { const c = String(s).replace(/[^\d]/g, ''); return c ? parseInt(c, 10) : null; };
+  const pm = t.match(/(\d+(?:[.,]\d+)?)%/);
+  const persen = pm ? Math.round(parseFloat(pm[1].replace(',', '.'))) : null;
+  let pph = null;
+  const eq = t.lastIndexOf('=');
+  if (eq >= 0) {
+    const tail = t.slice(eq + 1).replace(/rp\.?/ig, '');
+    const m = tail.match(/\d[\d.]*/);
+    if (m) pph = toInt(m[0]);
+  }
+  if (pph == null) {
+    const nums = (t.match(/\d[\d.]*/g) || []).map(toInt).filter(Boolean);
+    if (nums.length) pph = Math.max(...nums);
+  }
+  const dpp = (pph != null && persen) ? Math.round(pph / (persen / 100)) : null;
+  return { dpp, persen, pph };
 }
 
 router.get('/export-pph23', async (req, res) => {
