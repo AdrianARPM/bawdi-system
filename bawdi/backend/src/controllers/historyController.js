@@ -1,71 +1,94 @@
-// src/controllers/historyController.js  — v17 (dropdown item + exact KM match)
-// v17: getLastKM kini mencocokkan penjelasan SAMA-PERSIS (bukan 'mengandung kata'),
-//      sehingga 'Lampu Depan' tak lagi keliru cocok dgn 'Kampas Rem Depan'.
-//      Tambah getVehicleItems: daftar item unik yg pernah diajukan utk 1 kendaraan
-//      (untuk dropdown autocomplete di form).
+// src/controllers/historyController.js  — v18 (riwayat KM sadar-revisi)
+// v18 (fix): getLastKM & getVehicleItems kini memakai ITEM EFEKTIF —
+//   untuk pengajuan yang punya revisi DISETUJUI, item diambil dari snapshot
+//   revisi terakhir (bukan submission_items asli). Menyelaraskan dengan
+//   vehicleController.buildReportRows. Sebelumnya, item yang DITAMBAH/DIGANTI
+//   lewat revisi tak terlihat → riwayat KM jatuh ke pengajuan lebih lama.
 const supabase = require('../../config/supabase');
 
 // Normalisasi teks: trim + lowercase + rapikan spasi ganda.
 const normTxt = (v) => (v || '').trim().toLowerCase().replace(/\s+/g, ' ');
 
-// v31: KM item bisa diisi/dikoreksi lewat REVISI (tersimpan di revision_snapshot_items),
-// sedangkan submission_items menyimpan dokumen ASLI (sengaja tidak diubah saat approve).
-// Helper ini mengambil km_pengajuan efektif = nilai dari revisi aktif bila ada,
-// jatuh ke nilai asli bila item itu tidak tersentuh revisi.
-// Mengembalikan Map: `${submission_id}::${penjelasan ternormalisasi}` → km_pengajuan (revisi).
-async function ambilKmRevisi(submissionIds) {
-  const ids = [...new Set((submissionIds || []).filter(Boolean))];
-  if (!ids.length) return new Map();
-  // v31 (fix): snapshot final dikenali dari status 'disetujui' + revision_number tertinggi
-  // per pengajuan (kolom active_revision_id tidak pernah diisi — jangan diandalkan).
+// Filter kasar sisi-DB untuk plat: pakai digit plat (toleran beda format penulisan).
+// Pencocokan final tetap di JS (normTxt).
+const platCoarse = (kendaraan) => {
+  const d = (kendaraan || '').replace(/\D+/g, '');
+  return d.length >= 2 ? `%${d}%` : `%${(kendaraan || '').trim()}%`;
+};
+
+// v28: item yang sah = milik vendor terpilih (default Vendor 1 bila belum dipilih)
+const vendorSah = (sub) => (Number(sub?.vendor_pilihan) === 2 ? 2 : 1);
+const itemVendorSah = (it, sub) => (Number(it.vendor_num) || 1) === vendorSah(sub);
+
+const TRUSTED = ['Terverifikasi', 'Disetujui', 'Selesai'];
+
+// ── ITEM EFEKTIF per kendaraan ──────────────────────────────────
+// Untuk tiap pengajuan berstatus terpercaya milik kendaraan tsb, kembalikan
+// daftar item yang BENAR-BENAR berlaku: bila ada revisi disetujui → item
+// dari snapshot revisi tertinggi; jika tidak → submission_items asli.
+// Hasil: array { sub, penjelasan, km_pengajuan, vendor_num, urutan, satuan, harga, kategori_biaya }.
+async function effectiveVehicleItems(kendaraan) {
+  const platN = normTxt(kendaraan);
+
+  const { data: subsRaw } = await supabase
+    .from('submissions')
+    .select('id, nomor_pengajuan, tanggal, status, kendaraan, vendor_pilihan, revisi_count')
+    .ilike('kendaraan', platCoarse(kendaraan))
+    .in('status', TRUSTED)
+    .order('tanggal', { ascending: false })
+    .limit(500);
+
+  const subs = (subsRaw || []).filter(s => normTxt(s.kendaraan) === platN);
+  if (!subs.length) return [];
+  const subById = new Map(subs.map(s => [s.id, s]));
+  const ids = subs.map(s => s.id);
+
+  // Snapshot revisi TERTINGGI yang disetujui per pengajuan.
   const { data: snaps } = await supabase
     .from('revision_snapshots')
     .select('id, submission_id, revision_number')
     .in('submission_id', ids)
     .eq('status', 'disetujui')
     .order('revision_number', { ascending: false });
-  if (!snaps?.length) return new Map();
+  const finalSnap = new Map();                 // submission_id → snapshot_id final
+  for (const s of snaps || []) if (!finalSnap.has(s.submission_id)) finalSnap.set(s.submission_id, s.id);
+  const revisedIds = new Set(finalSnap.keys());
+  const snapToSub  = new Map([...finalSnap.entries()].map(([sub, snap]) => [snap, sub]));
 
-  // Ambil snapshot revisi TERTINGGI untuk tiap pengajuan (yang pertama muncul karena sudah diurut desc)
-  const finalSnap = new Map();     // submission_id → snapshot_id final
-  for (const s of snaps) {
-    if (!finalSnap.has(s.submission_id)) finalSnap.set(s.submission_id, s.id);
-  }
+  const out = [];
+
+  // Item dari snapshot revisi (untuk pengajuan yang direvisi).
   const snapIds = [...finalSnap.values()];
-  const snapToSub = new Map([...finalSnap.entries()].map(([sub, snap]) => [snap, sub]));
-
-  const { data: rItems } = await supabase
-    .from('revision_snapshot_items')
-    .select('snapshot_id, penjelasan, km_pengajuan, urutan')
-    .in('snapshot_id', snapIds);
-
-  // v33: dua kunci pencocokan — by NAMA (utama) & by URUTAN (fallback).
-  // Nama bisa berubah saat revisi (mis. ganti merek), jadi urutan jadi cadangan.
-  const map = new Map();
-  for (const ri of rItems || []) {
-    if (ri.km_pengajuan == null) continue;      // revisi tak mengisi KM → jangan menimpa
-    const subId = snapToSub.get(ri.snapshot_id);
-    if (!subId) continue;
-    map.set(`${subId}::nama::${normTxt(ri.penjelasan)}`, ri.km_pengajuan);
-    if (ri.urutan != null) map.set(`${subId}::urut::${ri.urutan}`, ri.km_pengajuan);
+  if (snapIds.length) {
+    const { data: rItems } = await supabase
+      .from('revision_snapshot_items')
+      .select('snapshot_id, penjelasan, km_pengajuan, vendor_num, urutan, satuan, harga, kategori_biaya')
+      .in('snapshot_id', snapIds);
+    for (const ri of rItems || []) {
+      const sub = subById.get(snapToSub.get(ri.snapshot_id));
+      if (sub) out.push({ sub, ...ri });
+    }
   }
-  return map;
-}
 
-// Filter kasar sisi-DB untuk kas_kecil: pakai digit plat (toleran beda format penulisan).
-// Pencocokan final tetap di JS (normTxt) — perilaku tidak berubah, volume tarikan terpangkas.
-const platCoarse = (kendaraan) => {
-  const d = (kendaraan || '').replace(/\D+/g, '');
-  return d.length >= 2 ? `%${d}%` : `%${(kendaraan || '').trim()}%`;
-};
+  // Item asli (untuk pengajuan TANPA revisi disetujui).
+  const origIds = ids.filter(id => !revisedIds.has(id));
+  if (origIds.length) {
+    const { data: oItems } = await supabase
+      .from('submission_items')
+      .select('submission_id, penjelasan, km_pengajuan, vendor_num, urutan, satuan, harga, kategori_biaya')
+      .in('submission_id', origIds);
+    for (const oi of oItems || []) {
+      const sub = subById.get(oi.submission_id);
+      if (sub) out.push({ sub, ...oi });
+    }
+  }
+
+  return out;
+}
 
 /**
  * GET /api/history/vehicle
  */
-// v28: item yang dianggap sah = milik vendor terpilih (default Vendor 1 bila belum dipilih)
-const vendorSah = (sub) => (Number(sub?.vendor_pilihan) === 2 ? 2 : 1);
-const itemVendorSah = (it, sub) => (Number(it.vendor_num) || 1) === vendorSah(sub);
-
 async function getVehicleHistory(req, res) {
   try {
     const { kendaraan, limit = 5 } = req.query;
@@ -105,11 +128,8 @@ async function getVehicleHistory(req, res) {
 
 /**
  * GET /api/history/last-km?kendaraan=BM1234XX&keyword=ban
- * Per-item KM lookup — mencari item yang penjelasannya cocok dengan keyword,
- * mengembalikan km_pengajuan & tanggal dari pengajuan yang mengandung item itu.
- *
- * Hanya menggunakan submission dengan status terpercaya:
- *   Terverifikasi, Disetujui, Selesai
+ * KM terakhir untuk item yang penjelasannya SAMA-PERSIS keyword (ternormalisasi).
+ * Memakai item efektif (revisi-aware) + kas kecil; ambil yang tanggalnya terbaru.
  */
 async function getLastKM(req, res) {
   try {
@@ -121,52 +141,17 @@ async function getLastKM(req, res) {
 
     const platN = normTxt(kendaraan);
     const kwN   = normTxt(keyword);
-    if (!kwN)
-      return res.json({ data: null, message: 'Keyword terlalu pendek' });
+    if (!kwN) return res.json({ data: null, message: 'Keyword terlalu pendek' });
 
-    // Query submission_items dengan JOIN ke submissions
-    const { data: items, error } = await supabase
-      .from('submission_items')
-      .select(`
-        id, penjelasan, km_pengajuan, urutan,
-        submission:submissions!inner(
-          id, nomor_pengajuan, tanggal, status, kendaraan, active_revision_id
-        )
-      `)
-      .ilike('submission.kendaraan', platCoarse(kendaraan))  // v31: saring kasar di DB (digit plat), presisi tetap di JS
-      .order('id', { ascending: false })
-      .limit(500);
+    const eff = await effectiveVehicleItems(kendaraan);
 
-    if (error) throw error;
-    if (!items?.length)
-      return res.json({ data: null, message: 'Belum ada riwayat KM untuk item ini' });
+    const matched = eff
+      .filter(it => it.km_pengajuan != null
+                 && itemVendorSah(it, it.sub)
+                 && normTxt(it.penjelasan) === kwN)
+      .map(it => ({ km_pengajuan: it.km_pengajuan, penjelasan: it.penjelasan, sub: it.sub }));
 
-    // v31: terapkan KM dari revisi aktif (menimpa nilai asli yang mungkin kosong)
-    const kmRev = await ambilKmRevisi((items || []).map(it => it.submission?.id));
-    for (const it of items || []) {
-      const sid = it.submission?.id;
-      const ov = kmRev.get(`${sid}::nama::${normTxt(it.penjelasan)}`)
-              ?? (it.urutan != null ? kmRev.get(`${sid}::urut::${it.urutan}`) : undefined);
-      if (ov != null) it.km_pengajuan = ov;
-    }
-    // Buang item yang tetap tanpa KM setelah override
-    const berKM = (items || []).filter(it => it.km_pengajuan != null);
-
-    // Filter: plat match + status terpercaya + penjelasan match keyword
-    const trustedStatus = ['Terverifikasi', 'Disetujui', 'Selesai'];
-    // v17: cocok HANYA bila plat sama-persis & penjelasan item SAMA-PERSIS
-    //      (setelah dinormalisasi). Tidak lagi 'mengandung kata'.
-    const matched = berKM.filter(it => {
-      const sub = it.submission;
-      if (!sub) return false;
-      if (normTxt(sub.kendaraan) !== platN) return false;
-      if (!trustedStatus.includes(sub.status)) return false;
-      if (!itemVendorSah(it, sub)) return false;   // v28: abaikan item vendor pembanding
-      return normTxt(it.penjelasan) === kwN;
-    });
-
-    // v25: sertakan kas kecil sebagai sumber KM — acuan item bisa dari kas kecil.
-    // Fault-tolerant: bila tabel belum ada, dilewati.
+    // v25: kas kecil sebagai sumber KM juga.
     try {
       const { data: kk } = await supabase
         .from('kas_kecil').select('plat, tanggal, keterangan, km')
@@ -176,10 +161,7 @@ async function getLastKM(req, res) {
         .limit(500);
       for (const k of kk || []) {
         if (normTxt(k.plat) === platN && normTxt(k.keterangan) === kwN) {
-          matched.push({
-            km_pengajuan: k.km, penjelasan: k.keterangan,
-            submission: { tanggal: k.tanggal, nomor_pengajuan: 'Kas Kecil' },
-          });
+          matched.push({ km_pengajuan: k.km, penjelasan: k.keterangan, sub: { tanggal: k.tanggal, nomor_pengajuan: 'Kas Kecil' } });
         }
       }
     } catch (e) { console.warn('[history/last-km] kas_kecil dilewati:', e.message); }
@@ -187,15 +169,14 @@ async function getLastKM(req, res) {
     if (!matched.length)
       return res.json({ data: null, message: 'Belum ada riwayat KM untuk item serupa di kendaraan ini' });
 
-    // Urutkan tanggal terbaru (termasuk kas kecil)
-    matched.sort((a, b) => new Date(b.submission.tanggal) - new Date(a.submission.tanggal));
+    matched.sort((a, b) => new Date(b.sub.tanggal) - new Date(a.sub.tanggal));
     const best = matched[0];
 
     res.json({
       data: {
-        tanggal:          best.submission.tanggal,
+        tanggal:          best.sub.tanggal,
         km_pengajuan:     best.km_pengajuan,
-        nomor_pengajuan:  best.submission.nomor_pengajuan,
+        nomor_pengajuan:  best.sub.nomor_pengajuan,
         penjelasan_item:  best.penjelasan,
       }
     });
@@ -207,8 +188,7 @@ async function getLastKM(req, res) {
 
 /**
  * GET /api/history/items?kendaraan=BM1234XX
- * Daftar item UNIK yang pernah diajukan utk kendaraan tsb (status terpercaya),
- * masing-masing dgn nomor pengajuan & KM terakhirnya. Untuk dropdown autocomplete.
+ * Daftar item UNIK (item efektif, revisi-aware) + KM terakhirnya, untuk autocomplete.
  */
 async function getVehicleItems(req, res) {
   try {
@@ -216,49 +196,25 @@ async function getVehicleItems(req, res) {
     if (!kendaraan?.trim())
       return res.status(400).json({ error: 'Parameter kendaraan wajib diisi' });
 
+    const eff = await effectiveVehicleItems(kendaraan);
     const platN = normTxt(kendaraan);
 
-    const { data: items, error } = await supabase
-      .from('submission_items')
-      .select(`
-        penjelasan, km_pengajuan, satuan, harga, kategori_biaya, urutan,
-        submission:submissions!inner(id, nomor_pengajuan, tanggal, status, kendaraan, vendor_pilihan, active_revision_id)
-      `)
-      .not('penjelasan', 'is', null)
-      .ilike('submission.kendaraan', platCoarse(kendaraan))  // v31: saring kasar di DB (digit plat), presisi tetap di JS
-      .order('id', { ascending: false })
-      .limit(500);
-
-    if (error) throw error;
-
-    const trusted = ['Terverifikasi', 'Disetujui', 'Selesai'];
-    // v31: terapkan KM dari revisi aktif
-    const kmRev = await ambilKmRevisi((items || []).map(it => it.submission?.id));
-    for (const it of items || []) {
-      const sid = it.submission?.id;
-      const ov = kmRev.get(`${sid}::nama::${normTxt(it.penjelasan)}`)
-              ?? (it.urutan != null ? kmRev.get(`${sid}::urut::${it.urutan}`) : undefined);
-      if (ov != null) it.km_pengajuan = ov;
-    }
-    const byPenj = new Map(); // key: penjelasan ternormalisasi → entri terbaru
-    for (const it of items || []) {
-      const sub = it.submission;
-      if (!sub) continue;
-      if (normTxt(sub.kendaraan) !== platN) continue;
-      if (!trusted.includes(sub.status)) continue;
+    const byPenj = new Map(); // penjelasan ternormalisasi → entri terbaru
+    for (const it of eff) {
+      if (!it.penjelasan) continue;
+      if (!itemVendorSah(it, it.sub)) continue;   // v28: abaikan item vendor pembanding
       const key = normTxt(it.penjelasan);
       if (!key) continue;
       const prev = byPenj.get(key);
-      if (!itemVendorSah(it, sub)) continue;   // v28: abaikan item vendor pembanding
-      if (!prev || new Date(sub.tanggal) > new Date(prev.tanggal)) {
+      if (!prev || new Date(it.sub.tanggal) > new Date(prev.tanggal)) {
         byPenj.set(key, {
           penjelasan:      it.penjelasan.trim(),
           km_pengajuan:    it.km_pengajuan,
           satuan:          it.satuan,
           harga:           it.harga,
           kategori_biaya:  it.kategori_biaya,
-          nomor_pengajuan: sub.nomor_pengajuan,
-          tanggal:         sub.tanggal,
+          nomor_pengajuan: it.sub.nomor_pengajuan,
+          tanggal:         it.sub.tanggal,
         });
       }
     }
