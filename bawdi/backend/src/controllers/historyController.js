@@ -64,9 +64,35 @@ async function effectiveVehicleItems(kendaraan) {
       .from('revision_snapshot_items')
       .select('snapshot_id, penjelasan, km_pengajuan, vendor_num, urutan, satuan, harga, kategori_biaya')
       .in('snapshot_id', snapIds);
+
+    // Jaring pengaman KM: bila item snapshot tak punya km, ambil dari item ASLI
+    // yang cocok (nama → urutan) pada pengajuan yang sama. Mencegah KM "hilang"
+    // saat revisi hanya mengubah harga/vendor tanpa mengisi ulang KM.
+    const origKm = new Map();   // submission_id → { name: Map, urut: Map }
+    const { data: oForRev } = await supabase
+      .from('submission_items')
+      .select('submission_id, penjelasan, km_pengajuan, urutan')
+      .in('submission_id', [...revisedIds]);
+    for (const oi of oForRev || []) {
+      if (oi.km_pengajuan == null) continue;
+      let e = origKm.get(oi.submission_id);
+      if (!e) { e = { name: new Map(), urut: new Map() }; origKm.set(oi.submission_id, e); }
+      e.name.set(normTxt(oi.penjelasan), oi.km_pengajuan);
+      if (oi.urutan != null) e.urut.set(oi.urutan, oi.km_pengajuan);
+    }
+
     for (const ri of rItems || []) {
-      const sub = subById.get(snapToSub.get(ri.snapshot_id));
-      if (sub) out.push({ sub, ...ri });
+      const subId = snapToSub.get(ri.snapshot_id);
+      const sub = subById.get(subId);
+      if (!sub) continue;
+      let km = ri.km_pengajuan;
+      if (km == null) {
+        const e = origKm.get(subId);
+        if (e) km = e.name.get(normTxt(ri.penjelasan))
+                 ?? (ri.urutan != null ? e.urut.get(ri.urutan) : undefined)
+                 ?? null;
+      }
+      out.push({ sub, ...ri, km_pengajuan: km });
     }
   }
 
