@@ -872,6 +872,7 @@ export default function DetailPage() {
   const [editSnap,      setEditSnap]      = useState(null); // snapshot yang sedang diedit
   const [exporting,     setExporting]     = useState(false);
   const [reqPayLoading, setReqPayLoading] = useState(false);
+  const [reqPelunasanLoading, setReqPelunasanLoading] = useState(false);
   const [reqRevLoading, setReqRevLoading] = useState(false);
   const [revAlasan, setRevAlasan] = useState('');
   const [showRevForm, setShowRevForm] = useState(false);
@@ -943,6 +944,19 @@ export default function DetailPage() {
       toast.error(err.response?.data?.error || 'Gagal mengirim usulan revisi');
     }
     setReqRevLoading(false);
+  };
+
+  const handleRequestPelunasan = async () => {
+    if (reqPelunasanLoading || sub?.pelunasan_diminta_at) return;
+    setReqPelunasanLoading(true);
+    try {
+      await submissionAPI.requestPelunasan(id);
+      toast.success('Request pelunasan terkirim!');
+      await load();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Gagal mengirim request pelunasan');
+    }
+    setReqPelunasanLoading(false);
   };
 
   // Duplikat pengajuan → buka form baru dengan data tersalin (kecuali field sesaat)
@@ -1731,6 +1745,30 @@ useEffect(() => {
             <button onClick={handleRequestPayment} disabled={reqPayLoading}
               className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white text-sm font-bold transition-colors">
               {reqPayLoading ? <Loader size={14} className="animate-spin"/> : <Send size={14}/>} Request Kekurangan
+            </button>
+          </div>
+        )
+      )}
+
+      {/* Request Pelunasan — pemohon, setelah DP dibayar & masih ada sisa */}
+      {user.id === sub.pemohon_id && sub.status === 'Disetujui' &&
+       (Number(sub.jumlah_dp) || 0) > 0 &&
+       ((Number(sub.total_harga) || 0) - ((Number(sub.jumlah_dp) || 0) + (Number(sub.jumlah_bayar) || 0))) > 0 && (
+        sub.pelunasan_diminta_at ? (
+          <div className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-sm font-semibold">
+            ✓ Pelunasan sudah direquest · {fmtDate(sub.pelunasan_diminta_at)}
+          </div>
+        ) : (
+          <div className="w-full rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 p-3">
+            <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300 mb-0.5">
+              Sisa pelunasan: {fmtCurrency(Math.max(0, (Number(sub.total_harga)||0) - ((Number(sub.jumlah_dp)||0) + (Number(sub.jumlah_bayar)||0))))}
+            </p>
+            <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mb-2.5">
+              DP {fmtCurrency(sub.jumlah_dp)} dari total {fmtCurrency(sub.total_harga)}{(Number(sub.jumlah_bayar)||0) > 0 ? ` · dibayar ${fmtCurrency(sub.jumlah_bayar)}` : ''}.
+            </p>
+            <button onClick={handleRequestPelunasan} disabled={reqPelunasanLoading}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm font-bold transition-colors">
+              {reqPelunasanLoading ? <Loader size={14} className="animate-spin"/> : <Send size={14}/>} Request Pelunasan
             </button>
           </div>
         )

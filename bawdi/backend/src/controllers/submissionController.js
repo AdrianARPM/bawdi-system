@@ -134,6 +134,20 @@ async function stats(req, res) {
         .map(({ id, nomor_pengajuan, bayar_diminta_at }) => ({ id, nomor_pengajuan, bayar_diminta_at }));
     }
 
+    // Card Request Pelunasan (Admin/Verifikator/Approval): pemohon minta pelunasan sisa DP.
+    if (['Admin', 'Verifikator', 'Approval'].includes(req.user.role)) {
+      const { data: plns } = await supabase.from('submissions')
+        .select('id, nomor_pengajuan, pelunasan_diminta_at, total_harga, jumlah_dp, jumlah_bayar')
+        .not('pelunasan_diminta_at', 'is', null)
+        .eq('status', 'Disetujui')
+        .order('pelunasan_diminta_at', { ascending: true })
+        .limit(50);
+      result.pelunasan_requests = (plns || [])
+        .filter(s => ((Number(s.total_harga) || 0) - ((Number(s.jumlah_dp) || 0) + (Number(s.jumlah_bayar) || 0))) > 0)
+        .slice(0, 20)
+        .map(({ id, nomor_pengajuan, pelunasan_diminta_at }) => ({ id, nomor_pengajuan, pelunasan_diminta_at }));
+    }
+
     // Card Request Revisi (Admin/Verifikator/Approval): usulan revisi dari pemohon.
     // Hilang otomatis saat status keluar dari daftar aktif (mis. jadi Perlu Revisi).
     if (['Admin', 'Verifikator', 'Approval'].includes(req.user.role)) {
@@ -981,6 +995,53 @@ async function requestRevisi(req, res) {
   }
 }
 
+// ── PUT /api/submissions/:id/request-pelunasan ──────────────────────
+// Pemohon meminta PELUNASAN sisa setelah DP dibayar (idempoten).
+async function requestPelunasan(req, res) {
+  try {
+    const { data: sub } = await supabase.from('submissions')
+      .select('id, status, pemohon_id, nomor_pengajuan, total_harga, jumlah_dp, jumlah_bayar, pelunasan_diminta_at')
+      .eq('id', req.params.id).single();
+    if (!sub) return res.status(404).json({ error: 'Pengajuan tidak ditemukan' });
+    if (req.user.id !== sub.pemohon_id)
+      return res.status(403).json({ error: 'Hanya pemohon pengajuan ini yang dapat meminta pelunasan' });
+    if (sub.status !== 'Disetujui')
+      return res.status(400).json({ error: 'Request pelunasan hanya untuk pengajuan berstatus Disetujui' });
+    if (!(Number(sub.jumlah_dp) > 0))
+      return res.status(400).json({ error: 'Belum ada DP yang tercatat pada pengajuan ini' });
+
+    const sisa = Math.max(0, (Number(sub.total_harga) || 0) - ((Number(sub.jumlah_dp) || 0) + (Number(sub.jumlah_bayar) || 0)));
+    if (sisa <= 0)
+      return res.status(400).json({ error: 'Pengajuan ini sudah lunas (tidak ada sisa)' });
+    if (sub.pelunasan_diminta_at)
+      return res.status(400).json({ error: 'Pelunasan sudah pernah direquest' });
+
+    // Idempoten (race-safe): set hanya bila masih kosong.
+    const { data: updated } = await supabase.from('submissions')
+      .update({ pelunasan_diminta_at: new Date().toISOString(), pelunasan_diminta_oleh: req.user.id })
+      .eq('id', sub.id).is('pelunasan_diminta_at', null)
+      .select('id');
+    if (!updated?.length)
+      return res.status(400).json({ error: 'Pelunasan sudah pernah direquest' });
+
+    const fmt = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(sisa);
+    await supabase.from('messages').insert({
+      id: uuidv4(), submission_id: sub.id, user_id: req.user.id,
+      message: `💵 ${req.user.name} meminta PELUNASAN sisa ${fmt} (setelah DP).`,
+      is_system: true,
+    });
+    await notifyRole('Verifikator', sub.id, 'need_approval',
+      `💵 ${req.user.name} meminta pelunasan ${sub.nomor_pengajuan} (sisa ${fmt})`);
+    await notifyRole('Approval', sub.id, 'need_approval',
+      `💵 ${req.user.name} meminta pelunasan ${sub.nomor_pengajuan} (sisa ${fmt})`);
+
+    res.json({ message: 'Request pelunasan terkirim' });
+  } catch (err) {
+    console.error('[requestPelunasan]', err);
+    res.status(500).json({ error: 'Gagal mengirim request pelunasan' });
+  }
+}
+
 // ── PUT /api/submissions/:id/request-verification ───────────────────
 // Pemohon meminta verifikasi setelah pengajuan menggantung ≥ 2 hari (sekali, idempoten)
 async function requestVerification(req, res) {
@@ -1074,4 +1135,4 @@ async function tundaSubmission(req, res) {
   }
 }
 
-module.exports = { list, getOne, create, verify, approve, reject, stats, selectVendor, overdueForAction, cancelSubmission, hardDeleteSubmission, checkDuplicate, requestPayment, requestVerification, requestRevisi, tundaSubmission, calendar };
+module.exports = { list, getOne, create, verify, approve, reject, stats, selectVendor, overdueForAction, cancelSubmission, hardDeleteSubmission, checkDuplicate, requestPayment, requestVerification, requestRevisi, requestPelunasan, tundaSubmission, calendar };

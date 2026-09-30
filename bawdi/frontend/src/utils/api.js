@@ -39,6 +39,7 @@ export const submissionAPI = {
   requestPayment: id => api.put(`/submissions/${id}/request-payment`),
   requestVerification: id => api.put(`/submissions/${id}/request-verification`),
   requestRevisi: (id, alasan) => api.put(`/submissions/${id}/request-revisi`, { alasan }),
+  requestPelunasan: id => api.put(`/submissions/${id}/request-pelunasan`),
   tunda: (id, payload) => api.put(`/submissions/${id}/tunda`, payload),
   reject:       (id, alasan_tolak) => api.put(`/submissions/${id}/reject`, { alasan_tolak }),
   selectVendor: (id, vendor_pilihan, vendor_pilihan_alasan) =>

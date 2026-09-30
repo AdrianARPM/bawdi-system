@@ -23,6 +23,7 @@ router.put('/:id/approve', authorize('Approval', 'Admin', 'Operasional'), ctrl.a
 router.put('/:id/request-payment', authorize('Operasional', 'Admin'), ctrl.requestPayment);
 router.put('/:id/request-verification', authorize('Operasional', 'Admin'), ctrl.requestVerification);
 router.put('/:id/request-revisi', authorize('Operasional', 'Admin'), ctrl.requestRevisi);
+router.put('/:id/request-pelunasan', authorize('Operasional', 'Admin'), ctrl.requestPelunasan);
 router.put('/:id/tunda', authorize('Verifikator', 'Approval', 'Admin'), ctrl.tundaSubmission);
 router.put('/:id/reject',  authorize('Approval', 'Verifikator', 'Admin', 'Operasional'), ctrl.reject);
 
