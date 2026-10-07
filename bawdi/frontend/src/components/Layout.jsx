@@ -1,7 +1,7 @@
 // src/components/Layout.jsx  — v8 (Dark Mode Tahap 1: toggle Terang/Gelap/Sistem + dark variants in web)
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-import { LayoutDashboard, FileText, Plus, Users, LogOut, Menu, Truck, Archive, BarChart3, Activity, Building2, Store, Tags, CalendarDays, Calculator, Sun, Moon, Monitor } from 'lucide-react';
+import { LayoutDashboard, FileText, Plus, Users, LogOut, Menu, Truck, Archive, BarChart3, Activity, Building2, Store, Tags, Package, CalendarDays, Calculator, Sun, Moon, Monitor } from 'lucide-react';
 import useAuthStore from '../context/authStore';
 import NotificationBell from './NotificationBell';
 import { getThemePref, setThemePref } from '../utils/theme';
@@ -113,9 +113,12 @@ export default function Layout() {
         )}
         {/* Master Kendaraan — dapat dilihat semua user (edit hanya Admin) */}
         <NavItem to="/vehicles" icon={Truck} label="Super Track" onClick={close}/>
-        {/* Master Vendor — Admin & Operasional (Operasional: lihat + tambah) */}
+        {/* Master Vendor & Master Item — Admin & Operasional (Operasional per cabang) */}
         {['Admin','Operasional'].includes(user?.role) && (
           <NavItem to="/vendors" icon={Store} label="Master Vendor" onClick={close}/>
+        )}
+        {['Admin','Operasional'].includes(user?.role) && (
+          <NavItem to="/master-item" icon={Package} label="Master Item" onClick={close}/>
         )}
         {user?.role === 'Admin' && (
           <>

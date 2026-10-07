@@ -159,6 +159,12 @@ export const jenisAPI = {
   create: (d)     => api.post('/jenis', d),
   update: (id, d) => api.put(`/jenis/${id}`, d),
 };
+export const masterItemAPI = {
+  list:   (params = {}) => api.get('/master-item', { params }),   // {all:1} | {jenis:'motor'}
+  create: (d)           => api.post('/master-item', d),
+  update: (id, d)       => api.put(`/master-item/${id}`, d),
+  import: ()            => api.post('/master-item/import'),
+};
 export const kalenderAPI = {
   calendar: (from, to)          => api.get('/submissions/calendar', { params: { from, to } }),
   notes:    (from, to)          => api.get('/kalender/notes', { params: { from, to } }),

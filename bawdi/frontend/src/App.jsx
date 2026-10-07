@@ -15,6 +15,7 @@ import VehiclesPage     from './pages/VehiclesPage';
 import CabangPage       from './pages/CabangPage';
 import VendorPage       from './pages/VendorPage';
 import JenisPage        from './pages/JenisPage';
+import MasterItemPage   from './pages/MasterItemPage';
 import KalenderPage     from './pages/KalenderPage';
 import LaporanPage      from './pages/LaporanPage';
 import StatusPage       from './pages/StatusPage';
@@ -55,6 +56,7 @@ export default function App() {
           <Route path="cabang"          element={<PrivateRoute roles={['Admin']}><CabangPage /></PrivateRoute>} />
           <Route path="vendors"         element={<PrivateRoute roles={['Admin','Operasional']}><VendorPage /></PrivateRoute>} />
           <Route path="jenis"           element={<PrivateRoute roles={['Admin']}><JenisPage /></PrivateRoute>} />
+          <Route path="master-item"     element={<PrivateRoute roles={['Admin','Operasional']}><MasterItemPage /></PrivateRoute>} />
           <Route path="status"          element={<PrivateRoute roles={['Admin']}><StatusPage /></PrivateRoute>} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -319,6 +319,7 @@ function VehicleModal({ vehicle, onClose, onSaved }) {
     plat: vehicle?.plat || '', pemilik: vehicle?.pemilik || '',
     stnk: vehicle?.stnk || '', pajak: vehicle?.pajak || '',
     jenis: vehicle?.jenis || '', tahun: vehicle?.tahun || '', cabang: vehicle?.cabang || '',
+    kategori: vehicle?.kategori || '',
     keterangan: vehicle?.keterangan || '', is_active: vehicle?.is_active ?? true,
   });
   const [saving, setSaving] = useState(false);
@@ -348,6 +349,19 @@ function VehicleModal({ vehicle, onClose, onSaved }) {
         <div className="grid grid-cols-2 gap-3">
           <ModalField label="Type / Model" k="jenis" ph="Revo / Supertruck" f={f} set={set}/>
           <ModalField label="Tahun" k="tahun" ph="2010" f={f} set={set}/>
+        </div>
+        <div>
+          <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Kategori</label>
+          <div className="flex gap-2 mt-1">
+            {[['motor','Motor'],['mobil','Mobil']].map(([v,lbl]) => (
+              <button key={v} type="button" onClick={() => set('kategori', f.kategori === v ? '' : v)}
+                className={`flex-1 py-2 rounded-xl border text-xs font-semibold transition-colors ${
+                  f.kategori === v ? 'border-amber-400 bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300'
+                  : 'border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500'}`}>
+                {lbl}
+              </button>
+            ))}
+          </div>
         </div>
         <ModalField label="Cabang" k="cabang" ph="APL PKU" f={f} set={set}/>
         <div className="grid grid-cols-3 gap-3">

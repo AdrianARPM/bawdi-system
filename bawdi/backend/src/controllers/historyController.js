@@ -9,6 +9,20 @@ const supabase = require('../../config/supabase');
 // Normalisasi teks: trim + lowercase + rapikan spasi ganda.
 const normTxt = (v) => (v || '').trim().toLowerCase().replace(/\s+/g, ' ');
 
+// v19: Kunci "item dasar" untuk fallback pencocokan riwayat (Fase 0).
+// Tujuan: "Oli Mesin (Federal)" & "Oli Mesin (Shield)" dianggap item SAMA,
+// tapi varian posisi/sisi TIDAK boleh digabung.
+// Aturan: buang isi kurung yang MEREK/CATATAN; PERTAHANKAN kurung yang
+// mengandung kata penanda posisi/varian (depan/belakang/kanan/kiri/dst).
+// Catatan: dipakai HANYA sebagai fallback setelah pencocokan sama-persis gagal,
+// jadi item yang sudah presisi tetap presisi.
+const VARIAN_RE = /\b(depan|belakang|kanan|kiri|atas|bawah|luar|dalam|muka|besar|kecil)\b/i;
+const baseKey = (text) => {
+  const t = String(text || '').replace(/\(([^)]*)\)/g, (_, inner) =>
+    VARIAN_RE.test(inner) ? ` ${inner} ` : ' ');   // simpan kurung penanda, buang kurung merek/catatan
+  return normTxt(t.replace(/[()]/g, ' '));           // bersihkan kurung nyasar
+};
+
 // Filter kasar sisi-DB untuk plat: pakai digit plat (toleran beda format penulisan).
 // Pencocokan final tetap di JS (normTxt).
 const platCoarse = (kendaraan) => {
@@ -63,7 +77,8 @@ async function effectiveVehicleItems(kendaraan) {
     const { data: rItems } = await supabase
       .from('revision_snapshot_items')
       .select('snapshot_id, penjelasan, km_pengajuan, vendor_num, urutan, satuan, harga, kategori_biaya')
-      .in('snapshot_id', snapIds);
+      .in('snapshot_id', snapIds)
+      .limit(5000);
 
     // Jaring pengaman KM: bila item snapshot tak punya km, ambil dari item ASLI
     // yang cocok (nama → urutan) pada pengajuan yang sama. Mencegah KM "hilang"
@@ -102,7 +117,9 @@ async function effectiveVehicleItems(kendaraan) {
     const { data: oItems } = await supabase
       .from('submission_items')
       .select('submission_id, penjelasan, km_pengajuan, vendor_num, urutan, satuan, harga, kategori_biaya')
-      .in('submission_id', origIds);
+      .in('submission_id', origIds)
+      .order('created_at', { ascending: false })   // yang terbaru didahulukan bila terpotong limit
+      .limit(5000);
     for (const oi of oItems || []) {
       const sub = subById.get(oi.submission_id);
       if (sub) out.push({ sub, ...oi });
@@ -171,13 +188,10 @@ async function getLastKM(req, res) {
 
     const eff = await effectiveVehicleItems(kendaraan);
 
-    const matched = eff
-      .filter(it => it.km_pengajuan != null
-                 && itemVendorSah(it, it.sub)
-                 && normTxt(it.penjelasan) === kwN)
+    // Kandidat ber-KM dari item efektif (revisi-aware) + kas kecil.
+    const cands = eff
+      .filter(it => it.km_pengajuan != null && itemVendorSah(it, it.sub))
       .map(it => ({ km_pengajuan: it.km_pengajuan, penjelasan: it.penjelasan, sub: it.sub }));
-
-    // v25: kas kecil sebagai sumber KM juga.
     try {
       const { data: kk } = await supabase
         .from('kas_kecil').select('plat, tanggal, keterangan, km')
@@ -186,16 +200,29 @@ async function getLastKM(req, res) {
         .order('tanggal', { ascending: false })
         .limit(500);
       for (const k of kk || []) {
-        if (normTxt(k.plat) === platN && normTxt(k.keterangan) === kwN) {
-          matched.push({ km_pengajuan: k.km, penjelasan: k.keterangan, sub: { tanggal: k.tanggal, nomor_pengajuan: 'Kas Kecil' } });
+        if (normTxt(k.plat) === platN) {
+          cands.push({ km_pengajuan: k.km, penjelasan: k.keterangan, sub: { tanggal: k.tanggal, nomor_pengajuan: 'Kas Kecil' } });
         }
       }
     } catch (e) { console.warn('[history/last-km] kas_kecil dilewati:', e.message); }
 
+    // Lapis 1: cocokkan SAMA-PERSIS (selalu presisi).
+    let matched = cands.filter(c => normTxt(c.penjelasan) === kwN);
+    // Lapis 2: fallback ke "item dasar" HANYA bila yang persis tak ada.
+    //          Posisi/varian tetap dibedakan → tidak akan tertukar sisi.
+    if (!matched.length) {
+      const kwBase = baseKey(keyword);
+      if (kwBase) matched = cands.filter(c => baseKey(c.penjelasan) === kwBase);
+    }
+
     if (!matched.length)
       return res.json({ data: null, message: 'Belum ada riwayat KM untuk item serupa di kendaraan ini' });
 
-    matched.sort((a, b) => new Date(b.sub.tanggal) - new Date(a.sub.tanggal));
+    // Ambil PALING TERBARU: tanggal terbaru dulu; bila sama, KM tertinggi menang
+    // (odometer hanya naik → KM lebih tinggi berarti lebih baru).
+    matched.sort((a, b) =>
+      (new Date(b.sub.tanggal) - new Date(a.sub.tanggal))
+      || ((Number(b.km_pengajuan) || 0) - (Number(a.km_pengajuan) || 0)));
     const best = matched[0];
 
     res.json({
