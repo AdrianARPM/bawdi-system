@@ -104,13 +104,16 @@ function RevisiPanel({ snapshot, sub, user, onAction }) {
     setActLoading('');
   };
 
-  // PR: verifikasi oleh Verifikator, keputusan oleh Approval.
-  // PAR: keduanya oleh Kepala Operasional (atau Admin) — backend memang mengizinkannya.
+  // Hak verifikasi/persetujuan mengikuti profil alur cabang (dari backend: sub.workflow).
+  // Fallback ke aturan lama bila workflow belum tersedia (mis. backend lama).
+  const wf              = sub?.workflow;
   const isPARSnap       = sub?.type === 'PAR';
   const kepalaOpOrAdmin = user.jabatan === 'Kepala Operasional' || user.role === 'Admin';
   const hrgaDanaSosial  = user.jabatan === 'HRGA' && sub?.jenis_pembelian === 'Beban Dana Sosial';
-  const canVerify  = ((isPARSnap ? kepalaOpOrAdmin : user.role === 'Verifikator') || hrgaDanaSosial) && snapshot.status === 'submitted';
-  const canApprove = ((isPARSnap ? kepalaOpOrAdmin : user.role === 'Approval')    || hrgaDanaSosial) && snapshot.status === 'terverifikasi';
+  const canVerify  = (wf ? wf.user_verifikasi_snapshot
+    : ((isPARSnap ? kepalaOpOrAdmin : user.role === 'Verifikator') || hrgaDanaSosial)) && snapshot.status === 'submitted';
+  const canApprove = (wf ? wf.user_setujui_snapshot
+    : ((isPARSnap ? kepalaOpOrAdmin : user.role === 'Approval')    || hrgaDanaSosial)) && snapshot.status === 'terverifikasi';
 
   return (
     <div className="space-y-4">
@@ -1172,6 +1175,8 @@ useEffect(() => {
   // Cek apakah user adalah Kepala Operasional (berdasarkan jabatan)
   const isKepalaOp = user.jabatan === 'Kepala Operasional';
   const isPAR      = sub.type === 'PAR';
+  // Alur persetujuan efektif cabang (gating tombol); null → fallback aturan lama
+  const wfSub      = sub.workflow || null;
   const isHRGADanaSosial = user.jabatan === 'HRGA' && sub.jenis_pembelian === 'Beban Dana Sosial';
   // v28: pengajuan 2-vendor wajib dipilih Approval sebelum disetujui
   // (disamakan dgn izin endpoint select-vendor: Approval & Admin saja)
@@ -1477,8 +1482,8 @@ useEffect(() => {
 
       {/* ── ACTION BANNERS — berbeda untuk PR vs PAR ─────────── */}
 
-      {/* PR — Verifikator: verifikasi */}
-      {!isPAR && (user.role === 'Verifikator' || isHRGADanaSosial) && sub.status === 'Menunggu Verifikasi' && (
+      {/* Verifikasi — aktor sesuai profil alur cabang (sub.workflow) */}
+      {(wfSub ? (wfSub.perlu_verifikasi && wfSub.user_verifikasi) : (!isPAR && (user.role === 'Verifikator' || isHRGADanaSosial))) && sub.status === 'Menunggu Verifikasi' && (
         revisiAktif ? (
           <div className="bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-2xl p-4 flex items-center justify-between gap-3">
             <div>
@@ -1495,10 +1500,12 @@ useEffect(() => {
           <div className="bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-2xl p-4 flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-bold text-blue-800 dark:text-blue-300">Perlu Verifikasi Anda</p>
-              <p className="text-xs text-blue-400 mt-0.5">Periksa data pengajuan</p>
+              <p className="text-xs text-blue-400 mt-0.5">
+                {wfSub && !wfSub.perlu_approval ? 'Verifikasi langsung menyetujui pengajuan ini (tanpa approval terpisah)' : 'Periksa data pengajuan'}
+              </p>
             </div>
             <Button variant="info" onClick={() => doAction('verify')} loading={actLoading === 'verify'}>
-              Verifikasi
+              {wfSub && !wfSub.perlu_approval ? 'Verifikasi' : 'Verifikasi'}
             </Button>
           </div>
         )
@@ -1564,7 +1571,7 @@ useEffect(() => {
         </div>
       )}
 
-      {!isPAR && (user.role === 'Approval' || isHRGADanaSosial) && sub.status === 'Terverifikasi' && (
+      {(wfSub ? (wfSub.perlu_verifikasi && wfSub.user_setujui) : (!isPAR && (user.role === 'Approval' || isHRGADanaSosial))) && sub.status === 'Terverifikasi' && (
         revisiAktif ? (
           <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-2xl p-4 flex items-center justify-between gap-3">
             <div>
@@ -1593,12 +1600,12 @@ useEffect(() => {
         )
       )}
 
-      {/* PAR — Kepala Operasional: langsung setujui/tolak dari status Menunggu Verifikasi */}
-      {isPAR && (isKepalaOp || isHRGADanaSosial) && ['Menunggu Verifikasi', 'Terverifikasi'].includes(sub.status) && (
+      {/* Alur tanpa verifikasi terpisah — approver langsung setujui/tolak dari Menunggu Verifikasi */}
+      {(wfSub ? (!wfSub.perlu_verifikasi && wfSub.user_setujui) : (isPAR && (isKepalaOp || isHRGADanaSosial))) && ['Menunggu Verifikasi', 'Terverifikasi'].includes(sub.status) && (
         revisiAktif ? (
           <div className="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 rounded-2xl p-4 flex items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-bold text-emerald-800 dark:text-emerald-300">Menunggu Keputusan Anda (PAR)</p>
+              <p className="text-sm font-bold text-emerald-800 dark:text-emerald-300">Menunggu Keputusan Anda</p>
               <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-0.5">
                 Ada Revisi ke-{revisiAktif.revision_number} — periksa & putuskan di tab revisinya
               </p>
@@ -1609,8 +1616,8 @@ useEffect(() => {
           </div>
         ) : sub.status === 'Menunggu Verifikasi' ? (
           <div className="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 rounded-2xl p-4">
-            <p className="text-sm font-bold text-emerald-800 dark:text-emerald-300 mb-1">Menunggu Keputusan Anda (PAR)</p>
-            <p className="text-xs text-emerald-600 dark:text-emerald-400 mb-3">Sebagai Kepala Operasional, Anda dapat langsung menyetujui atau menolak pengajuan PAR ini.</p>
+            <p className="text-sm font-bold text-emerald-800 dark:text-emerald-300 mb-1">Menunggu Keputusan Anda</p>
+            <p className="text-xs text-emerald-600 dark:text-emerald-400 mb-3">Anda dapat langsung menyetujui atau menolak pengajuan ini tanpa verifikasi terpisah.</p>
             <div className="flex gap-2.5">
               <Button variant="danger"  className="flex-1" onClick={() => setShowReject(true)}>✗ Tolak</Button>
               <Button variant="success" className="flex-1" onClick={() => doAction('approve')}
@@ -2098,7 +2105,11 @@ useEffect(() => {
               {[
                 { label: 'Dibuat',      name: sub.pemohon?.name,    jabatan: sub.pemohon?.jabatan,    done: true },
                 { label: 'Verifikator', name: sub.verifikator?.name,jabatan: sub.verifikator?.jabatan,done: !!sub.verifikator_id },
-                { label: 'Approval',    name: sub.approver?.name,   jabatan: sub.approver?.jabatan,   done: !!sub.approver_id, isReject: sub.status === 'Ditolak' },
+                { label: 'Approval',
+                  name:    (wfSub && !wfSub.perlu_approval) ? '—' : sub.approver?.name,
+                  jabatan: (wfSub && !wfSub.perlu_approval) ? 'Tanpa persetujuan' : sub.approver?.jabatan,
+                  done:    !!sub.approver_id,
+                  isReject: sub.status === 'Ditolak' },
               ].map((sig, i) => (
                 <div key={i} className={`text-center p-2.5 rounded-xl border ${
                   sig.done ? sig.isReject ? 'bg-red-50 dark:bg-red-500/10 border-red-100 dark:border-red-500/20' : 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-100 dark:border-emerald-500/20'

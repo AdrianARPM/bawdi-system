@@ -165,6 +165,11 @@ export const masterItemAPI = {
   update: (id, d)       => api.put(`/master-item/${id}`, d),
   import: ()            => api.post('/master-item/import'),
 };
+export const workflowAPI = {
+  list: ()                                              => api.get('/workflow'),
+  set:  (cabang, type, verifikasi_aktor, approval_aktor) =>
+          api.put('/workflow', { cabang, type, verifikasi_aktor, approval_aktor }),
+};
 export const kalenderAPI = {
   calendar: (from, to)          => api.get('/submissions/calendar', { params: { from, to } }),
   notes:    (from, to)          => api.get('/kalender/notes', { params: { from, to } }),

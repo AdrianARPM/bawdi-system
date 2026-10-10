@@ -26,6 +26,7 @@ const pushRoutes       = require('./routes/push');
 const healthRoutes     = require('./routes/health');
 const backupRoutes     = require('./routes/backup');
 const analyticsRoutes  = require('./routes/analytics');
+const workflowRoutes   = require('./routes/workflow');
 const { startScheduler } = require('./utils/notifScheduler');
 
 const app = express();
@@ -66,6 +67,7 @@ app.use('/api/push',          pushRoutes);
 app.use('/api/health',        healthRoutes);
 app.use('/api/backup',        backupRoutes);
 app.use('/api/analytics',     analyticsRoutes);
+app.use('/api/workflow',      workflowRoutes);
 // Health check — verifikasi versi yang sedang berjalan
 app.get('/health', (_, res) =>
   res.json({ status: 'ok', version: '7.0.0', timestamp: new Date().toISOString() }));

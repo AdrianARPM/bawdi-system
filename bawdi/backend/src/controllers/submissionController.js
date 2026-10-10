@@ -10,6 +10,7 @@ const { sendEmailToRole, sendEmailToUser, emailTemplates } = require('../utils/e
 const { autoRegisterVehicle } = require('./vehicleController');
 const { isPph23Wajib } = require('./jenisController');
 const { logAudit } = require('../utils/auditLogger');
+const workflow = require('../utils/workflow');
 
 // Helper: cek apakah user adalah Kepala Operasional
 const isKepalaOp = (user) => user?.jabatan === 'Kepala Operasional';
@@ -81,6 +82,19 @@ async function sendEmailToKepalaOp({ subject, message, nomor, submissionId, type
       )
     );
   } catch (err) { console.error('[email/kepalaOp]', err.message); }
+}
+
+// Dispatch notif/email ke aktor alur. 'Verifikator'/'Approval' → role,
+// 'Kepala Operasional'/'HRGA' → jabatan. Dipakai saat pengajuan dibuat/diteruskan.
+async function notifyActor(actor, submissionId, type, message) {
+  if (actor === 'Kepala Operasional') return notifyKepalaOp(submissionId, type, message);
+  if (actor === 'HRGA')               return notifyHRGA(submissionId, type, message);
+  return notifyRole(actor, submissionId, type, message);
+}
+function sendEmailToActor(actor, payload) {
+  if (actor === 'Kepala Operasional') return sendEmailToKepalaOp(payload);
+  if (actor === 'HRGA')               return sendEmailToHRGA(payload);
+  return sendEmailToRole(actor, payload);
 }
 
 // ── GET /api/submissions/stats ─────────────────────────────────────
@@ -282,6 +296,29 @@ async function getOne(req, res) {
       if (tunggak?.length) data.nota_tertunggak = { id: tunggak[0].id, nomor: tunggak[0].nomor_pengajuan };
     }
 
+    // Alur persetujuan efektif cabang + kapabilitas user ini (untuk gating tombol di UI)
+    try {
+      const flow       = await workflow.resolveFlow(data.cabang_manual, data.type);
+      const perluVerif = !!flow.verifikasi;
+      const perluApp   = !!flow.approval;
+      const bisaVerif  = workflow.canVerify(req.user, flow, data.jenis_pembelian);
+      const bisaSetuju = workflow.canApprove(req.user, flow, data.jenis_pembelian);
+      data.workflow = {
+        perlu_verifikasi:  perluVerif,
+        perlu_approval:    perluApp,
+        verifikasi_aktor:  flow.verifikasi,
+        approval_aktor:    flow.approval,
+        user_verifikasi:   bisaVerif,
+        user_setujui:      bisaSetuju,
+        user_verifikasi_snapshot: workflow.canVerifySnapshot(req.user, flow, data.jenis_pembelian),
+        user_setujui_snapshot:    workflow.canApproveSnapshot(req.user, flow, data.jenis_pembelian),
+        // bisa_verifikasi: tombol Verifikasi (jika tanpa approval, tombol ini sekaligus memfinalkan)
+        bisa_verifikasi:   bisaVerif  && data.status === 'Menunggu Verifikasi',
+        // bisa_setujui: tombol Setujui (hanya bila ada langkah persetujuan)
+        bisa_setujui:      bisaSetuju && (perluVerif ? data.status === 'Terverifikasi' : data.status === 'Menunggu Verifikasi'),
+      };
+    } catch { /* non-fatal: UI fallback ke default */ }
+
     res.json({ data });
   } catch (err) {
     res.status(500).json({ error: 'Gagal mengambil data pengajuan' });
@@ -387,25 +424,22 @@ async function create(req, res) {
       sent: false,
     }, { onConflict: 'submission_id,type' });
 
-    // ── Notifikasi & email — beda untuk PR vs PAR ────────────────
+    // ── Notifikasi & email — mengikuti profil alur cabang ────────
+    // Dana Sosial tetap dialihkan ke HRGA (penangan de-facto); selain itu
+    // aktor pertama ditentukan profil alur cabang (default PR→Verifikator,
+    // PAR→Kepala Operasional).
+    const tmplNew = emailTemplates.new_submission(nomor_pengajuan, req.user.name);
     if (jenis_pembelian === DANA_SOSIAL) {
-      // Dana Sosial: notif & email langsung ke HRGA (verifikasi & approval oleh HRGA)
       await notifyHRGA(submissionId, 'new_submission',
         `📋 Pengajuan Dana Sosial baru ${nomor_pengajuan} dari ${req.user.name} menunggu proses Anda.`);
-      const tmplHrga = emailTemplates.new_submission(nomor_pengajuan, req.user.name);
-      sendEmailToHRGA({ ...tmplHrga, nomor: nomor_pengajuan, submissionId, type: 'new_submission' }).catch(() => {});
-    } else if (type === 'PAR') {
-      // PAR: notif langsung ke Kepala Operasional
-      await notifyKepalaOp(submissionId, 'new_submission',
-        `📋 Pengajuan PAR baru ${nomor_pengajuan} dari ${req.user.name} menunggu persetujuan Anda.`);
-      const tmpl = emailTemplates.new_submission(nomor_pengajuan, req.user.name);
-      sendEmailToKepalaOp({ ...tmpl, nomor: nomor_pengajuan, submissionId, type: 'new_submission' }).catch(() => {});
+      sendEmailToHRGA({ ...tmplNew, nomor: nomor_pengajuan, submissionId, type: 'new_submission' }).catch(() => {});
     } else {
-      // PR: notif ke Verifikator
-      await notifyRole('Verifikator', submissionId, 'new_submission',
-        `📋 Pengajuan baru ${nomor_pengajuan} dari ${req.user.name} menunggu verifikasi Anda.`);
-      const tmpl = emailTemplates.new_submission(nomor_pengajuan, req.user.name);
-      sendEmailToRole('Verifikator', { ...tmpl, nomor: nomor_pengajuan, submissionId, type: 'new_submission' }).catch(() => {});
+      const flow  = await workflow.resolveFlow(cabang_manual, type);  // alur per project yg diajukan
+      const actor = workflow.firstActor(flow);
+      const aksi  = actor === flow.verifikasi ? 'verifikasi' : 'persetujuan';
+      await notifyActor(actor, submissionId, 'new_submission',
+        `📋 Pengajuan baru ${nomor_pengajuan} dari ${req.user.name} menunggu ${aksi} Anda.`);
+      Promise.resolve(sendEmailToActor(actor, { ...tmplNew, nomor: nomor_pengajuan, submissionId, type: 'new_submission' })).catch(() => {});
     }
 
     res.status(201).json({ message: 'Pengajuan berhasil dibuat', nomor_pengajuan, id: submissionId });
@@ -449,25 +483,82 @@ async function selectVendor(req, res) {
   }
 }
 
+// Finalisasi ke status 'Disetujui'. Dipakai approve() dan verify() (saat alur
+// tanpa langkah persetujuan → verifikasi langsung memfinalkan).
+// setApprover=false membiarkan approver_id kosong (nama approver kosong).
+async function finalizeApproval(req, sub, { setApprover, setVerifikator, actorLabel, viaVerifikasi }) {
+  const id  = sub.id;
+  const now = new Date().toISOString();
+  const updateData = { status: 'Disetujui', approval_at: now };
+  if (setApprover)    updateData.approver_id = req.user.id;
+  if (setVerifikator) { updateData.verifikator_id = req.user.id; updateData.verifikasi_at = now; }
+  await supabase.from('submissions').update(updateData).eq('id', id);
+
+  // Bila finalisasi lewat verifikasi (alur tanpa approval), pelaku dicatat sebagai
+  // verifikator yang memfinalkan — BUKAN sebagai penyetuju (approver tetap kosong).
+  const msg = viaVerifikasi
+    ? `✅ Diverifikasi & final oleh ${req.user.name}${actorLabel ? ` (${actorLabel})` : ''} — tanpa persetujuan terpisah. Silakan proses pembayaran.`
+    : `✅ DISETUJUI oleh ${req.user.name}${actorLabel ? ` (${actorLabel})` : ''}. Silakan proses pembayaran.`;
+  await supabase.from('messages').insert({
+    id: uuidv4(), submission_id: id, user_id: req.user.id, message: msg, is_system: true,
+  });
+
+  await notifyUser(sub.pemohon_id, id, 'approved',
+    `🎉 Pengajuan ${sub.nomor_pengajuan} Anda telah DISETUJUI.`);
+
+  // Beri tahu Administration (Approval) utk proses nota & bayar — kecuali bila
+  // yang menyetujui memang role Approval sendiri (hindari notif ke diri sendiri).
+  const tmplApp = emailTemplates.approved(sub.nomor_pengajuan);
+  if (req.user.role !== 'Approval') {
+    await notifyRole('Approval', id, 'approved',
+      `💰 ${sub.nomor_pengajuan} telah disetujui. Silakan proses pembayaran.`);
+    sendEmailToRole('Approval', { ...tmplApp, nomor: sub.nomor_pengajuan, submissionId: id }).catch(() => {});
+  }
+  sendEmailToUser(sub.pemohon_id, { ...tmplApp, nomor: sub.nomor_pengajuan, submissionId: id, type: 'approved' }).catch(() => {});
+
+  if (sub.batas_akhir_pembayaran) {
+    const notifDate = new Date(new Date(sub.batas_akhir_pembayaran).getTime() - 2 * 86400000);
+    if (notifDate > new Date()) {
+      await supabase.from('notification_schedule').upsert({
+        id: uuidv4(), submission_id: id, type: 'deadline_approaching',
+        scheduled_at: notifDate.toISOString(), sent: false,
+      }, { onConflict: 'submission_id,type' });
+    }
+  }
+  await supabase.from('notification_schedule').update({ sent: true, sent_at: now })
+    .eq('submission_id', id).eq('type', 'overdue_2days');
+
+  logAudit(req, { action: 'setujui', target: sub.nomor_pengajuan, submissionId: id });
+}
+
 // ── PUT /api/submissions/:id/verify ───────────────────────────────
-// HANYA untuk PR (tipe PR), PAR tidak melewati langkah verifikasi
+// Langkah verifikasi. Bila alur cabang tak punya langkah persetujuan,
+// verifikasi sekaligus MEMFINALKAN (status Disetujui, approver kosong).
 async function verify(req, res) {
   try {
     const { data: sub } = await supabase.from('submissions')
-      .select('type, status, nomor_pengajuan, pemohon_id, jenis_pembelian').eq('id', req.params.id).single();
+      .select('type, status, nomor_pengajuan, pemohon_id, jenis_pembelian, cabang_manual, batas_akhir_pembayaran')
+      .eq('id', req.params.id).single();
     if (!sub) return res.status(404).json({ error: 'Pengajuan tidak ditemukan' });
+    sub.id = req.params.id;
 
-    // PAR tidak boleh diverifikasi (langsung approve oleh Kepala Op)
-    if (sub.type === 'PAR') {
-      return res.status(400).json({ error: 'Pengajuan PAR langsung diproses oleh Kepala Operasional, tidak perlu verifikasi terpisah' });
-    }
+    const flow = await workflow.resolveFlow(sub.cabang_manual, sub.type);
 
-    // Cek role
-    if (!['Verifikator', 'Admin'].includes(req.user.role) && !bolehHRGA(req.user, sub.jenis_pembelian))
-      return res.status(403).json({ error: 'Hanya Verifikator (atau HRGA untuk Beban Dana Sosial) yang dapat memverifikasi pengajuan PR' });
+    // Alur cabang ini tidak memakai langkah verifikasi terpisah.
+    if (!flow.verifikasi)
+      return res.status(400).json({ error: `Alur cabang ini tidak memakai verifikasi terpisah — langsung disetujui oleh ${flow.approval}` });
+
+    if (!workflow.canVerify(req.user, flow, sub.jenis_pembelian))
+      return res.status(403).json({ error: `Hanya ${flow.verifikasi} yang dapat memverifikasi pengajuan ini` });
 
     if (sub.status !== 'Menunggu Verifikasi')
       return res.status(400).json({ error: 'Status tidak memungkinkan verifikasi' });
+
+    // Tidak ada langkah persetujuan → verifikasi memfinalkan (approver kosong).
+    if (!flow.approval) {
+      await finalizeApproval(req, sub, { setApprover: false, setVerifikator: true, actorLabel: flow.verifikasi, viaVerifikasi: true });
+      return res.json({ message: 'Pengajuan berhasil diverifikasi & disetujui' });
+    }
 
     const now = new Date().toISOString();
     await supabase.from('submissions').update({
@@ -484,14 +575,14 @@ async function verify(req, res) {
       scheduled_at: new Date(Date.now() + 2 * 86400000).toISOString(), sent: false,
     }, { onConflict: 'submission_id,type' });
 
-    await notifyRole('Approval', req.params.id, 'need_approval',
+    await notifyActor(flow.approval, req.params.id, 'need_approval',
       `📋 Pengajuan ${sub.nomor_pengajuan} menunggu persetujuan Anda.`);
     await notifyUser(sub.pemohon_id, req.params.id, 'need_approval',
-      `Pengajuan ${sub.nomor_pengajuan} sudah diverifikasi, menunggu Approval.`);
+      `Pengajuan ${sub.nomor_pengajuan} sudah diverifikasi, menunggu persetujuan ${flow.approval}.`);
 
     const tmpl = emailTemplates.need_approval(sub.nomor_pengajuan);
-    sendEmailToRole('Approval', { ...tmpl, nomor: sub.nomor_pengajuan, submissionId: req.params.id, type: 'need_approval' }).catch(() => {});
-    sendEmailToUser(sub.pemohon_id, { ...emailTemplates.need_approval(sub.nomor_pengajuan), nomor: sub.nomor_pengajuan, submissionId: req.params.id }).catch(() => {});
+    Promise.resolve(sendEmailToActor(flow.approval, { ...tmpl, nomor: sub.nomor_pengajuan, submissionId: req.params.id, type: 'need_approval' })).catch(() => {});
+    sendEmailToUser(sub.pemohon_id, { ...tmpl, nomor: sub.nomor_pengajuan, submissionId: req.params.id }).catch(() => {});
 
     logAudit(req, { action: 'verifikasi', target: sub.nomor_pengajuan, submissionId: req.params.id });
     res.json({ message: 'Pengajuan berhasil diverifikasi' });
@@ -501,88 +592,39 @@ async function verify(req, res) {
 }
 
 // ── PUT /api/submissions/:id/approve ──────────────────────────────
-// PR: butuh status Terverifikasi, role Approval/Admin
-// PAR: dari Menunggu Verifikasi langsung, butuh jabatan Kepala Operasional
+// Langkah persetujuan (final). Dari status Terverifikasi bila alur punya
+// langkah verifikasi; dari Menunggu Verifikasi bila tidak.
 async function approve(req, res) {
   try {
     const { data: sub } = await supabase.from('submissions')
-      .select('type, status, nomor_pengajuan, pemohon_id, batas_akhir_pembayaran, jenis_pembelian')
+      .select('type, status, nomor_pengajuan, pemohon_id, batas_akhir_pembayaran, jenis_pembelian, cabang_manual')
       .eq('id', req.params.id).single();
     if (!sub) return res.status(404).json({ error: 'Pengajuan tidak ditemukan' });
+    sub.id = req.params.id;
 
-    const isPAR = sub.type === 'PAR';
+    const flow       = await workflow.resolveFlow(sub.cabang_manual, sub.type);
+    const needsVerif = !!flow.verifikasi;
 
-    // ── Authorization check ─────────────────────────────────────
-    if (isPAR) {
-      if (!isKepalaOp(req.user) && req.user.role !== 'Admin' && !bolehHRGA(req.user, sub.jenis_pembelian))
-        return res.status(403).json({ error: 'Hanya Kepala Operasional (atau HRGA untuk Beban Dana Sosial) yang dapat menyetujui pengajuan PAR' });
-    } else {
-      if (!['Approval', 'Admin'].includes(req.user.role) && !bolehHRGA(req.user, sub.jenis_pembelian))
-        return res.status(403).json({ error: 'Hanya Approval (atau HRGA untuk Beban Dana Sosial) yang dapat menyetujui pengajuan PR' });
-    }
+    // Alur cabang ini tidak memakai langkah persetujuan (finalisasi via verifikasi).
+    if (!flow.approval)
+      return res.status(400).json({ error: 'Alur cabang ini tidak memakai langkah persetujuan — finalisasi dilakukan saat verifikasi' });
 
-    // ── Status check ────────────────────────────────────────────
-    if (isPAR) {
-      if (sub.status !== 'Menunggu Verifikasi')
-        return res.status(400).json({ error: 'Pengajuan PAR sudah diproses sebelumnya' });
-    } else {
+    if (!workflow.canApprove(req.user, flow, sub.jenis_pembelian))
+      return res.status(403).json({ error: `Hanya ${flow.approval} yang dapat menyetujui pengajuan ini` });
+
+    if (needsVerif) {
       if (sub.status !== 'Terverifikasi')
-        return res.status(400).json({ error: 'Pengajuan PR belum diverifikasi' });
+        return res.status(400).json({ error: 'Pengajuan belum diverifikasi' });
+    } else {
+      if (sub.status !== 'Menunggu Verifikasi')
+        return res.status(400).json({ error: 'Pengajuan sudah diproses sebelumnya' });
     }
 
-    const now = new Date().toISOString();
-    const updateData = {
-      status: 'Disetujui',
-      approver_id: req.user.id,
-      approval_at: now,
-    };
-
-    // PAR: set juga verifikator_id (Kepala Op = verifikator + approver)
-    if (isPAR) {
-      updateData.verifikator_id = req.user.id;
-      updateData.verifikasi_at  = now;
-    }
-
-    await supabase.from('submissions').update(updateData).eq('id', req.params.id);
-
-    const msgText = isPAR
-      ? `✅ DISETUJUI oleh ${req.user.name} (Kepala Operasional). Silakan proses pembayaran.`
-      : `✅ DISETUJUI oleh ${req.user.name}. Silakan proses pembayaran.`;
-    await supabase.from('messages').insert({
-      id: uuidv4(), submission_id: req.params.id, user_id: req.user.id,
-      message: msgText, is_system: true,
+    await finalizeApproval(req, sub, {
+      setApprover: true,
+      setVerifikator: !needsVerif,     // tanpa verifikasi → approver merangkap verifikator
+      actorLabel: !needsVerif ? flow.approval : null,
     });
-
-    await notifyUser(sub.pemohon_id, req.params.id, 'approved',
-      `🎉 Pengajuan ${sub.nomor_pengajuan} Anda telah DISETUJUI.`);
-
-    // Untuk PAR — notif juga ke Admin/Approval (Administration) karena mereka yang akan handle nota & bayar
-    if (isPAR) {
-      await notifyRole('Approval', req.params.id, 'approved',
-        `💰 PAR ${sub.nomor_pengajuan} telah disetujui Kepala Operasional. Silakan proses pembayaran.`);
-    }
-
-    const tmplApp = emailTemplates.approved(sub.nomor_pengajuan);
-    sendEmailToUser(sub.pemohon_id, { ...tmplApp, nomor: sub.nomor_pengajuan, submissionId: req.params.id, type: 'approved' }).catch(() => {});
-    if (isPAR) {
-      sendEmailToRole('Approval', { ...tmplApp, nomor: sub.nomor_pengajuan, submissionId: req.params.id }).catch(() => {});
-    }
-
-    if (sub.batas_akhir_pembayaran) {
-      const deadline  = new Date(sub.batas_akhir_pembayaran);
-      const notifDate = new Date(deadline.getTime() - 2 * 86400000);
-      if (notifDate > new Date()) {
-        await supabase.from('notification_schedule').upsert({
-          id: uuidv4(), submission_id: req.params.id, type: 'deadline_approaching',
-          scheduled_at: notifDate.toISOString(), sent: false,
-        }, { onConflict: 'submission_id,type' });
-      }
-    }
-
-    await supabase.from('notification_schedule').update({ sent: true, sent_at: now })
-      .eq('submission_id', req.params.id).eq('type', 'overdue_2days');
-
-    logAudit(req, { action: 'setujui', target: sub.nomor_pengajuan, submissionId: req.params.id });
     res.json({ message: 'Pengajuan berhasil disetujui' });
   } catch (err) {
     console.error('[submissions/approve]', err);
@@ -597,19 +639,14 @@ async function reject(req, res) {
     if (!alasan_tolak?.trim()) return res.status(400).json({ error: 'Alasan penolakan wajib diisi' });
 
     const { data: sub } = await supabase.from('submissions')
-      .select('type, status, nomor_pengajuan, pemohon_id, jenis_pembelian').eq('id', req.params.id).single();
+      .select('type, status, nomor_pengajuan, pemohon_id, jenis_pembelian, cabang_manual').eq('id', req.params.id).single();
     if (!sub) return res.status(404).json({ error: 'Pengajuan tidak ditemukan' });
 
-    const isPAR = sub.type === 'PAR';
-
-    // Authorization
-    if (isPAR) {
-      if (!isKepalaOp(req.user) && req.user.role !== 'Admin' && !bolehHRGA(req.user, sub.jenis_pembelian))
-        return res.status(403).json({ error: 'Hanya Kepala Operasional yang dapat menolak pengajuan PAR' });
-    } else {
-      if (!['Approval', 'Verifikator', 'Admin'].includes(req.user.role) && !bolehHRGA(req.user, sub.jenis_pembelian))
-        return res.status(403).json({ error: 'Anda tidak memiliki izin menolak pengajuan PR' });
-    }
+    // Authorization — siapa pun dalam rantai alur project boleh menolak
+    const flow = await workflow.resolveFlow(sub.cabang_manual, sub.type);
+    if (!workflow.canVerify(req.user, flow, sub.jenis_pembelian) &&
+        !workflow.canApprove(req.user, flow, sub.jenis_pembelian))
+      return res.status(403).json({ error: 'Anda tidak memiliki izin menolak pengajuan ini' });
 
     const now = new Date().toISOString();
     await supabase.from('submissions').update({
