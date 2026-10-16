@@ -352,7 +352,10 @@ function RevisiPanel({ snapshot, sub, user, onAction }) {
           {[
             { label: 'Pemohon',     name: sub?.pemohon?.name,              done: snapshot.status !== 'draft' },
             { label: 'Verifikator', name: snapshot.verifikator_user?.name, done: ['terverifikasi', 'disetujui'].includes(snapshot.status) },
-            { label: 'Approval',    name: snapshot.approver_user?.name,    done: ['disetujui', 'ditolak'].includes(snapshot.status), isReject: snapshot.status === 'ditolak' },
+            { label: 'Approval',
+              name:    (wf && !wf.perlu_approval) ? 'Tanpa persetujuan' : snapshot.approver_user?.name,
+              done:    (wf && !wf.perlu_approval) ? false : ['disetujui', 'ditolak'].includes(snapshot.status),
+              isReject: snapshot.status === 'ditolak' },
           ].map((sig, i) => (
             <div key={i} className={`text-center p-2.5 rounded-xl border ${
               sig.done ? sig.isReject ? 'bg-red-50 dark:bg-red-500/10 border-red-100 dark:border-red-500/20' : 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-100 dark:border-emerald-500/20'
