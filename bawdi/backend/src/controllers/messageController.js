@@ -102,16 +102,30 @@ async function send(req, res) {
 // di-dismiss). Ditandai terbaca saat user membuka tab chat (markRead).
 async function unreadMap(req, res) {
   try {
-    const { data, error } = await supabase
-      .from('notifications')
-      .select('submission_id')
-      .eq('user_id', req.user.id)
-      .eq('type', 'new_message')
-      .eq('is_read', false)
-      .not('submission_id', 'is', null);
+    // Penanda baca per-pengajuan utk user ini (fault-tolerant bila tabel belum ada).
+    const readAt = new Map();
+    try {
+      const { data: reads } = await supabase.from('chat_reads')
+        .select('submission_id, last_read_at').eq('user_id', req.user.id);
+      for (const r of reads || []) readAt.set(r.submission_id, r.last_read_at);
+    } catch { /* tabel chat_reads belum dibuat → anggap belum pernah dibaca */ }
+
+    // Chat (bukan pesan sistem) dari orang lain. Unread = lebih baru dari penanda baca.
+    const { data: msgs, error } = await supabase.from('messages')
+      .select('submission_id, created_at')
+      .eq('is_system', false)
+      .neq('user_id', req.user.id)
+      .not('submission_id', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(5000);
     if (error) throw error;
+
     const map = {};
-    for (const n of data || []) map[n.submission_id] = (map[n.submission_id] || 0) + 1;
+    for (const m of msgs || []) {
+      const last = readAt.get(m.submission_id);
+      if (!last || new Date(m.created_at) > new Date(last))
+        map[m.submission_id] = (map[m.submission_id] || 0) + 1;
+    }
     res.json({ data: map });
   } catch (err) {
     console.error('[messages/unread-map]', err);
@@ -120,9 +134,17 @@ async function unreadMap(req, res) {
 }
 
 // PUT /api/messages/:submissionId/read
-// Tandai semua notifikasi chat pengajuan ini sebagai terbaca untuk user ini.
+// Tandai chat pengajuan ini sebagai terbaca untuk user ini (penanda chat_reads),
+// sekaligus bersihkan notifikasi chat di lonceng.
 async function markRead(req, res) {
   try {
+    const now = new Date().toISOString();
+    try {
+      await supabase.from('chat_reads').upsert(
+        { user_id: req.user.id, submission_id: req.params.submissionId, last_read_at: now },
+        { onConflict: 'user_id,submission_id' });
+    } catch (e) { console.warn('[messages/markRead] chat_reads dilewati:', e.message); }
+
     await supabase.from('notifications')
       .update({ is_read: true })
       .eq('user_id', req.user.id)
