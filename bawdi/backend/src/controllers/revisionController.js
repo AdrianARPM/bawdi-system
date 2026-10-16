@@ -524,7 +524,7 @@ async function verifyRevision(req, res) {
     if (!flow.approval) {
       await finalizeRevisionApproved(req, snap, {
         setApprover: false, setVerifikator: true,
-        label: `✅ Revisi ke-${snap.revision_number} diverifikasi & final oleh ${req.user.name} (${flow.verifikasi || 'Verifikator'}) — tanpa persetujuan terpisah. Silakan proses pembayaran.`,
+        label: `✅ Revisi ke-${snap.revision_number} diverifikasi & final oleh ${req.user.name} — tanpa persetujuan terpisah. Silakan proses pembayaran.`,
       });
       return res.json({ message: 'Revisi diverifikasi & disetujui' });
     }
@@ -596,11 +596,12 @@ async function approveRevision(req, res) {
 
     await finalizeRevisionApproved(req, snap, {
       setApprover: !noApproval,
-      // Set verifikator bila tak ada langkah verifikasi terpisah (approver merangkap).
-      setVerifikator: noApproval || !needVerif,
+      // Set verifikator HANYA bila tak ada langkah verifikasi terpisah (mis. PAR,
+      // approver merangkap). Bila ada langkah verifikasi, jangan timpa verifikator asli.
+      setVerifikator: !needVerif,
       label: noApproval
-        ? `✅ Revisi ke-${snap.revision_number} difinalkan oleh ${req.user.name} (${flow.verifikasi || 'Verifikator'}) — tanpa persetujuan terpisah. Silakan proses pembayaran.`
-        : `✅ Revisi ke-${snap.revision_number} DISETUJUI oleh ${req.user.name}${!needVerif ? ` (${flow.approval})` : ''}. Silakan proses pembayaran.`,
+        ? `✅ Revisi ke-${snap.revision_number} difinalkan oleh ${req.user.name} — tanpa persetujuan terpisah. Silakan proses pembayaran.`
+        : `✅ Revisi ke-${snap.revision_number} DISETUJUI oleh ${req.user.name}. Silakan proses pembayaran.`,
     });
     res.json({ message: `Revisi ke-${snap.revision_number} berhasil disetujui` });
   } catch (err) {
