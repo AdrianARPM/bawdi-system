@@ -112,7 +112,7 @@ export default function VehiclesPage() {
                 <div>
                   <p className="font-black text-slate-800 dark:text-slate-100">{v.plat}</p>
                   {v.plat_sebelumnya && (
-                    <p className="text-[10px] text-amber-600 dark:text-amber-400/80 font-semibold">d/h {v.plat_sebelumnya}</p>
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400/80 font-semibold">ex {v.plat_sebelumnya}</p>
                   )}
                   <p className="text-[11px] text-slate-400 dark:text-slate-500">
                     {v.jenis || '—'} {v.cabang ? `• ${v.cabang}` : ''}
