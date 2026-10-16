@@ -85,6 +85,7 @@ async function send(req, res) {
 }
 
 // GET /api/messages/unread-map
+// Peta {submission_id: jumlah} chat belum dibaca milik user ini — dipakai
 // SubmissionsPage untuk menandai kartu yang punya pesan baru. Sumbernya
 // notifikasi tipe 'new_message' yang belum dibaca (bertahan walau push
 // di-dismiss). Ditandai terbaca saat user membuka tab chat (markRead).
