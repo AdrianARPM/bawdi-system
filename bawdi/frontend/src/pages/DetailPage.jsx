@@ -110,10 +110,15 @@ function RevisiPanel({ snapshot, sub, user, onAction }) {
   const isPARSnap       = sub?.type === 'PAR';
   const kepalaOpOrAdmin = user.jabatan === 'Kepala Operasional' || user.role === 'Admin';
   const hrgaDanaSosial  = user.jabatan === 'HRGA' && sub?.jenis_pembelian === 'Beban Dana Sosial';
-  const canVerify  = (wf ? wf.user_verifikasi_snapshot
+  // Langkah verifikasi revisi hanya ada bila alur cabang memakai verifikasi.
+  const canVerify  = (wf ? (wf.perlu_verifikasi && wf.user_verifikasi_snapshot)
     : ((isPARSnap ? kepalaOpOrAdmin : user.role === 'Verifikator') || hrgaDanaSosial)) && snapshot.status === 'submitted';
+  // Setujui: dari 'terverifikasi'; atau langsung dari 'submitted' bila alur tanpa
+  // verifikasi (mis. PAR). Pada alur tanpa approval, finalisasi terjadi di verifikasi
+  // (snapshot tak pernah ke 'terverifikasi') — tombol ini hanya utk snapshot lama.
   const canApprove = (wf ? wf.user_setujui_snapshot
-    : ((isPARSnap ? kepalaOpOrAdmin : user.role === 'Approval')    || hrgaDanaSosial)) && snapshot.status === 'terverifikasi';
+    : ((isPARSnap ? kepalaOpOrAdmin : user.role === 'Approval')    || hrgaDanaSosial))
+    && (snapshot.status === 'terverifikasi' || (wf && !wf.perlu_verifikasi && snapshot.status === 'submitted'));
 
   return (
     <div className="space-y-4">
@@ -165,10 +170,12 @@ function RevisiPanel({ snapshot, sub, user, onAction }) {
         <div className="bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-2xl p-4 flex items-center justify-between gap-3">
           <div>
             <p className="text-sm font-bold text-blue-800 dark:text-blue-300">Perlu Verifikasi Anda</p>
-            <p className="text-xs text-blue-400 mt-0.5">Periksa perubahan data revisi ini</p>
+            <p className="text-xs text-blue-400 mt-0.5">
+              {wf && !wf.perlu_approval ? 'Verifikasi langsung menyetujui revisi ini (tanpa approval terpisah)' : 'Periksa perubahan data revisi ini'}
+            </p>
           </div>
           <Button variant="info" onClick={() => act('verify')} loading={actLoading === 'verify'}>
-            Verifikasi
+            {wf && !wf.perlu_approval ? 'Verifikasi & Setujui' : 'Verifikasi'}
           </Button>
         </div>
       )}

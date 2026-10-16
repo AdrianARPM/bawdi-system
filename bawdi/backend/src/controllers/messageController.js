@@ -60,19 +60,30 @@ async function send(req, res) {
 
     if (error) throw error;
 
-    // Notifikasi chat ke peserta lain — muncul di bell (unread). Non-blocking.
+    // Notifikasi chat → peserta pengajuan + semua Admin (pemantau). Muncul di bell
+    // & jadi badge chat di daftar pengajuan. Non-blocking.
     try {
       const senderId   = req.user.id;
       const senderName = data.user?.name || 'Seseorang';
       const nomor      = sub.nomor_pengajuan || 'pengajuan';
       const msg        = `💬 Pesan baru dari ${senderName} · ${nomor}`;
-      const recipients = [...new Set([sub.pemohon_id, sub.verifikator_id, sub.approver_id])]
+
+      // Admin selalu ikut agar bisa memantau chat seluruh pengajuan.
+      let adminIds = [];
+      try {
+        const { data: admins } = await supabase.from('users')
+          .select('id').eq('role', 'Admin').eq('is_active', true);
+        adminIds = (admins || []).map(a => a.id);
+      } catch {}
+
+      const directIds = [...new Set([sub.pemohon_id, sub.verifikator_id, sub.approver_id, ...adminIds])]
         .filter(uid => uid && uid !== senderId);
-      if (recipients.length) {
-        await Promise.all(recipients.map(uid =>
+      if (directIds.length) {
+        await Promise.all(directIds.map(uid =>
           notifyUser(uid, req.params.submissionId, 'new_message', msg)));
-      } else if (senderId === sub.pemohon_id) {
-        // Belum ada verifikator/approver ditetapkan → beri tahu Verifikator
+      }
+      // Belum ada verifikator/approver ditetapkan → tetap beri tahu Verifikator (role).
+      if (!sub.verifikator_id && !sub.approver_id && senderId === sub.pemohon_id) {
         await notifyRole('Verifikator', req.params.submissionId, 'new_message', msg);
       }
     } catch (e) { console.warn('[messages/send] notif dilewati:', e.message); }

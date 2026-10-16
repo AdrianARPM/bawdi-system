@@ -13,6 +13,27 @@ const ExcelJS = require('exceljs');
 const { logAudit } = require('../utils/auditLogger');
 const { sendEmailToUser, sendEmailToRole, emailTemplates } = require('../utils/emailService');
 const workflow = require('../utils/workflow');
+const { parsePrevPlat, resolveVehiclePlates } = require('../utils/plat');
+
+// Normalisasi plat utk pencocokan arsip (uppercase, spasi rapi).
+const normPlatR = (p) => String(p || '').trim().toUpperCase().replace(/\s+/g, ' ');
+
+// Peta alias plat dari master kendaraan (fault-tolerant bila kolom belum ada).
+//  - toCurrent : normPlat(plat apa pun) → plat SEKARANG (string) kendaraan itu
+//  - toSet     : normPlat(plat apa pun) → Set semua plat (normPlat) kendaraan itu
+async function buildPlatAlias() {
+  const toCurrent = new Map();
+  const toSet = new Map();
+  try {
+    const { data: vehs } = await supabase.from('vehicles').select('plat, plat_sebelumnya');
+    for (const v of vehs || []) {
+      const plates = [v.plat, ...parsePrevPlat(v.plat_sebelumnya)].map(normPlatR).filter(Boolean);
+      const set = new Set(plates);
+      for (const p of plates) { toCurrent.set(p, normPlatR(v.plat)); toSet.set(p, set); }
+    }
+  } catch { /* kolom plat_sebelumnya belum ada → peta kosong (perilaku lama) */ }
+  return { toCurrent, toSet };
+}
 
 // Helper: cek apakah user adalah Kepala Operasional
 const isKepalaOp = (user) => user?.jabatan === 'Kepala Operasional';
@@ -399,23 +420,23 @@ async function submitRevision(req, res) {
     // Ambil data submission untuk notifikasi
     const { data: sub } = await supabase
       .from('submissions')
-      .select('nomor_pengajuan, pemohon_id, revisi_diminta_oleh, jenis_pembelian')
+      .select('nomor_pengajuan, pemohon_id, revisi_diminta_oleh, jenis_pembelian, type, cabang_manual')
       .eq('id', snap.submission_id)
       .single();
 
+    // Aktor berikutnya mengikuti profil alur cabang (PAR → langsung ke Kepala Operasional).
+    const flowSub   = await workflow.resolveFlow(sub?.cabang_manual, sub?.type);
+    const nextActor = (sub?.jenis_pembelian === DANA_SOSIAL) ? 'HRGA' : workflow.firstActor(flowSub);
+    const aksi      = nextActor === flowSub.verifikasi ? 'verifikasi ulang' : 'persetujuan';
+
     await supabase.from('messages').insert({
       id: uuidv4(), submission_id: snap.submission_id, user_id: req.user.id,
-      message: `✅ Revisi ke-${snap.revision_number} selesai dikirim oleh ${req.user.name}. Menunggu verifikasi ulang.`,
+      message: `✅ Revisi ke-${snap.revision_number} selesai dikirim oleh ${req.user.name}. Menunggu ${aksi}.`,
       is_system: true,
     });
 
-    if (sub?.jenis_pembelian === DANA_SOSIAL) {
-      await notifyHRGA(snap.submission_id, 'revision_done',
-        `✅ Revisi ke-${snap.revision_number} pengajuan ${sub?.nomor_pengajuan} sudah selesai, silakan proses.`);
-    } else {
-      await notifyRole('Verifikator', snap.submission_id, 'revision_done',
-        `✅ Revisi ke-${snap.revision_number} pengajuan ${sub?.nomor_pengajuan} sudah selesai, silakan verifikasi ulang.`);
-    }
+    await notifyActor(nextActor, snap.submission_id, 'revision_done',
+      `✅ Revisi ke-${snap.revision_number} pengajuan ${sub?.nomor_pengajuan} sudah selesai, menunggu ${aksi}.`);
 
     if (sub?.revisi_diminta_oleh) {
       await notifyUser(sub.revisi_diminta_oleh, snap.submission_id, 'revision_done',
@@ -429,12 +450,56 @@ async function submitRevision(req, res) {
   }
 }
 
+// Finalisasi revisi ke status Disetujui (dipakai approveRevision, dan verifyRevision
+// saat alur cabang TANPA langkah persetujuan → verifikasi langsung memfinalkan).
+// setApprover=false membiarkan approver kosong (nama approver tidak terisi).
+async function finalizeRevisionApproved(req, snap, { setApprover, setVerifikator, label }) {
+  const now = new Date().toISOString();
+
+  const snapPatch = { status: 'disetujui', approval_at: now, approver_id: setApprover ? req.user.id : null };
+  if (setVerifikator) { snapPatch.verifikator_id = req.user.id; snapPatch.verifikasi_at = now; }
+  await supabase.from('revision_snapshots').update(snapPatch).eq('id', snap.id);
+
+  const subPatch = {
+    status: 'Disetujui', approval_at: now, approver_id: setApprover ? req.user.id : null,
+    total_harga: snap.total_harga,
+    ...(snap.alasan_type            ? { alasan_type:            snap.alasan_type }            : {}),
+    ...(snap.batas_waktu_dana       ? { batas_waktu_dana:       snap.batas_waktu_dana }       : {}),
+    ...(snap.batas_akhir_pembayaran ? { batas_akhir_pembayaran: snap.batas_akhir_pembayaran } : {}),
+  };
+  if (setVerifikator) { subPatch.verifikator_id = req.user.id; subPatch.verifikasi_at = now; }
+  await supabase.from('submissions').update(subPatch).eq('id', snap.submission_id);
+
+  const { data: sub } = await supabase
+    .from('submissions').select('nomor_pengajuan, pemohon_id, batas_akhir_pembayaran').eq('id', snap.submission_id).single();
+
+  await supabase.from('messages').insert({
+    id: uuidv4(), submission_id: snap.submission_id, user_id: req.user.id, message: label, is_system: true,
+  });
+  await notifyUser(sub?.pemohon_id, snap.submission_id, 'approved',
+    `🎉 Revisi ke-${snap.revision_number} pengajuan ${sub?.nomor_pengajuan} telah DISETUJUI.`);
+  sendEmailToUser(sub?.pemohon_id, {
+    ...emailTemplates.approved(sub?.nomor_pengajuan),
+    nomor: sub?.nomor_pengajuan, submissionId: snap.submission_id, type: 'approved',
+  }).catch(() => {});
+  if (sub?.batas_akhir_pembayaran) {
+    const notifDate = new Date(new Date(sub.batas_akhir_pembayaran).getTime() - 2 * 86400000);
+    if (notifDate > new Date()) {
+      await supabase.from('notification_schedule').upsert({
+        id: uuidv4(), submission_id: snap.submission_id, type: 'deadline_approaching',
+        scheduled_at: notifDate.toISOString(), sent: false,
+      }, { onConflict: 'submission_id,type' });
+    }
+  }
+  logAudit(req, { action: 'revisi_setujui', target: `Revisi ke-${snap.revision_number}`, submissionId: snap.submission_id });
+}
+
 // ── PUT /api/revisions/snapshot/:snapshotId/verify ────────────────
 async function verifyRevision(req, res) {
   try {
     const { data: snap } = await supabase
       .from('revision_snapshots')
-      .select('id, status, submission_id, revision_number')
+      .select('id, status, submission_id, revision_number, total_harga, alasan_type, batas_waktu_dana, batas_akhir_pembayaran')
       .eq('id', req.params.snapshotId).single();
 
     if (!snap) return res.status(404).json({ error: 'Snapshot tidak ditemukan' });
@@ -446,9 +511,23 @@ async function verifyRevision(req, res) {
       .from('submissions').select('type, jenis_pembelian, cabang_manual').eq('id', snap.submission_id).single();
     const flow = await workflow.resolveFlow(subType?.cabang_manual, subType?.type);
 
-    // Authorization — pelaku verifikasi snapshot (approver merangkap bila tanpa verifikasi)
+    // Alur TANPA langkah verifikasi (mis. PAR) → tidak ada verifikasi terpisah,
+    // approver langsung menyetujui revisi.
+    if (!flow.verifikasi)
+      return res.status(400).json({ error: `Alur cabang ini tidak memakai verifikasi terpisah — revisi langsung disetujui oleh ${flow.approval}` });
+
+    // Authorization — pelaku verifikasi snapshot.
     if (!workflow.canVerifySnapshot(req.user, flow, subType?.jenis_pembelian))
-      return res.status(403).json({ error: `Hanya ${flow.verifikasi || flow.approval} yang dapat memverifikasi revisi ini` });
+      return res.status(403).json({ error: `Hanya ${flow.verifikasi} yang dapat memverifikasi revisi ini` });
+
+    // Alur TANPA langkah persetujuan → verifikasi langsung MEMFINALKAN (approver kosong).
+    if (!flow.approval) {
+      await finalizeRevisionApproved(req, snap, {
+        setApprover: false, setVerifikator: true,
+        label: `✅ Revisi ke-${snap.revision_number} diverifikasi & final oleh ${req.user.name} (${flow.verifikasi || 'Verifikator'}) — tanpa persetujuan terpisah. Silakan proses pembayaran.`,
+      });
+      return res.json({ message: 'Revisi diverifikasi & disetujui' });
+    }
 
     const now = new Date().toISOString();
     await supabase.from('revision_snapshots').update({
@@ -493,74 +572,36 @@ async function approveRevision(req, res) {
       .eq('id', req.params.snapshotId).single();
 
     if (!snap) return res.status(404).json({ error: 'Snapshot tidak ditemukan' });
-    if (snap.status !== 'terverifikasi')
-      return res.status(400).json({ error: 'Revisi belum diverifikasi' });
 
     // Cek tipe submission + alur cabang
     const { data: subType } = await supabase
       .from('submissions').select('type, jenis_pembelian, cabang_manual').eq('id', snap.submission_id).single();
     const flow = await workflow.resolveFlow(subType?.cabang_manual, subType?.type);
+    const needVerif  = !!flow.verifikasi;
+    const noApproval = !flow.approval;
+
+    // Status: butuh 'terverifikasi' bila ada langkah verifikasi; bila tidak
+    // (mis. PAR), approver langsung memfinalkan dari 'submitted'.
+    if (needVerif) {
+      if (snap.status !== 'terverifikasi')
+        return res.status(400).json({ error: 'Revisi belum diverifikasi' });
+    } else {
+      if (!['submitted', 'terverifikasi'].includes(snap.status))
+        return res.status(400).json({ error: 'Revisi belum dikirim pemohon' });
+    }
 
     // Authorization — pelaku persetujuan snapshot (verifikator merangkap bila tanpa approval)
     if (!workflow.canApproveSnapshot(req.user, flow, subType?.jenis_pembelian))
       return res.status(403).json({ error: `Hanya ${flow.approval || flow.verifikasi} yang dapat menyetujui revisi ini` });
 
-    const now = new Date().toISOString();
-    // Alur tanpa langkah persetujuan → approver dibiarkan KOSONG (nama approver
-    // tidak terisi), walau yang memfinalkan adalah verifikator yang merangkap.
-    const noApproval = !flow.approval;
-    const approverId = noApproval ? null : req.user.id;
-
-    await supabase.from('revision_snapshots').update({
-      status: 'disetujui', approver_id: approverId, approval_at: now,
-    }).eq('id', req.params.snapshotId);
-
-    // Hanya update STATUS dan total_harga (untuk tracking pembayaran)
-    // Data asli (submission_items, alasan, vendor, dll) TIDAK diubah
-    // agar tab Pengajuan Asli selalu menampilkan data original pengajuan pertama
-    await supabase.from('submissions').update({
-      status:      'Disetujui',
-      approver_id: approverId,
-      approval_at: now,
-      total_harga: snap.total_harga,  // update total untuk tracking pembayaran
-      ...(snap.alasan_type            ? { alasan_type:            snap.alasan_type }            : {}),
-      ...(snap.batas_waktu_dana       ? { batas_waktu_dana:       snap.batas_waktu_dana }       : {}),
-      ...(snap.batas_akhir_pembayaran ? { batas_akhir_pembayaran: snap.batas_akhir_pembayaran } : {}),
-    }).eq('id', snap.submission_id);
-
-    const { data: sub } = await supabase
-      .from('submissions').select('nomor_pengajuan, pemohon_id, batas_akhir_pembayaran').eq('id', snap.submission_id).single();
-
-    await supabase.from('messages').insert({
-      id: uuidv4(), submission_id: snap.submission_id, user_id: req.user.id,
-      message: noApproval
+    await finalizeRevisionApproved(req, snap, {
+      setApprover: !noApproval,
+      // Set verifikator bila tak ada langkah verifikasi terpisah (approver merangkap).
+      setVerifikator: noApproval || !needVerif,
+      label: noApproval
         ? `✅ Revisi ke-${snap.revision_number} difinalkan oleh ${req.user.name} (${flow.verifikasi || 'Verifikator'}) — tanpa persetujuan terpisah. Silakan proses pembayaran.`
-        : `✅ Revisi ke-${snap.revision_number} DISETUJUI oleh ${req.user.name}. Silakan proses pembayaran.`,
-      is_system: true,
+        : `✅ Revisi ke-${snap.revision_number} DISETUJUI oleh ${req.user.name}${!needVerif ? ` (${flow.approval})` : ''}. Silakan proses pembayaran.`,
     });
-
-    await notifyUser(sub?.pemohon_id, snap.submission_id, 'approved',
-      `🎉 Revisi ke-${snap.revision_number} pengajuan ${sub?.nomor_pengajuan} telah DISETUJUI.`);
-
-    // Email ke pemohon: revisi disetujui (non-blocking)
-    sendEmailToUser(sub?.pemohon_id, {
-      ...emailTemplates.approved(sub?.nomor_pengajuan),
-      nomor: sub?.nomor_pengajuan, submissionId: snap.submission_id, type: 'approved',
-    }).catch(() => {});
-
-    // Jadwalkan notifikasi deadline
-    if (sub?.batas_akhir_pembayaran) {
-      const deadlineDate = new Date(sub.batas_akhir_pembayaran);
-      const notifDate    = new Date(deadlineDate.getTime() - 2 * 86400000);
-      if (notifDate > new Date()) {
-        await supabase.from('notification_schedule').upsert({
-          id: uuidv4(), submission_id: snap.submission_id,
-          type: 'deadline_approaching', scheduled_at: notifDate.toISOString(), sent: false,
-        }, { onConflict: 'submission_id,type' });
-      }
-    }
-
-    logAudit(req, { action: 'revisi_setujui', target: `Revisi ke-${snap.revision_number}`, submissionId: snap.submission_id });
     res.json({ message: `Revisi ke-${snap.revision_number} berhasil disetujui` });
   } catch (err) {
     res.status(500).json({ error: 'Gagal menyetujui revisi: ' + err.message });
@@ -872,6 +913,19 @@ const NAMA_BULAN = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
 
 // Ambil baris arsip langsung dari submissions (status Disetujui/Selesai).
 async function fetchArsipRows({ kendaraan, tahun, bulan } = {}) {
+  // Sadar-alias: filter plat mencakup plat sekarang + plat sebelumnya.
+  let platesSet = null, orFilter = null;
+  if (kendaraan) {
+    const plates = await resolveVehiclePlates(supabase, kendaraan);
+    const list = plates.length ? plates : [kendaraan];
+    platesSet = new Set(list.map(normPlatR));
+    const coarse = [...new Set(list.map(p => {
+      const d = String(p).replace(/\D+/g, '');
+      return d.length >= 2 ? `%${d}%` : `%${String(p).trim()}%`;
+    }))];
+    orFilter = coarse.map(c => `kendaraan.ilike.${c}`).join(',');
+  }
+
   let query = supabase.from('submissions')
     .select(`id, nomor_pengajuan, type, status, tanggal, approval_at, tanggal_bayar, pemohon_id,
              jumlah_bayar, jumlah_dp, total_harga, jenis_pembelian, kendaraan, cabang, cabang_manual,
@@ -879,7 +933,7 @@ async function fetchArsipRows({ kendaraan, tahun, bulan } = {}) {
              pemohon:users!submissions_pemohon_id_fkey(name, cabang)`)
     .in('status', ['Disetujui', 'Selesai'])
     .order('tanggal', { ascending: true });
-  if (kendaraan) query = query.ilike('kendaraan', `%${kendaraan}%`);
+  if (orFilter) query = query.or(orFilter);
   if (tahun && bulan) {
     // Satu bulan spesifik: dari tgl 1 bulan itu s/d tgl 1 bulan berikutnya
     const b = Number(bulan), y = Number(tahun);
@@ -891,7 +945,8 @@ async function fetchArsipRows({ kendaraan, tahun, bulan } = {}) {
   }
   const { data, error } = await query;
   if (error) throw error;
-  return (data || []).map(s => {
+  const raw = platesSet ? (data || []).filter(s => platesSet.has(normPlatR(s.kendaraan))) : (data || []);
+  return raw.map(s => {
     const d = new Date(s.tanggal);
     const cabang = (s.cabang_manual && s.cabang_manual.trim()) ? s.cabang_manual.trim()
                  : (s.cabang && s.cabang.trim())             ? s.cabang.trim()
@@ -922,7 +977,10 @@ async function getDraft(req, res) {
     // Operasional hanya melihat arsip sendiri; Kepala Operasional melihat semua (read-only)
     if (req.user.role === 'Operasional' && req.user.jabatan !== 'Kepala Operasional')
       all = all.filter(r => r.pemohon_id === req.user.id);
-    const kendaraanList = [...new Set(all.map(r => r.kendaraan))].sort();
+    // Sadar-alias: plat lama disatukan ke plat sekarang di daftar filter.
+    const alias = await buildPlatAlias();
+    const displayPlat = (p) => alias.toCurrent.get(normPlatR(p)) || p;
+    const kendaraanList = [...new Set(all.map(r => displayPlat(r.kendaraan)))].sort();
     const cabangList    = [...new Set(all.map(r => r.cabang))].sort();
     const bulanList = [...new Map(all.map(r => [
       `${r.bulan}-${r.tahun}`,
@@ -930,7 +988,12 @@ async function getDraft(req, res) {
     ])).values()].sort((a, b) => (b.tahun * 12 + b.bulan) - (a.tahun * 12 + a.bulan));
 
     let rows = all;
-    if (kendaraan) rows = rows.filter(r => r.kendaraan.toLowerCase().includes(kendaraan.toLowerCase()));
+    if (kendaraan) {
+      const set = alias.toSet.get(normPlatR(kendaraan));   // gabung plat lama + baru
+      rows = set
+        ? rows.filter(r => set.has(normPlatR(r.kendaraan)))
+        : rows.filter(r => r.kendaraan.toLowerCase().includes(kendaraan.toLowerCase()));
+    }
     if (tahun)     rows = rows.filter(r => r.tahun === Number(tahun));
     if (bulan)     rows = rows.filter(r => r.bulan === Number(bulan));
 
