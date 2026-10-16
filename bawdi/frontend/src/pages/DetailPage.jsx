@@ -1041,6 +1041,8 @@ useEffect(() => {
 
   useEffect(() => {
     if (activeTab !== 'chat') return;
+    // Buka tab chat → tandai notifikasi chat pengajuan ini terbaca (hapus badge).
+    messageAPI.markRead(id).catch(() => {});
     const t = setInterval(async () => {
       try { const { data } = await messageAPI.list(id); setMsgs(prev => ((data.data||[]).length === prev.length ? prev : data.data)); } catch {}
     }, 10000);

@@ -111,6 +111,9 @@ export default function VehiclesPage() {
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <p className="font-black text-slate-800 dark:text-slate-100">{v.plat}</p>
+                  {v.plat_sebelumnya && (
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400/80 font-semibold">d/h {v.plat_sebelumnya}</p>
+                  )}
                   <p className="text-[11px] text-slate-400 dark:text-slate-500">
                     {v.jenis || '—'} {v.cabang ? `• ${v.cabang}` : ''}
                     {!v.is_active && <span className="text-red-400 font-semibold"> • NONAKTIF</span>}
@@ -325,6 +328,23 @@ function VehicleModal({ vehicle, onClose, onSaved }) {
   const [saving, setSaving] = useState(false);
   const set = (k, v) => setF(s => ({ ...s, [k]: v }));
 
+  // Ganti plat (plat lama → alias; riwayat tetap tersambung)
+  const [gantiOpen, setGantiOpen] = useState(false);
+  const [platBaru, setPlatBaru]   = useState('');
+  const [gantiSaving, setGantiSaving] = useState(false);
+  const doGantiPlat = async () => {
+    if (!platBaru.trim()) { toast.error('Plat baru wajib diisi'); return; }
+    if (!window.confirm(`Ganti plat ${vehicle.plat} → ${platBaru.toUpperCase()}?\nPlat lama disimpan sebagai riwayat dan tetap tersambung.`)) return;
+    setGantiSaving(true);
+    try {
+      const { data } = await vehicleAPI.gantiPlat(vehicle.id, platBaru.trim());
+      toast.success(data.message || 'Plat diganti');
+      onSaved();
+    } catch (err) {
+      toast.error(err?.response?.data?.error || 'Gagal mengganti plat');
+    } finally { setGantiSaving(false); }
+  };
+
   const save = async () => {
     if (!isEdit && !f.plat.trim()) { toast.error('Plat wajib diisi'); return; }
     setSaving(true);
@@ -377,6 +397,41 @@ function VehicleModal({ vehicle, onClose, onSaved }) {
             Kendaraan aktif (ikut dalam Export Semua)
           </label>
         )}
+
+        {isEdit && (
+          <div className="rounded-xl border border-slate-100 dark:border-slate-800 p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Plat kendaraan ini</p>
+                <p className="text-sm font-black text-slate-800 dark:text-slate-100">{vehicle.plat}</p>
+                {vehicle.plat_sebelumnya && (
+                  <p className="text-[10px] text-amber-600 dark:text-amber-400/80 font-semibold mt-0.5">Sebelumnya: {vehicle.plat_sebelumnya}</p>
+                )}
+              </div>
+              {!gantiOpen && (
+                <button type="button" onClick={() => { setGantiOpen(true); setPlatBaru(''); }}
+                  className="text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-500/20">
+                  Ganti Plat
+                </button>
+              )}
+            </div>
+            {gantiOpen && (
+              <div className="space-y-2">
+                <p className="text-[10px] text-slate-400 dark:text-slate-500">
+                  Plat lama otomatis disimpan sebagai riwayat; riwayat KM/item/laporan tetap tersambung.
+                </p>
+                <div className="flex gap-2">
+                  <input value={platBaru} onChange={e => setPlatBaru(e.target.value.toUpperCase())}
+                    placeholder="Plat baru, mis. BM 8705 AU"
+                    className="flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-sm dark:bg-slate-900 outline-none focus:border-amber-400 placeholder:text-slate-300 dark:placeholder:text-slate-600"/>
+                  <Button onClick={doGantiPlat} loading={gantiSaving}>Ganti</Button>
+                  <Button variant="secondary" onClick={() => setGantiOpen(false)}>Batal</Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="flex gap-2 pt-1">
           <Button variant="secondary" className="flex-1" onClick={onClose}>Batal</Button>
           <Button className="flex-1" onClick={save} loading={saving}>Simpan</Button>

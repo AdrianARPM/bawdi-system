@@ -6,6 +6,7 @@
 const supabase = require('../../config/supabase');
 const { v4: uuidv4 } = require('uuid');
 const ExcelJS = require('exceljs');
+const { parsePrevPlat, resolveVehiclePlates } = require('../utils/plat');
 
 // v21: normalisasi nama item utk kelompokkan riwayat per-item
 const normTxt = (v) => (v || '').trim().toLowerCase().replace(/\s+/g, ' ');
@@ -18,6 +19,16 @@ const normPlat = (p) => (p || '').trim().replace(/\s+/g, ' ').toUpperCase();
 async function autoRegisterVehicle(plat, cabang = '') {
   const clean = normPlat(plat);
   if (!clean) return;
+  // Jangan daftarkan ulang bila plat ini adalah plat LAMA (alias) kendaraan lain.
+  try {
+    const d = clean.replace(/\D+/g, '');
+    if (d.length >= 2) {
+      const { data: aliasHit } = await supabase.from('vehicles')
+        .select('plat_sebelumnya').ilike('plat_sebelumnya', `%${d}%`);
+      const isAlias = (aliasHit || []).some(v => parsePrevPlat(v.plat_sebelumnya).map(normPlat).includes(clean));
+      if (isAlias) return;
+    }
+  } catch { /* kolom plat_sebelumnya belum ada → lanjut daftar seperti biasa */ }
   try {
     await supabase.from('vehicles')
       .upsert({ id: uuidv4(), plat: clean, cabang: cabang || '' },
@@ -130,11 +141,68 @@ async function update(req, res) {
 
     const { data, error } = await supabase.from('vehicles')
       .update(patch).eq('id', req.params.id).select().single();
-    if (error) throw error;
+    if (error) {
+      if (error.code === '22001')
+        return res.status(400).json({ error: 'Salah satu nilai terlalu panjang untuk kolomnya — periksa Type/Model, Tahun (maks 10 karakter, isi angka saja mis. 2012), atau Kategori.' });
+      if (error.code === '23505')
+        return res.status(400).json({ error: 'Plat bentrok dengan kendaraan lain.' });
+      throw error;
+    }
     res.json({ message: 'Kendaraan diperbarui', data });
   } catch (err) {
     console.error('[vehicles/update]', err);
-    res.status(500).json({ error: 'Gagal memperbarui kendaraan' });
+    res.status(500).json({ error: 'Gagal memperbarui kendaraan: ' + (err.message || '') });
+  }
+}
+
+// ── PUT /api/vehicles/:id/ganti-plat ────────────────────────────
+// Ganti plat kendaraan. Plat lama disimpan sebagai plat_sebelumnya (alias) agar
+// riwayat tetap tersambung. Bila plat baru sudah terdaftar sebagai kendaraan lain
+// (mis. terlanjur auto-register dari pengajuan), kedua baris DIGABUNG.
+async function gantiPlat(req, res) {
+  try {
+    const platBaru = normPlat(req.body.plat_baru);
+    if (!platBaru) return res.status(400).json({ error: 'Plat baru wajib diisi' });
+
+    const { data: v } = await supabase.from('vehicles').select('*').eq('id', req.params.id).single();
+    if (!v) return res.status(404).json({ error: 'Kendaraan tidak ditemukan' });
+
+    const platLama = normPlat(v.plat);
+    if (platBaru === platLama) return res.status(400).json({ error: 'Plat baru sama dengan plat sekarang' });
+
+    // Daftar plat sebelumnya: plat lama + plat sebelumnya yang sudah ada.
+    const prevSet = new Set([...parsePrevPlat(v.plat_sebelumnya).map(normPlat), platLama].filter(Boolean));
+
+    // Gabung bila plat baru sudah jadi kendaraan lain.
+    const FIELDS = ['pemilik', 'stnk', 'pajak', 'jenis', 'tahun', 'cabang', 'keterangan', 'kategori'];
+    const { data: dup } = await supabase.from('vehicles')
+      .select('*').eq('plat', platBaru).neq('id', v.id).maybeSingle();
+    const patch = { plat: platBaru, plat_ganti_at: new Date().toISOString() };
+    if (dup) {
+      for (const p of parsePrevPlat(dup.plat_sebelumnya)) prevSet.add(normPlat(p));
+      // Isi field yang masih kosong di kendaraan ini dari kendaraan duplikat.
+      for (const f of FIELDS) {
+        const cur = v[f] != null ? String(v[f]).trim() : '';
+        if (!cur && dup[f]) patch[f] = dup[f];
+      }
+      await supabase.from('vehicles').delete().eq('id', dup.id);
+    }
+    prevSet.delete(platBaru);
+    patch.plat_sebelumnya = [...prevSet].join(', ');
+
+    const { data, error } = await supabase.from('vehicles')
+      .update(patch).eq('id', v.id).select().single();
+    if (error) {
+      if (error.code === '23505') return res.status(400).json({ error: `Plat ${platBaru} sudah terpakai kendaraan lain` });
+      throw error;
+    }
+    res.json({
+      message: `Plat diganti ke ${platBaru}. Plat sebelumnya: ${patch.plat_sebelumnya || '—'}. Riwayat tetap tersambung.`,
+      data,
+    });
+  } catch (err) {
+    console.error('[vehicles/gantiPlat]', err);
+    res.status(500).json({ error: 'Gagal mengganti plat: ' + err.message });
   }
 }
 
@@ -230,8 +298,10 @@ async function buildReportRows(plat, year) {
     .order('tanggal', { ascending: true });
   if (error) throw new Error('query submissions: ' + error.message);
 
-  const target = normPlat(plat);
-  const candidates = (subs || []).filter(sub => normPlat(sub.kendaraan) === target);
+  // Sadar-alias: sertakan pengajuan di plat sekarang DAN plat sebelumnya.
+  const platSet = new Set((await resolveVehiclePlates(supabase, plat)).map(normPlat));
+  if (!platSet.size) platSet.add(normPlat(plat));
+  const candidates = (subs || []).filter(sub => platSet.has(normPlat(sub.kendaraan)));
 
   // Ambil snapshot revisi DISETUJUI untuk submission yg relevan (query terpisah).
   const subIds = candidates.map(s => s.id);
@@ -289,7 +359,7 @@ async function buildReportRows(plat, year) {
       .gte('tanggal', from).lt('tanggal', to)
       .order('tanggal', { ascending: true });
     if (kkErr) throw kkErr;
-    for (const k of (kk || []).filter(x => normPlat(x.plat) === target)) {
+    for (const k of (kk || []).filter(x => platSet.has(normPlat(x.plat)))) {
       rows.push({
         is_kas_kecil:     true,
         kas_id:           k.id,
@@ -527,5 +597,5 @@ async function exportExcel(req, res) {
   }
 }
 
-module.exports = { list, create, update, report, exportExcel, autoRegisterVehicle, KATEGORI,
+module.exports = { list, create, update, gantiPlat, report, exportExcel, autoRegisterVehicle, KATEGORI,
                    createKasKecil, updateKasKecil, deleteKasKecil };

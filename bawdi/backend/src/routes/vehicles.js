@@ -13,6 +13,7 @@ router.get('/export',  ctrl.exportExcel);
 // Kelola master hanya Admin
 router.post('/',    authorize('Admin'), ctrl.create);
 router.put('/:id',  authorize('Admin'), ctrl.update);
+router.put('/:id/ganti-plat', authorize('Admin'), ctrl.gantiPlat);
 
 // Kas kecil (v25) — input manual Super Track.
 // Akses: Admin, Verifikator, Operasional.

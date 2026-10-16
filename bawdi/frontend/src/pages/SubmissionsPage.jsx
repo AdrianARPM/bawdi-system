@@ -1,8 +1,8 @@
 // src/pages/SubmissionsPage.jsx — v2 (Dark Mode Tahap 2: hanya penambahan varian dark:, tanpa perubahan fitur)
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Search, Plus, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
-import { submissionAPI, cabangAPI } from '../utils/api';
+import { Search, Plus, FileText, ChevronLeft, ChevronRight, MessageCircle } from 'lucide-react';
+import { submissionAPI, cabangAPI, messageAPI } from '../utils/api';
 import { Pill, Card, Spinner, Empty, fmtDate, fmtCurrency, daysSince, RevisiBadge } from '../components/ui';
 import useAuthStore from '../context/authStore';
 
@@ -28,6 +28,7 @@ export default function SubmissionsPage() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [cabangOpts, setCabangOpts] = useState([]);
+  const [unread, setUnread] = useState({});   // {submission_id: jumlah chat belum dibaca}
   const [searchParams, setSearchParams] = useSearchParams();
   const filter = searchParams.get('status') || 'Semua';
   const q = searchParams.get('q') || '';
@@ -59,6 +60,17 @@ export default function SubmissionsPage() {
   useEffect(() => {
     submissionAPI.stats().then(({ data }) => setCounts(data)).catch(() => {});
     cabangAPI.list().then(({ data }) => setCabangOpts((data.data || []).map(c => c.kode))).catch(() => {});
+  }, []);
+
+  // Peta chat belum dibaca — muat saat mount & saat tab kembali fokus
+  // (mis. setelah membuka detail lalu kembali, badge ikut diperbarui).
+  useEffect(() => {
+    const loadUnread = () => messageAPI.unreadMap().then(({ data }) => setUnread(data.data || {})).catch(() => {});
+    loadUnread();
+    const onFocus = () => { if (document.visibilityState === 'visible') loadUnread(); };
+    window.addEventListener('visibilitychange', onFocus);
+    window.addEventListener('focus', onFocus);
+    return () => { window.removeEventListener('visibilitychange', onFocus); window.removeEventListener('focus', onFocus); };
   }, []);
 
   // Kembali ke halaman 1 setiap filter/pencarian/cabang berubah
@@ -149,6 +161,12 @@ export default function SubmissionsPage() {
                     <span className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">
                       {isAlert && <span className="text-orange-500">⚠ </span>}{s.nomor_pengajuan}
                     </span>
+                    {unread[s.id] > 0 && (
+                      <span title="Chat belum dibaca"
+                        className="flex-shrink-0 inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-500 text-white">
+                        <MessageCircle size={10} /> {unread[s.id]}
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-slate-500 dark:text-slate-400 truncate mb-0.5">{s.kendaraan} · {s.vendor}</p>
                   <p className="text-xs text-slate-400 dark:text-slate-500">{s.pemohon?.name} · {fmtDate(s.tanggal)}</p>

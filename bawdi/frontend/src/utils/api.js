@@ -48,8 +48,10 @@ export const submissionAPI = {
   hardDelete: (id, body) => api.delete(`/submissions/${id}`, { data: body }),
 };
 export const messageAPI = {
-  list: id      => api.get(`/messages/${id}`),
-  send: (id, m) => api.post(`/messages/${id}`, { message: m }),
+  list:      id      => api.get(`/messages/${id}`),
+  send:      (id, m) => api.post(`/messages/${id}`, { message: m }),
+  unreadMap: ()      => api.get('/messages/unread-map'),
+  markRead:  id      => api.put(`/messages/${id}/read`),
 };
 export const notifAPI = {
   list:    () => api.get('/notifications'),
@@ -123,6 +125,7 @@ export const vehicleAPI = {
   list:   (year)        => api.get('/vehicles', { params: { year } }),
   create: (d)           => api.post('/vehicles', d),
   update: (id, d)       => api.put(`/vehicles/${id}`, d),
+  gantiPlat: (id, plat_baru) => api.put(`/vehicles/${id}/ganti-plat`, { plat_baru }),
   report: (plat, year)  => api.get('/vehicles/report', { params: { plat, year } }),
   // Kas kecil (v25) — input manual Super Track
   createKasKecil: (d)     => api.post('/vehicles/kas-kecil', d),

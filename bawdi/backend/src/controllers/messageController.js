@@ -84,4 +84,43 @@ async function send(req, res) {
   }
 }
 
-module.exports = { list, send };
+// GET /api/messages/unread-map
+// SubmissionsPage untuk menandai kartu yang punya pesan baru. Sumbernya
+// notifikasi tipe 'new_message' yang belum dibaca (bertahan walau push
+// di-dismiss). Ditandai terbaca saat user membuka tab chat (markRead).
+async function unreadMap(req, res) {
+  try {
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('submission_id')
+      .eq('user_id', req.user.id)
+      .eq('type', 'new_message')
+      .eq('is_read', false)
+      .not('submission_id', 'is', null);
+    if (error) throw error;
+    const map = {};
+    for (const n of data || []) map[n.submission_id] = (map[n.submission_id] || 0) + 1;
+    res.json({ data: map });
+  } catch (err) {
+    console.error('[messages/unread-map]', err);
+    res.status(500).json({ error: 'Gagal mengambil status chat' });
+  }
+}
+
+// PUT /api/messages/:submissionId/read
+// Tandai semua notifikasi chat pengajuan ini sebagai terbaca untuk user ini.
+async function markRead(req, res) {
+  try {
+    await supabase.from('notifications')
+      .update({ is_read: true })
+      .eq('user_id', req.user.id)
+      .eq('submission_id', req.params.submissionId)
+      .eq('type', 'new_message')
+      .eq('is_read', false);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Gagal memperbarui status chat' });
+  }
+}
+
+module.exports = { list, send, unreadMap, markRead };

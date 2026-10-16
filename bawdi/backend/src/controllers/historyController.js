@@ -5,9 +5,23 @@
 //   vehicleController.buildReportRows. Sebelumnya, item yang DITAMBAH/DIGANTI
 //   lewat revisi tak terlihat → riwayat KM jatuh ke pengajuan lebih lama.
 const supabase = require('../../config/supabase');
+const { resolveVehiclePlates } = require('../utils/plat');
 
 // Normalisasi teks: trim + lowercase + rapikan spasi ganda.
 const normTxt = (v) => (v || '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+// Resolusi plat sadar-alias: kumpulan plat (sekarang + sebelumnya) milik satu
+// kendaraan, agar riwayat tersambung melewati pergantian plat.
+//  - setN   : Set plat ternormalisasi (untuk pencocokan final di JS)
+//  - orFor(col): filter .or() sisi-DB (ilike per digit plat) untuk kolom tsb.
+async function platMatch(kendaraan) {
+  const plates = await resolveVehiclePlates(supabase, kendaraan);
+  const list = plates.length ? plates : [kendaraan];
+  const setN = new Set(list.map(normTxt));
+  const orFor = (col) =>
+    [...new Set(list.map(p => platCoarse(p)))].map(c => `${col}.ilike.${c}`).join(',');
+  return { setN, orFor };
+}
 
 // v19: Kunci "item dasar" untuk fallback pencocokan riwayat (Fase 0).
 // Tujuan: "Oli Mesin (Federal)" & "Oli Mesin (Shield)" dianggap item SAMA,
@@ -41,18 +55,16 @@ const TRUSTED = ['Terverifikasi', 'Disetujui', 'Selesai'];
 // daftar item yang BENAR-BENAR berlaku: bila ada revisi disetujui → item
 // dari snapshot revisi tertinggi; jika tidak → submission_items asli.
 // Hasil: array { sub, penjelasan, km_pengajuan, vendor_num, urutan, satuan, harga, kategori_biaya }.
-async function effectiveVehicleItems(kendaraan) {
-  const platN = normTxt(kendaraan);
-
+async function effectiveVehicleItems(pm) {
   const { data: subsRaw } = await supabase
     .from('submissions')
     .select('id, nomor_pengajuan, tanggal, status, kendaraan, vendor_pilihan, revisi_count')
-    .ilike('kendaraan', platCoarse(kendaraan))
+    .or(pm.orFor('kendaraan'))
     .in('status', TRUSTED)
     .order('tanggal', { ascending: false })
     .limit(500);
 
-  const subs = (subsRaw || []).filter(s => normTxt(s.kendaraan) === platN);
+  const subs = (subsRaw || []).filter(s => pm.setN.has(normTxt(s.kendaraan)));
   if (!subs.length) return [];
   const subById = new Map(subs.map(s => [s.id, s]));
   const ids = subs.map(s => s.id);
@@ -138,23 +150,25 @@ async function getVehicleHistory(req, res) {
     if (!kendaraan?.trim())
       return res.status(400).json({ error: 'Parameter kendaraan wajib diisi' });
 
-    const { data: submissions, error } = await supabase
+    const pm = await platMatch(kendaraan);
+    const { data: submissionsRaw, error } = await supabase
       .from('submissions')
       .select(`
-        id, nomor_pengajuan, type, status, tanggal,
+        id, nomor_pengajuan, type, status, tanggal, kendaraan,
         jenis_pembelian, total_harga, jumlah_bayar,
         tanggal_bayar, vendor, vendor2, vendor_pilihan,
         revisi_count, ditutup_at,
         pemohon:users!submissions_pemohon_id_fkey(name),
         items:submission_items(penjelasan, satuan, harga, total, vendor_num, km_pengajuan)
       `)
-      .ilike('kendaraan', kendaraan.trim())
+      .or(pm.orFor('kendaraan'))
       .in('status', ['Selesai', 'Disetujui'])
       .order('tanggal', { ascending: false })
-      .limit(20);
+      .limit(30);
 
     if (error) throw error;
-    if (!submissions?.length)
+    const submissions = (submissionsRaw || []).filter(s => pm.setN.has(normTxt(s.kendaraan)));
+    if (!submissions.length)
       return res.json({ data: [], message: 'Belum ada riwayat pengajuan untuk kendaraan ini' });
 
     const result = submissions.slice(0, Number(limit)).map(sub => ({
@@ -182,11 +196,11 @@ async function getLastKM(req, res) {
     if (!keyword?.trim())
       return res.json({ data: null, message: 'Keyword (penjelasan item) belum diisi' });
 
-    const platN = normTxt(kendaraan);
-    const kwN   = normTxt(keyword);
+    const kwN = normTxt(keyword);
     if (!kwN) return res.json({ data: null, message: 'Keyword terlalu pendek' });
 
-    const eff = await effectiveVehicleItems(kendaraan);
+    const pm  = await platMatch(kendaraan);
+    const eff = await effectiveVehicleItems(pm);
 
     // Kandidat ber-KM dari item efektif (revisi-aware) + kas kecil.
     const cands = eff
@@ -196,11 +210,11 @@ async function getLastKM(req, res) {
       const { data: kk } = await supabase
         .from('kas_kecil').select('plat, tanggal, keterangan, km')
         .not('km', 'is', null)
-        .ilike('plat', platCoarse(kendaraan))
+        .or(pm.orFor('plat'))
         .order('tanggal', { ascending: false })
         .limit(500);
       for (const k of kk || []) {
-        if (normTxt(k.plat) === platN) {
+        if (pm.setN.has(normTxt(k.plat))) {
           cands.push({ km_pengajuan: k.km, penjelasan: k.keterangan, sub: { tanggal: k.tanggal, nomor_pengajuan: 'Kas Kecil' } });
         }
       }
@@ -249,8 +263,8 @@ async function getVehicleItems(req, res) {
     if (!kendaraan?.trim())
       return res.status(400).json({ error: 'Parameter kendaraan wajib diisi' });
 
-    const eff = await effectiveVehicleItems(kendaraan);
-    const platN = normTxt(kendaraan);
+    const pm  = await platMatch(kendaraan);
+    const eff = await effectiveVehicleItems(pm);
 
     const byPenj = new Map(); // penjelasan ternormalisasi → entri terbaru
     for (const it of eff) {
@@ -278,11 +292,11 @@ async function getVehicleItems(req, res) {
         .from('kas_kecil')
         .select('plat, tanggal, keterangan, km, kategori_biaya, harga')
         .not('keterangan', 'is', null)
-        .ilike('plat', platCoarse(kendaraan))
+        .or(pm.orFor('plat'))
         .order('tanggal', { ascending: false })
         .limit(500);
       for (const k of kk || []) {
-        if (normTxt(k.plat) !== platN) continue;
+        if (!pm.setN.has(normTxt(k.plat))) continue;
         const key = normTxt(k.keterangan);
         if (!key) continue;
         const prev = byPenj.get(key);

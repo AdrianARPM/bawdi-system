@@ -1191,6 +1191,11 @@ export default function NewFormPage() {
                   {platInfo[form.kendaraan].pajak ? ` · Pajak: ${platInfo[form.kendaraan].pajak}` : ''}
                 </p>
               )}
+              {form.kendaraan && platInfo[form.kendaraan]?.plat_sebelumnya && (
+                <p className="mt-0.5 text-[10px] font-semibold text-amber-600 dark:text-amber-400/80">
+                  Plat sebelumnya: {platInfo[form.kendaraan].plat_sebelumnya} — riwayat KM digabung otomatis
+                </p>
+              )}
             </Field>
             )}
             <Field label="Jenis Pembelian" required error={errors.jenis_pembelian}>
