@@ -170,12 +170,10 @@ function RevisiPanel({ snapshot, sub, user, onAction }) {
         <div className="bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-2xl p-4 flex items-center justify-between gap-3">
           <div>
             <p className="text-sm font-bold text-blue-800 dark:text-blue-300">Perlu Verifikasi Anda</p>
-            <p className="text-xs text-blue-400 mt-0.5">
-              {wf && !wf.perlu_approval ? 'Verifikasi langsung menyetujui revisi ini (tanpa approval terpisah)' : 'Periksa perubahan data revisi ini'}
-            </p>
+            <p className="text-xs text-blue-400 mt-0.5">Periksa perubahan data revisi ini</p>
           </div>
           <Button variant="info" onClick={() => act('verify')} loading={actLoading === 'verify'}>
-            {wf && !wf.perlu_approval ? 'Verifikasi & Setujui' : 'Verifikasi'}
+            Verifikasi
           </Button>
         </div>
       )}
@@ -1509,12 +1507,10 @@ useEffect(() => {
           <div className="bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-2xl p-4 flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-bold text-blue-800 dark:text-blue-300">Perlu Verifikasi Anda</p>
-              <p className="text-xs text-blue-400 mt-0.5">
-                {wfSub && !wfSub.perlu_approval ? 'Verifikasi langsung menyetujui pengajuan ini (tanpa approval terpisah)' : 'Periksa data pengajuan'}
-              </p>
+              <p className="text-xs text-blue-400 mt-0.5">Periksa data pengajuan</p>
             </div>
             <Button variant="info" onClick={() => doAction('verify')} loading={actLoading === 'verify'}>
-              {wfSub && !wfSub.perlu_approval ? 'Verifikasi' : 'Verifikasi'}
+              Verifikasi
             </Button>
           </div>
         )
