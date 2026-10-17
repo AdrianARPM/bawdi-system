@@ -5,7 +5,7 @@
 //   vehicleController.buildReportRows. Sebelumnya, item yang DITAMBAH/DIGANTI
 //   lewat revisi tak terlihat → riwayat KM jatuh ke pengajuan lebih lama.
 const supabase = require('../../config/supabase');
-const { resolveVehiclePlates } = require('../utils/plat');
+const { resolveVehiclePlates, anyPlatInSet, normUp } = require('../utils/plat');
 
 // Normalisasi teks: trim + lowercase + rapikan spasi ganda.
 const normTxt = (v) => (v || '').trim().toLowerCase().replace(/\s+/g, ' ');
@@ -17,10 +17,11 @@ const normTxt = (v) => (v || '').trim().toLowerCase().replace(/\s+/g, ' ');
 async function platMatch(kendaraan) {
   const plates = await resolveVehiclePlates(supabase, kendaraan);
   const list = plates.length ? plates : [kendaraan];
-  const setN = new Set(list.map(normTxt));
+  const setN = new Set(list.map(normUp));              // canonical (uppercase)
+  const has  = (k) => anyPlatInSet(k, setN);           // sadar garis-miring: cek tiap bagian
   const orFor = (col) =>
     [...new Set(list.map(p => platCoarse(p)))].map(c => `${col}.ilike.${c}`).join(',');
-  return { setN, orFor };
+  return { setN, has, orFor };
 }
 
 // v19: Kunci "item dasar" untuk fallback pencocokan riwayat (Fase 0).
@@ -64,7 +65,7 @@ async function effectiveVehicleItems(pm) {
     .order('tanggal', { ascending: false })
     .limit(500);
 
-  const subs = (subsRaw || []).filter(s => pm.setN.has(normTxt(s.kendaraan)));
+  const subs = (subsRaw || []).filter(s => pm.has(s.kendaraan));
   if (!subs.length) return [];
   const subById = new Map(subs.map(s => [s.id, s]));
   const ids = subs.map(s => s.id);
@@ -167,7 +168,7 @@ async function getVehicleHistory(req, res) {
       .limit(30);
 
     if (error) throw error;
-    const submissions = (submissionsRaw || []).filter(s => pm.setN.has(normTxt(s.kendaraan)));
+    const submissions = (submissionsRaw || []).filter(s => pm.has(s.kendaraan));
     if (!submissions.length)
       return res.json({ data: [], message: 'Belum ada riwayat pengajuan untuk kendaraan ini' });
 
@@ -214,7 +215,7 @@ async function getLastKM(req, res) {
         .order('tanggal', { ascending: false })
         .limit(500);
       for (const k of kk || []) {
-        if (pm.setN.has(normTxt(k.plat))) {
+        if (pm.has(k.plat)) {
           cands.push({ km_pengajuan: k.km, penjelasan: k.keterangan, sub: { tanggal: k.tanggal, nomor_pengajuan: 'Kas Kecil' } });
         }
       }
@@ -296,7 +297,7 @@ async function getVehicleItems(req, res) {
         .order('tanggal', { ascending: false })
         .limit(500);
       for (const k of kk || []) {
-        if (!pm.setN.has(normTxt(k.plat))) continue;
+        if (!pm.has(k.plat)) continue;
         const key = normTxt(k.keterangan);
         if (!key) continue;
         const prev = byPenj.get(key);

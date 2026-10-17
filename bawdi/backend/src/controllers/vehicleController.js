@@ -6,7 +6,7 @@
 const supabase = require('../../config/supabase');
 const { v4: uuidv4 } = require('uuid');
 const ExcelJS = require('exceljs');
-const { parsePrevPlat, resolveVehiclePlates } = require('../utils/plat');
+const { parsePrevPlat, resolveVehiclePlates, anyPlatInSet, splitPlates, normUp, buildAliasIndex } = require('../utils/plat');
 
 // v21: normalisasi nama item utk kelompokkan riwayat per-item
 const normTxt = (v) => (v || '').trim().toLowerCase().replace(/\s+/g, ' ');
@@ -17,24 +17,33 @@ const normPlat = (p) => (p || '').trim().replace(/\s+/g, ' ').toUpperCase();
 
 // ── Helper: auto-register plat (dipanggil dari submissionController.create)
 async function autoRegisterVehicle(plat, cabang = '') {
-  const clean = normPlat(plat);
-  if (!clean) return;
-  // Jangan daftarkan ulang bila plat ini adalah plat LAMA (alias) kendaraan lain.
+  const parts = splitPlates(plat);             // dukung tulisan gabungan "BARU/LAMA"
+  if (!parts.length) return;
+  const current = parts[0];
+  const prevs   = parts.slice(1);
+
+  // Bila SALAH SATU bagian plat sudah terwakili kendaraan lain (plat sekarang
+  // atau plat sebelumnya), jangan buat kendaraan baru — sudah ada pemiliknya.
   try {
-    const d = clean.replace(/\D+/g, '');
-    if (d.length >= 2) {
-      const { data: aliasHit } = await supabase.from('vehicles')
-        .select('plat_sebelumnya').ilike('plat_sebelumnya', `%${d}%`);
-      const isAlias = (aliasHit || []).some(v => parsePrevPlat(v.plat_sebelumnya).map(normPlat).includes(clean));
-      if (isAlias) return;
+    for (const p of parts) {
+      const d = p.replace(/\D+/g, '');
+      if (d.length < 2) continue;
+      const { data: hit } = await supabase.from('vehicles')
+        .select('plat, plat_sebelumnya').or(`plat.ilike.%${d}%,plat_sebelumnya.ilike.%${d}%`);
+      for (const v of hit || []) {
+        const vplates = [v.plat, ...parsePrevPlat(v.plat_sebelumnya)].flatMap(splitPlates);
+        if (vplates.includes(p)) return;
+      }
     }
-  } catch { /* kolom plat_sebelumnya belum ada → lanjut daftar seperti biasa */ }
+  } catch { /* kolom plat_sebelumnya belum ada → lanjut daftar biasa */ }
+
+  // Daftarkan plat PERTAMA sebagai plat sekarang; bagian lain jadi plat sebelumnya
+  // (jadi tidak ada kendaraan ber-nama "gabungan" di Super Track).
   try {
-    await supabase.from('vehicles')
-      .upsert({ id: uuidv4(), plat: clean, cabang: cabang || '' },
-              { onConflict: 'plat', ignoreDuplicates: true });
+    const row = { id: uuidv4(), plat: current, cabang: cabang || '' };
+    if (prevs.length) { try { row.plat_sebelumnya = prevs.join(', '); } catch {} }
+    await supabase.from('vehicles').upsert(row, { onConflict: 'plat', ignoreDuplicates: true });
   } catch (err) {
-    // Jangan gagalkan pembuatan pengajuan hanya karena auto-register
     console.error('[vehicles/autoRegister]', err.message);
   }
 }
@@ -59,9 +68,11 @@ async function list(req, res) {
       .gte('tanggal', from).lt('tanggal', to);
     if (subErr) throw subErr;
 
+    // Sadar-alias + garis-miring: hitung per plat SEKARANG kendaraan.
+    const alias = await buildAliasIndex(supabase);
     const agg = {};
     for (const s of subs || []) {
-      const key = normPlat(s.kendaraan);
+      const key = alias.currentOf(s.kendaraan);
       if (!agg[key]) agg[key] = { count: 0, total: 0 };
       agg[key].count += 1;
       agg[key].total += Number(s.total_harga) || 0;
@@ -75,7 +86,7 @@ async function list(req, res) {
         .select('plat, harga, tanggal')
         .gte('tanggal', from).lt('tanggal', to);
       for (const k of kk || []) {
-        const key = normPlat(k.plat);
+        const key = alias.currentOf(k.plat);
         if (!agg[key]) agg[key] = { count: 0, total: 0 };
         agg[key].total += Number(k.harga) || 0;
       }
@@ -84,11 +95,10 @@ async function list(req, res) {
     }
 
     res.json({
-      data: (vehicles || []).map(v => ({
-        ...v,
-        pengajuan_count: agg[v.plat]?.count || 0,
-        total_biaya:     agg[v.plat]?.total || 0,
-      })),
+      data: (vehicles || []).map(v => {
+        const key = alias.currentOf(v.plat);
+        return { ...v, pengajuan_count: agg[key]?.count || 0, total_biaya: agg[key]?.total || 0 };
+      }),
       year,
     });
   } catch (err) {
@@ -298,10 +308,11 @@ async function buildReportRows(plat, year) {
     .order('tanggal', { ascending: true });
   if (error) throw new Error('query submissions: ' + error.message);
 
-  // Sadar-alias: sertakan pengajuan di plat sekarang DAN plat sebelumnya.
-  const platSet = new Set((await resolveVehiclePlates(supabase, plat)).map(normPlat));
+  // Sadar-alias + garis-miring: sertakan pengajuan di plat sekarang, plat
+  // sebelumnya, maupun yang ditulis gabungan "BARU/LAMA".
+  const platSet = new Set(await resolveVehiclePlates(supabase, plat));
   if (!platSet.size) platSet.add(normPlat(plat));
-  const candidates = (subs || []).filter(sub => platSet.has(normPlat(sub.kendaraan)));
+  const candidates = (subs || []).filter(sub => anyPlatInSet(sub.kendaraan, platSet));
 
   // Ambil snapshot revisi DISETUJUI untuk submission yg relevan (query terpisah).
   const subIds = candidates.map(s => s.id);
@@ -359,7 +370,7 @@ async function buildReportRows(plat, year) {
       .gte('tanggal', from).lt('tanggal', to)
       .order('tanggal', { ascending: true });
     if (kkErr) throw kkErr;
-    for (const k of (kk || []).filter(x => platSet.has(normPlat(x.plat)))) {
+    for (const k of (kk || []).filter(x => anyPlatInSet(x.plat, platSet))) {
       rows.push({
         is_kas_kecil:     true,
         kas_id:           k.id,

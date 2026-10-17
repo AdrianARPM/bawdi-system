@@ -13,27 +13,7 @@ const ExcelJS = require('exceljs');
 const { logAudit } = require('../utils/auditLogger');
 const { sendEmailToUser, sendEmailToRole, emailTemplates } = require('../utils/emailService');
 const workflow = require('../utils/workflow');
-const { parsePrevPlat, resolveVehiclePlates } = require('../utils/plat');
-
-// Normalisasi plat utk pencocokan arsip (uppercase, spasi rapi).
-const normPlatR = (p) => String(p || '').trim().toUpperCase().replace(/\s+/g, ' ');
-
-// Peta alias plat dari master kendaraan (fault-tolerant bila kolom belum ada).
-//  - toCurrent : normPlat(plat apa pun) → plat SEKARANG (string) kendaraan itu
-//  - toSet     : normPlat(plat apa pun) → Set semua plat (normPlat) kendaraan itu
-async function buildPlatAlias() {
-  const toCurrent = new Map();
-  const toSet = new Map();
-  try {
-    const { data: vehs } = await supabase.from('vehicles').select('plat, plat_sebelumnya');
-    for (const v of vehs || []) {
-      const plates = [v.plat, ...parsePrevPlat(v.plat_sebelumnya)].map(normPlatR).filter(Boolean);
-      const set = new Set(plates);
-      for (const p of plates) { toCurrent.set(p, normPlatR(v.plat)); toSet.set(p, set); }
-    }
-  } catch { /* kolom plat_sebelumnya belum ada → peta kosong (perilaku lama) */ }
-  return { toCurrent, toSet };
-}
+const { resolveVehiclePlates, buildAliasIndex, anyPlatInSet } = require('../utils/plat');
 
 // Helper: cek apakah user adalah Kepala Operasional
 const isKepalaOp = (user) => user?.jabatan === 'Kepala Operasional';
@@ -914,12 +894,13 @@ const NAMA_BULAN = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
 
 // Ambil baris arsip langsung dari submissions (status Disetujui/Selesai).
 async function fetchArsipRows({ kendaraan, tahun, bulan } = {}) {
-  // Sadar-alias: filter plat mencakup plat sekarang + plat sebelumnya.
+  // Sadar-alias + garis-miring: filter plat mencakup plat sekarang, sebelumnya,
+  // maupun tulisan gabungan "BARU/LAMA".
   let platesSet = null, orFilter = null;
   if (kendaraan) {
     const plates = await resolveVehiclePlates(supabase, kendaraan);
     const list = plates.length ? plates : [kendaraan];
-    platesSet = new Set(list.map(normPlatR));
+    platesSet = new Set(list);
     const coarse = [...new Set(list.map(p => {
       const d = String(p).replace(/\D+/g, '');
       return d.length >= 2 ? `%${d}%` : `%${String(p).trim()}%`;
@@ -946,7 +927,7 @@ async function fetchArsipRows({ kendaraan, tahun, bulan } = {}) {
   }
   const { data, error } = await query;
   if (error) throw error;
-  const raw = platesSet ? (data || []).filter(s => platesSet.has(normPlatR(s.kendaraan))) : (data || []);
+  const raw = platesSet ? (data || []).filter(s => anyPlatInSet(s.kendaraan, platesSet)) : (data || []);
   return raw.map(s => {
     const d = new Date(s.tanggal);
     const cabang = (s.cabang_manual && s.cabang_manual.trim()) ? s.cabang_manual.trim()
@@ -978,10 +959,10 @@ async function getDraft(req, res) {
     // Operasional hanya melihat arsip sendiri; Kepala Operasional melihat semua (read-only)
     if (req.user.role === 'Operasional' && req.user.jabatan !== 'Kepala Operasional')
       all = all.filter(r => r.pemohon_id === req.user.id);
-    // Sadar-alias: plat lama disatukan ke plat sekarang di daftar filter.
-    const alias = await buildPlatAlias();
-    const displayPlat = (p) => alias.toCurrent.get(normPlatR(p)) || p;
-    const kendaraanList = [...new Set(all.map(r => displayPlat(r.kendaraan)))].sort();
+    // Sadar-alias + garis-miring: plat lama & tulisan gabungan disatukan ke plat
+    // sekarang di daftar filter.
+    const alias = await buildAliasIndex(supabase);
+    const kendaraanList = [...new Set(all.map(r => alias.currentOf(r.kendaraan)))].sort();
     const cabangList    = [...new Set(all.map(r => r.cabang))].sort();
     const bulanList = [...new Map(all.map(r => [
       `${r.bulan}-${r.tahun}`,
@@ -990,10 +971,8 @@ async function getDraft(req, res) {
 
     let rows = all;
     if (kendaraan) {
-      const set = alias.toSet.get(normPlatR(kendaraan));   // gabung plat lama + baru
-      rows = set
-        ? rows.filter(r => set.has(normPlatR(r.kendaraan)))
-        : rows.filter(r => r.kendaraan.toLowerCase().includes(kendaraan.toLowerCase()));
+      const set = alias.setOf(kendaraan);   // gabung plat lama + baru + bagian garis-miring
+      rows = rows.filter(r => anyPlatInSet(r.kendaraan, set));
     }
     if (tahun)     rows = rows.filter(r => r.tahun === Number(tahun));
     if (bulan)     rows = rows.filter(r => r.bulan === Number(bulan));
