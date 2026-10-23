@@ -45,7 +45,7 @@ async function fetchPaid(year, month) {
   const to   = new Date(Date.UTC(year, month, 1)).toISOString();  // awal bulan berikutnya (eksklusif)
 
   const { data: subs, error } = await supabase.from('submissions')
-    .select('id, nomor_pengajuan, cabang, cabang_manual, vendor, npwp, rekening_tujuan, jenis_pembelian, alasan, alasan_type, total_harga, ppn, pph23, jumlah_bayar, tanggal, tanggal_bayar, status, revisi_count')
+    .select('id, nomor_pengajuan, cabang, cabang_manual, vendor, npwp, rekening_tujuan, jenis_pembelian, alasan, alasan_type, total_harga, ppn, pph23, jumlah_bayar, jumlah_dp, tanggal, tanggal_bayar, status, revisi_count')
     .not('tanggal_bayar', 'is', null)
     .gte('tanggal_bayar', from).lt('tanggal_bayar', to)
     .order('tanggal_bayar', { ascending: true });
@@ -77,7 +77,7 @@ async function fetchPaid(year, month) {
       rekening: s.rekening_tujuan || '', status: s.status,
       total, ppn, dpp: Math.max(0, total - ppn),
       pph23: p.pph, pph23_persen: p.persen, pph23_dpp: p.dpp, pph23_txt: String(pphTxt).trim(),
-      dibayar: Number(s.jumlah_bayar) || 0,
+      dibayar: (Number(s.jumlah_dp) || 0) + (Number(s.jumlah_bayar) || 0), // v35: DP + pelunasan
       direvisi: !!snap,
     };
   });

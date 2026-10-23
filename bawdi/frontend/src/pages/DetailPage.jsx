@@ -506,8 +506,11 @@ function PaymentPanel({ sub, user, onRefresh }) {
   
   const isDiSetujui = sub.status === 'Disetujui';
   const isSelesai   = sub.status === 'Selesai';
+  // v35: total dibayar = DP (uang muka) + pelunasan. Keduanya bucket terpisah,
+  // jadi sisa/kurang bayar HARUS menghitung keduanya agar DP tidak terabaikan.
+  const totalDibayar = (Number(sub.jumlah_dp) || 0) + (Number(sub.jumlah_bayar) || 0);
   // v33: kekurangan bayar (mis. akibat revisi harga NAIK setelah dibayar)
-  const sisaKurang  = Math.max(0, (Number(sub.total_harga) || 0) - (Number(sub.jumlah_bayar) || 0));
+  const sisaKurang  = Math.max(0, (Number(sub.total_harga) || 0) - totalDibayar);
   const adaKekurangan = !!sub.tanggal_bayar && (Number(sub.jumlah_bayar) || 0) > 0 && sisaKurang > 0;
 
   return (
@@ -612,7 +615,7 @@ function PaymentPanel({ sub, user, onRefresh }) {
                 <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-xl p-3">
                   <p className="text-xs font-bold text-amber-700 dark:text-amber-300">Kurang bayar: {fmtCurrency(sisaKurang)}</p>
                   <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-0.5">
-                    Total kini {fmtCurrency(sub.total_harga)}, sudah dibayar {fmtCurrency(sub.jumlah_bayar)}.
+                    Total kini {fmtCurrency(sub.total_harga)}, sudah dibayar {fmtCurrency(totalDibayar)}.
                   </p>
                 </div>
               )}
@@ -741,7 +744,7 @@ function PaymentPanel({ sub, user, onRefresh }) {
                     Kurang bayar: {fmtCurrency(sisaKurang)}
                   </p>
                   <p className="text-[10px] text-amber-600 dark:text-amber-400 mb-2">
-                    Total kini {fmtCurrency(sub.total_harga)}, sudah dibayar {fmtCurrency(sub.jumlah_bayar)} (kemungkinan akibat revisi harga).
+                    Total kini {fmtCurrency(sub.total_harga)}, sudah dibayar {fmtCurrency(totalDibayar)}{(Number(sub.jumlah_dp) || 0) > 0 ? ` (DP ${fmtCurrency(sub.jumlah_dp)} + ${fmtCurrency(sub.jumlah_bayar)})` : ' (kemungkinan akibat revisi harga)'}.
                   </p>
                   <button onClick={() => { setModeKekurangan(true); setPayDate(''); setPayTime(''); setPayJumlah(String(sisaKurang)); setPayCat(''); }}
                     className="w-full py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-colors">
@@ -1744,7 +1747,7 @@ useEffect(() => {
       {/* v33: Request Kekurangan — pemohon, saat sudah dibayar tapi total naik (revisi) */}
       {user.id === sub.pemohon_id && sub.status === 'Disetujui' && sub.tanggal_bayar &&
        (Number(sub.jumlah_bayar) || 0) > 0 &&
-       (Number(sub.jumlah_bayar) || 0) < (Number(sub.total_harga) || 0) && (
+       totalDibayar < (Number(sub.total_harga) || 0) && (
         sub.bayar_diminta_at ? (
           <div className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 text-amber-700 dark:text-amber-300 text-sm font-semibold">
             ✓ Kekurangan sudah direquest · {fmtDate(sub.bayar_diminta_at)}
@@ -1752,10 +1755,10 @@ useEffect(() => {
         ) : (
           <div className="w-full rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 p-3">
             <p className="text-sm font-bold text-amber-700 dark:text-amber-300 mb-0.5">
-              Kurang bayar: {fmtCurrency(Math.max(0, (Number(sub.total_harga)||0) - (Number(sub.jumlah_bayar)||0)))}
+              Kurang bayar: {fmtCurrency(Math.max(0, (Number(sub.total_harga)||0) - totalDibayar))}
             </p>
             <p className="text-[11px] text-amber-600 dark:text-amber-400 mb-2.5">
-              Total pengajuan naik jadi {fmtCurrency(sub.total_harga)} (revisi), sudah dibayar {fmtCurrency(sub.jumlah_bayar)}.
+              Total pengajuan naik jadi {fmtCurrency(sub.total_harga)} (revisi), sudah dibayar {fmtCurrency(totalDibayar)}.
             </p>
             <button onClick={handleRequestPayment} disabled={reqPayLoading}
               className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white text-sm font-bold transition-colors">

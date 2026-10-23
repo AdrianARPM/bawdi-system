@@ -933,9 +933,9 @@ async function fetchArsipRows({ kendaraan, tahun, bulan } = {}) {
     const cabang = (s.cabang_manual && s.cabang_manual.trim()) ? s.cabang_manual.trim()
                  : (s.cabang && s.cabang.trim())             ? s.cabang.trim()
                  : (s.pemohon?.cabang?.trim() || 'Tanpa Cabang');
-    const jb  = Number(s.jumlah_bayar) || 0;   // pelunasan (total settle)
+    const jb  = Number(s.jumlah_bayar) || 0;   // pelunasan (di ATAS DP, bukan pengganti)
     const jdp = Number(s.jumlah_dp) || 0;      // uang muka / DP
-    const dibayar = jb > 0 ? jb : jdp;         // pelunasan menggantikan DP; bila belum lunas pakai DP
+    const dibayar = jdp + jb;                  // v35: total dibayar = DP + pelunasan (additif)
     return {
       id: s.id, nomor_pengajuan: s.nomor_pengajuan, type: s.type, status: s.status, pemohon_id: s.pemohon_id,
       tanggal: s.tanggal, approval_at: s.approval_at, tanggal_bayar: s.tanggal_bayar,

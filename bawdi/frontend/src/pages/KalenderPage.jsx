@@ -14,7 +14,7 @@ const ymd = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`;
 const todayStr = () => { const n = new Date(); return ymd(n.getFullYear(), n.getMonth(), n.getDate()); };
 
 // Sudah lunas / selesai?
-const isPaid = (s) => s.status === 'Selesai' || ((Number(s.jumlah_bayar) || 0) > 0 && (Number(s.jumlah_bayar) || 0) >= (Number(s.total_harga) || 0));
+const isPaid = (s) => s.status === 'Selesai' || (() => { const d = (Number(s.jumlah_dp) || 0) + (Number(s.jumlah_bayar) || 0); return d > 0 && d >= (Number(s.total_harga) || 0); })();
 
 export default function KalenderPage() {
   const { user } = useAuthStore();
