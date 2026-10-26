@@ -138,3 +138,14 @@ export const fmtDateTime = (iso) =>
 
 export const daysSince = (iso) =>
   iso ? Math.floor((Date.now() - new Date(iso)) / 86400000) : 0;
+
+// Tanggal acuan "menggantung / tidak ada tanggapan": AKTIVITAS TERAKHIR,
+// bukan tanggal pengajuan dibuat. Setelah revisi diminta (revisi_diminta_at)
+// atau dikirim ulang (revisi_selesai_at), hitungan reset ke peristiwa terbaru
+// supaya tidak terus menghitung dari awal pengajuan.
+export const staleAnchor = (s) => {
+  const ts = [s?.tanggal, s?.revisi_diminta_at, s?.revisi_selesai_at]
+    .map(d => (d ? new Date(d).getTime() : 0))
+    .filter(Boolean);
+  return ts.length ? new Date(Math.max(...ts)).toISOString() : (s?.tanggal || null);
+};

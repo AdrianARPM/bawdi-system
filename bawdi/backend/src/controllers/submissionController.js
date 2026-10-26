@@ -198,7 +198,7 @@ async function calendar(req, res) {
     const { from, to } = req.query;
     if (!from || !to) return res.status(400).json({ error: 'Parameter from & to (YYYY-MM-DD) wajib' });
     let query = supabase.from('submissions')
-      .select('id, nomor_pengajuan, kendaraan, vendor, cabang_manual, status, total_harga, jumlah_bayar, tanggal_bayar, batas_akhir_pembayaran')
+      .select('id, nomor_pengajuan, kendaraan, vendor, cabang_manual, status, total_harga, jumlah_bayar, jumlah_dp, tanggal_bayar, batas_akhir_pembayaran')
       .in('status', ['Disetujui', 'Selesai'])
       .not('batas_akhir_pembayaran', 'is', null)
       .gte('batas_akhir_pembayaran', from)
@@ -228,6 +228,7 @@ async function list(req, res) {
       .select(`
         id, nomor_pengajuan, type, status, tanggal, kendaraan, vendor, vendor2,
         vendor_pilihan, jenis_pembelian, total_harga, batas_akhir_pembayaran, revisi_count,
+        revisi_diminta_at, revisi_selesai_at,
         nota_url, approval_at, ditunda_sampai,
         pemohon:users!submissions_pemohon_id_fkey(name, cabang),
         verifikator:users!submissions_verifikator_id_fkey(name),

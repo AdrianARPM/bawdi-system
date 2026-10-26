@@ -11,7 +11,7 @@ import {
 import toast from 'react-hot-toast';
 import { submissionAPI, messageAPI, revisionAPI, photoAPI } from '../utils/api';
 import { exportSinglePDF } from '../utils/exportHelper';
-import { Card, Button, Spinner, fmtDate, fmtDateTime, fmtCurrency, daysSince, RevisiBadge } from '../components/ui';
+import { Card, Button, Spinner, fmtDate, fmtDateTime, fmtCurrency, daysSince, staleAnchor, RevisiBadge } from '../components/ui';
 import RevisiEditor from '../components/RevisiEditor';  // ← import dari file terpisah
 import useAuthStore from '../context/authStore';
 
@@ -1698,11 +1698,11 @@ useEffect(() => {
             )}
           </div>
         ) : ['Verifikator', 'Approval', 'Admin'].includes(user.role) &&
-            (Date.now() - new Date(sub.tanggal).getTime()) >= 3 * 86400000 && (
+            (Date.now() - new Date(staleAnchor(sub)).getTime()) >= 3 * 86400000 && (
           <div className="rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 p-3 flex items-center gap-3">
             <PauseCircle size={20} className="text-amber-600 dark:text-amber-400 flex-shrink-0"/>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-amber-700 dark:text-amber-300">Menggantung {daysSince(sub.tanggal)} hari</p>
+              <p className="text-sm font-bold text-amber-700 dark:text-amber-300">Menggantung {daysSince(staleAnchor(sub))} hari</p>
               <p className="text-xs text-amber-600 dark:text-amber-400/80">Proses, atau tunda bila menunggu pihak lain</p>
             </div>
             <button onClick={() => setTundaModal(true)}

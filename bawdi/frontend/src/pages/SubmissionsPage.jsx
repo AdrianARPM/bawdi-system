@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Search, Plus, FileText, ChevronLeft, ChevronRight, MessageCircle } from 'lucide-react';
 import { submissionAPI, cabangAPI, messageAPI } from '../utils/api';
-import { Pill, Card, Spinner, Empty, fmtDate, fmtCurrency, daysSince, RevisiBadge } from '../components/ui';
+import { Pill, Card, Spinner, Empty, fmtDate, fmtCurrency, daysSince, staleAnchor, RevisiBadge } from '../components/ui';
 import useAuthStore from '../context/authStore';
 
 const LIMIT = 20;
@@ -147,7 +147,7 @@ export default function SubmissionsPage() {
         {subs.map(s => {
           // Tunda aktif → keluar dari daftar mendesak (alert oranye dibungkam)
           const isDitunda = !!s.ditunda_sampai && s.ditunda_sampai >= new Date().toISOString().slice(0, 10);
-          const isAlert = ['Menunggu Verifikasi','Terverifikasi'].includes(s.status) && daysSince(s.tanggal) > 3 && !isDitunda;
+          const isAlert = ['Menunggu Verifikasi','Terverifikasi'].includes(s.status) && daysSince(staleAnchor(s)) > 3 && !isDitunda;
           const notaAlert = s.status === 'Disetujui' && !s.nota_url && daysSince(s.approval_at) >= 1;
           return (
             <Link key={s.id} to={`/submissions/${s.id}`}
@@ -171,7 +171,7 @@ export default function SubmissionsPage() {
                   <p className="text-xs text-slate-500 dark:text-slate-400 truncate mb-0.5">{s.kendaraan} · {s.vendor}</p>
                   <p className="text-xs text-slate-400 dark:text-slate-500">{s.pemohon?.name} · {fmtDate(s.tanggal)}</p>
                  {isAlert && (
-                    <p className="text-xs font-semibold text-orange-500 mt-1.5">⚠ {daysSince(s.tanggal)} hari tidak ada tanggapan</p>
+                    <p className="text-xs font-semibold text-orange-500 mt-1.5">⚠ {daysSince(staleAnchor(s))} hari tidak ada tanggapan</p>
                   )}
                   {notaAlert && (
                     <p className="text-xs font-semibold text-red-500 mt-1.5">⚠ Nota belum diunggah ({daysSince(s.approval_at)} hari)</p>
