@@ -1227,6 +1227,9 @@ useEffect(() => {
   // aksi yang benar ada di TAB revisi, bukan di banner global
   const revisiAktif = revisions.find(r => ['submitted', 'terverifikasi'].includes(r.status));
 
+  // v35: total dibayar = DP (uang muka) + pelunasan (dipakai banner request kekurangan/pelunasan)
+  const totalDibayar = (Number(sub.jumlah_dp) || 0) + (Number(sub.jumlah_bayar) || 0);
+
   return (
     <div className="max-w-2xl mx-auto space-y-4">
 
