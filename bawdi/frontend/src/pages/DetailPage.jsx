@@ -489,6 +489,10 @@ function PaymentPanel({ sub, user, onRefresh }) {
   const canBayar    = isAA || user.role === 'Verifikator';
 // v20: yang boleh hapus nota = Approval/Admin atau Operasional pemohon asli
   const canManageNota = isAA || (user.role === 'Operasional' && sub.pemohon_id === user.id);
+  // Pemohon (non Admin/Approval) tidak boleh menghapus nota TERAKHIR pada pengajuan
+  // yang sudah dibayar — cegah kebocoran fitur request bayar. Admin/Approval bebas.
+  const isOwnerOpOnly = !isAA && user.role === 'Operasional' && sub.pemohon_id === user.id;
+  const lockLastNota  = isOwnerOpOnly && !!sub.tanggal_bayar && notas.length <= 1;
 
   const handleDeleteNota = async (n) => {
     if (!window.confirm(`Hapus nota "${n.file_name}"? Tindakan ini tidak bisa dibatalkan.`)) return;
@@ -550,10 +554,17 @@ function PaymentPanel({ sub, user, onRefresh }) {
                     <Download size={12} className="text-white"/>
                   </a>
                   {canManageNota && (
-                    <button onClick={() => handleDeleteNota(n)} disabled={saving === 'delnota-' + n.id}
-                      className="p-1.5 rounded-lg border border-red-200 dark:border-red-500/30 hover:bg-red-50 dark:hover:bg-red-500/10 disabled:opacity-50">
-                      <Trash2 size={12} className="text-red-500"/>
-                    </button>
+                    lockLastNota ? (
+                      <span title="Nota terakhir pada pengajuan yang sudah dibayar tidak bisa dihapus. Upload nota pengganti dulu, atau minta Admin/Approval."
+                        className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 opacity-60 cursor-not-allowed">
+                        <Lock size={12} className="text-slate-400"/>
+                      </span>
+                    ) : (
+                      <button onClick={() => handleDeleteNota(n)} disabled={saving === 'delnota-' + n.id}
+                        className="p-1.5 rounded-lg border border-red-200 dark:border-red-500/30 hover:bg-red-50 dark:hover:bg-red-500/10 disabled:opacity-50">
+                        <Trash2 size={12} className="text-red-500"/>
+                      </button>
+                    )
                   )}
                 </div>
               </div>

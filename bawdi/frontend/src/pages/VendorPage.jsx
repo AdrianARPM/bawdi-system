@@ -1,6 +1,6 @@
 // src/pages/VendorPage.jsx — Master Data Vendor / Supplier (Admin)
 import { useState, useEffect } from 'react';
-import { Store, Plus, ToggleLeft, ToggleRight, Pencil, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Store, Plus, ToggleLeft, ToggleRight, Pencil, Search, ChevronLeft, ChevronRight, Building2, Car, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { vendorAPI } from '../utils/api';
 import { Card, Spinner, Empty, Button, Input } from '../components/ui';
@@ -19,6 +19,7 @@ export default function VendorPage() {
   const [form,    setForm]    = useState(BLANK);
   const [cari,    setCari]    = useState('');
   const [page,    setPage]    = useState(1);
+  const [detail,  setDetail]  = useState(null);   // { v, loading, data, error } — modal pemakaian vendor
   const PER_PAGE = 12;
 
   const load = async () => {
@@ -60,6 +61,17 @@ export default function VendorPage() {
       toast.error(err.response?.data?.error || 'Gagal menyimpan vendor');
     }
     setSaving(false);
+  };
+
+  // Buka rincian pemakaian vendor (cabang + plat) — diambil on-demand.
+  const openDetail = async (v) => {
+    setDetail({ v, loading: true, data: null, error: null });
+    try {
+      const { data } = await vendorAPI.usage(v.id);
+      setDetail(d => (d && d.v.id === v.id ? { ...d, loading: false, data: data.data } : d));
+    } catch {
+      setDetail(d => (d && d.v.id === v.id ? { ...d, loading: false, error: 'Gagal memuat rincian pemakaian' } : d));
+    }
   };
 
   const handleToggle = async (v) => {
@@ -160,22 +172,32 @@ export default function VendorPage() {
         {pageRows.map((v, i) => (
           <div key={v.id}
             className={`flex items-center gap-3 px-4 py-2.5 ${i < pageRows.length - 1 ? 'border-b border-slate-50 dark:border-slate-800' : ''} ${!v.is_active ? 'opacity-50' : ''}`}>
-            <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-500/10 flex items-center justify-center flex-shrink-0">
-              <Store size={15} className="text-blue-600 dark:text-blue-400" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">{v.nama}</p>
-                {!v.is_active && (
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 flex-shrink-0">Nonaktif</span>
+            <button type="button" onClick={() => openDetail(v)}
+              title="Lihat pemakaian (cabang & plat)"
+              className="flex items-center gap-3 flex-1 min-w-0 text-left rounded-lg -my-1 py-1 hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
+              <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                <Store size={15} className="text-blue-600 dark:text-blue-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">{v.nama}</p>
+                  {!v.is_active && (
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 flex-shrink-0">Nonaktif</span>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 truncate">
+                  {v.npwp ? `NPWP ${v.npwp}` : 'NPWP —'}
+                  {' · '}{v.rekening || 'rekening —'}
+                </p>
+                {v.pengajuan_count > 0 && (
+                  <p className="text-[11px] text-blue-500 dark:text-blue-400 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                    <span className="font-semibold">{v.pengajuan_count}× pengajuan</span>
+                    {v.cabang_count > 0 && <span className="text-slate-400 dark:text-slate-500 inline-flex items-center gap-0.5"><Building2 size={10} />{v.cabang_count} cabang</span>}
+                    {v.unit_count   > 0 && <span className="text-slate-400 dark:text-slate-500 inline-flex items-center gap-0.5"><Car size={10} />{v.unit_count} unit</span>}
+                  </p>
                 )}
               </div>
-              <p className="text-[11px] text-slate-400 dark:text-slate-500 truncate">
-                {v.npwp ? `NPWP ${v.npwp}` : 'NPWP —'}
-                {' · '}{v.rekening || 'rekening —'}
-                {v.pengajuan_count ? ` · ${v.pengajuan_count}×` : ''}
-              </p>
-            </div>
+            </button>
             {isAdmin && (
               <div className="flex items-center gap-1 flex-shrink-0">
                 <button onClick={() => openEdit(v)} title="Edit"
@@ -223,6 +245,64 @@ export default function VendorPage() {
           Admin lalu menambahkannya di sini agar rapi ke depannya.
         </p>
       </div>
+
+      {/* Modal rincian pemakaian vendor (cabang + plat) */}
+      {detail && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-0 sm:p-4"
+          onClick={() => setDetail(null)}>
+          <div onClick={e => e.stopPropagation()}
+            className="bg-white dark:bg-slate-900 w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[85vh] flex flex-col animate-fade-in">
+            {/* Header */}
+            <div className="flex items-start gap-3 px-5 py-4 border-b border-slate-100 dark:border-slate-800">
+              <div className="w-9 h-9 rounded-xl bg-blue-100 dark:bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                <Store size={17} className="text-blue-600 dark:text-blue-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-black text-slate-800 dark:text-slate-100 truncate">{detail.v.nama}</p>
+                <p className="text-xs text-slate-400 dark:text-slate-500">
+                  Pemakaian di pengajuan {detail.data ? `· ${detail.data.total}× total` : ''}
+                </p>
+              </div>
+              <button onClick={() => setDetail(null)}
+                className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 flex-shrink-0">
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-3">
+              {detail.loading && <Spinner size={28} />}
+              {detail.error && (
+                <p className="text-sm text-red-500 text-center py-4">{detail.error}</p>
+              )}
+              {detail.data && detail.data.cabang.length === 0 && (
+                <Empty icon={Building2} message="Belum pernah dipakai"
+                  sub="Vendor ini belum muncul di pengajuan mana pun (di luar yang ditolak)." />
+              )}
+              {detail.data && detail.data.cabang.map((c) => (
+                <div key={c.nama} className="rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden">
+                  <div className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 dark:bg-slate-800/40">
+                    <Building2 size={14} className="text-slate-500 dark:text-slate-400 flex-shrink-0" />
+                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200 flex-1 truncate">{c.nama}</p>
+                    <span className="text-[11px] font-semibold text-blue-500 dark:text-blue-400 flex-shrink-0">{c.count}×</span>
+                  </div>
+                  <div className="divide-y divide-slate-50 dark:divide-slate-800">
+                    {c.units.map((u) => (
+                      <div key={u.plat} className="flex items-center gap-2 px-4 py-2">
+                        <Car size={13} className="text-slate-400 dark:text-slate-500 flex-shrink-0" />
+                        <span className="text-[13px] text-slate-700 dark:text-slate-300 font-medium flex-1 truncate">{u.plat}</span>
+                        {u.count > 1 && (
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 flex-shrink-0">{u.count}×</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

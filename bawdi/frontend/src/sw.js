@@ -1,5 +1,6 @@
 /* src/sw.js — Service Worker BAWDI (precache + runtime cache + Web Push)
    Dibangun oleh vite-plugin-pwa (strategies: injectManifest) */
+import { clientsClaim } from 'workbox-core';
 import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
 import { registerRoute } from 'workbox-routing';
 import { NetworkFirst, CacheFirst, StaleWhileRevalidate } from 'workbox-strategies';
@@ -7,6 +8,11 @@ import { ExpirationPlugin } from 'workbox-expiration';
 
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
+
+// Setelah SW baru AKTIF (via SKIP_WAITING di bawah), langsung ambil kendali semua
+// tab yang terbuka. Tanpa ini, event 'controllerchange' bisa tidak terpicu, sehingga
+// tombol "Muat Ulang" seolah tak bekerja dan user harus refresh manual.
+clientsClaim();
 
 // ── Runtime caching (paritas dgn konfigurasi generateSW sebelumnya) ──
 registerRoute(

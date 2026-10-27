@@ -4,9 +4,20 @@
 // untuk semua user login (dibutuhkan autofill di form pengajuan).
 const supabase = require('../../config/supabase');
 const { v4: uuidv4 } = require('uuid');
+const { buildAliasIndex } = require('../utils/plat');
 
 const clean = (v) => (v || '').trim();
 const normNama = (v) => clean(v).replace(/\s+/g, ' ');
+
+// Status yang TIDAK dihitung sebagai "vendor pernah dipakai" (pengajuan batal/ditolak).
+const EXCLUDE_STATUS = new Set(['Ditolak', 'Dibatalkan']);
+
+// Nama vendor yang BENAR-BENAR dipakai di satu pengajuan.
+// vendor_pilihan = 2 → vendor2 (vendor pembanding yang dipilih); selain itu
+// (1 / null / belum memilih) → vendor utama. Fallback silang bila salah satu kosong.
+const usedVendorName = (s) =>
+  Number(s.vendor_pilihan) === 2 ? (clean(s.vendor2) || clean(s.vendor))
+                                 : (clean(s.vendor)  || clean(s.vendor2));
 
 // Susun string rekening siap-pakai untuk field "Rekening Tujuan" di form.
 function composeRekening(v) {
@@ -27,24 +38,43 @@ async function list(req, res) {
     const { data: rows, error } = await q;
     if (error) throw error;
 
-    // Hitung jumlah pengajuan per nama vendor (case-insensitive, fault-tolerant).
-    const agg = {};
+    // Agregasi pemakaian per nama vendor (case-insensitive, fault-tolerant):
+    //   count  = jumlah pengajuan (vendor terpilih, kecuali ditolak/dibatalkan)
+    //   cabang = banyak cabang/project berbeda yang memakai vendor
+    //   unit   = banyak kendaraan/plat berbeda (ternormalisasi alias) yang memakai vendor
+    const agg = {};  // key -> { count, cabang:Set, units:Set }
     try {
-      const { data: subs } = await supabase.from('submissions').select('vendor');
+      const { data: subs } = await supabase.from('submissions')
+        .select('vendor, vendor2, vendor_pilihan, cabang_manual, kendaraan, status');
+
+      let idx = null;
+      try { idx = await buildAliasIndex(supabase); } catch { idx = null; }
+      const platOf = (k) => idx ? idx.currentOf(k) : clean(k).toUpperCase();
+
       for (const s of subs || []) {
-        const key = normNama(s.vendor).toLowerCase();
-        if (key) agg[key] = (agg[key] || 0) + 1;
+        if (EXCLUDE_STATUS.has(s.status)) continue;
+        const key = normNama(usedVendorName(s)).toLowerCase();
+        if (!key) continue;
+        const a = agg[key] || (agg[key] = { count: 0, cabang: new Set(), units: new Set() });
+        a.count++;
+        const cab = clean(s.cabang_manual); if (cab) a.cabang.add(cab.toLowerCase());
+        const pl  = platOf(s.kendaraan);    if (pl)  a.units.add(pl);
       }
     } catch (e) {
-      console.warn('[vendors/list] hitung pengajuan dilewati:', e.message);
+      console.warn('[vendors/list] agregasi pemakaian dilewati:', e.message);
     }
 
     res.json({
-      data: (rows || []).map(v => ({
-        ...v,
-        rekening: composeRekening(v),
-        pengajuan_count: agg[normNama(v.nama).toLowerCase()] || 0,
-      })),
+      data: (rows || []).map(v => {
+        const a = agg[normNama(v.nama).toLowerCase()];
+        return {
+          ...v,
+          rekening: composeRekening(v),
+          pengajuan_count: a ? a.count        : 0,
+          cabang_count:    a ? a.cabang.size  : 0,
+          unit_count:      a ? a.units.size   : 0,
+        };
+      }),
     });
   } catch (err) {
     console.error('[vendors/list]', err);
@@ -112,4 +142,53 @@ async function update(req, res) {
   }
 }
 
-module.exports = { list, create, update, composeRekening };
+// ── GET /api/vendors/:id/usage ──────────────────────────────────
+// Rincian pemakaian satu vendor: cabang mana + plat mana yang memakainya.
+// Dipanggil on-demand saat kartu vendor diklik (payload list tetap ringan).
+async function usage(req, res) {
+  try {
+    const { data: v, error } = await supabase.from('vendors')
+      .select('id, nama').eq('id', req.params.id).single();
+    if (error || !v) return res.status(404).json({ error: 'Vendor tidak ditemukan' });
+
+    const key = normNama(v.nama).toLowerCase();
+
+    const { data: subs } = await supabase.from('submissions')
+      .select('vendor, vendor2, vendor_pilihan, cabang_manual, kendaraan, status, nomor_pengajuan, tanggal');
+
+    let idx = null;
+    try { idx = await buildAliasIndex(supabase); } catch { idx = null; }
+    const platOf = (k) => idx ? idx.currentOf(k) : clean(k).toUpperCase();
+
+    const byCabang = new Map();   // nama cabang -> Map(plat -> { count, last })
+    let total = 0;
+    for (const s of subs || []) {
+      if (EXCLUDE_STATUS.has(s.status)) continue;
+      if (normNama(usedVendorName(s)).toLowerCase() !== key) continue;
+      total++;
+      const cab = clean(s.cabang_manual) || '(Tanpa cabang)';
+      if (!byCabang.has(cab)) byCabang.set(cab, new Map());
+      const units = byCabang.get(cab);
+      const pl = platOf(s.kendaraan) || '(Tanpa plat)';
+      const u = units.get(pl) || { count: 0, last: null };
+      u.count++;
+      if (s.tanggal && (!u.last || s.tanggal > u.last)) u.last = s.tanggal;
+      units.set(pl, u);
+    }
+
+    const cabang = [...byCabang.entries()].map(([nama, units]) => {
+      const list = [...units.entries()]
+        .map(([plat, u]) => ({ plat, count: u.count, last: u.last }))
+        .sort((a, b) => b.count - a.count || a.plat.localeCompare(b.plat));
+      const count = list.reduce((n, u) => n + u.count, 0);
+      return { nama, count, units: list };
+    }).sort((a, b) => b.count - a.count || a.nama.localeCompare(b.nama));
+
+    res.json({ data: { vendor: { id: v.id, nama: v.nama }, total, cabang } });
+  } catch (err) {
+    console.error('[vendors/usage]', err);
+    res.status(500).json({ error: 'Gagal mengambil rincian pemakaian vendor' });
+  }
+}
+
+module.exports = { list, create, update, usage, composeRekening };

@@ -715,12 +715,25 @@ async function deleteNota(req, res) {
     if (!nota) return res.status(404).json({ error: 'Nota tidak ditemukan' });
 
     const { data: sub } = await supabase.from('submissions')
-      .select('pemohon_id, nota_url, nomor_pengajuan').eq('id', nota.submission_id).single();
+      .select('pemohon_id, nota_url, nomor_pengajuan, tanggal_bayar').eq('id', nota.submission_id).single();
     if (!sub) return res.status(404).json({ error: 'Pengajuan tidak ditemukan' });
 
     const isOwnerOp = req.user.role === 'Operasional' && sub.pemohon_id === req.user.id;
     if (!['Approval', 'Admin'].includes(req.user.role) && !isOwnerOp)
       return res.status(403).json({ error: 'Tidak berwenang menghapus nota ini' });
+
+    // Nota terakhir pada pengajuan yang SUDAH DIBAYAR tidak boleh dihapus oleh pemohon.
+    // Mencegah kebocoran: upload nota asal untuk membuka fitur request bayar lalu
+    // menghapusnya agar kembali tanpa nota. Admin/Approval tetap dikecualikan.
+    if (isOwnerOp && sub.tanggal_bayar) {
+      const { count } = await supabase.from('payment_notes')
+        .select('id', { count: 'exact', head: true })
+        .eq('submission_id', nota.submission_id);
+      if ((count || 0) <= 1)
+        return res.status(403).json({
+          error: 'Nota terakhir pada pengajuan yang sudah dibayar tidak boleh dihapus. Upload nota pengganti dulu, atau minta Admin/Approval bila ini keliru.',
+        });
+    }
 
     // Hapus file dari storage (best-effort — record tetap dihapus walau file gagal)
     try {

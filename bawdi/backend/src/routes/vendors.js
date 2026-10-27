@@ -7,6 +7,8 @@ router.use(authenticate);
 
 // Semua user login boleh melihat daftar vendor (dibutuhkan autofill form).
 router.get('/', ctrl.list);
+// Rincian pemakaian satu vendor (cabang + plat). On-demand saat kartu diklik.
+router.get('/:id/usage', ctrl.usage);
 
 // Tambah vendor: Admin & Operasional (pemohon sering perlu daftarkan vendor baru).
 router.post('/',   authorize('Admin', 'Operasional'), ctrl.create);

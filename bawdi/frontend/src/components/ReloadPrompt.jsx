@@ -1,7 +1,9 @@
 // src/components/ReloadPrompt.jsx — banner "versi baru tersedia" — Dark Mode Tahap 5 (hanya varian dark:)
+import { useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 
 export default function ReloadPrompt() {
+  const [reloading, setReloading] = useState(false);
   const {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
@@ -11,6 +13,15 @@ export default function ReloadPrompt() {
       if (r) setInterval(() => { r.update(); }, 60 * 1000);
     },
   });
+
+  // Normalnya updateServiceWorker(true) me-reload halaman lewat event 'controllerchange'.
+  // Event itu kadang tak terpicu (SW sudah keburu aktif, atau browser tak mengirimnya),
+  // sehingga tombol seolah tak bekerja. Fallback: paksa reload agar user tak refresh manual.
+  const handleReload = async () => {
+    setReloading(true);
+    try { await updateServiceWorker(true); } catch { /* abaikan */ }
+    setTimeout(() => window.location.reload(), 2000);
+  };
 
   if (!needRefresh) return null;
 
@@ -24,12 +35,12 @@ export default function ReloadPrompt() {
         <p className="text-sm font-black text-slate-800 dark:text-slate-100">Versi baru tersedia</p>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Muat ulang untuk memakai versi terbaru BAWDI.</p>
         <div className="flex gap-2 mt-3">
-          <button onClick={() => updateServiceWorker(true)}
-            className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold">
-            Muat Ulang
+          <button onClick={handleReload} disabled={reloading}
+            className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold disabled:opacity-60 disabled:cursor-not-allowed">
+            {reloading ? 'Memuat…' : 'Muat Ulang'}
           </button>
-          <button onClick={() => setNeedRefresh(false)}
-            className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold">
+          <button onClick={() => setNeedRefresh(false)} disabled={reloading}
+            className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold disabled:opacity-60">
             Nanti
           </button>
         </div>

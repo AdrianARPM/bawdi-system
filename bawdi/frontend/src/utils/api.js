@@ -156,6 +156,7 @@ export const vendorAPI = {
   list:   (all)   => api.get('/vendors', { params: all ? { all: 1 } : {} }),
   create: (d)     => api.post('/vendors', d),
   update: (id, d) => api.put(`/vendors/${id}`, d),
+  usage:  (id)    => api.get(`/vendors/${id}/usage`),
 };
 export const jenisAPI = {
   list:   (all)   => api.get('/jenis', { params: all ? { all: 1 } : {} }),
