@@ -132,18 +132,20 @@ async function stats(req, res) {
     result.alerts = alerts || [];
     // Card Request Pembayaran (Admin/Verifikator/Approval): request yang belum dilunasi
     // v33: mencakup request AWAL (belum dibayar) DAN request KEKURANGAN (sudah dibayar tapi
-    // jumlah_bayar < total_harga akibat revisi harga naik). Filter lunas dilakukan di JS
+    // total dibayar < total_harga akibat revisi harga naik). Filter lunas dilakukan di JS
     // karena Supabase tak bisa membandingkan dua kolom langsung di query.
+    // v36: total dibayar = jumlah_dp + jumlah_bayar (additif). Dulu hanya jumlah_bayar,
+    // sehingga pengajuan ber-DP yang sudah lunas (DP + pelunasan) tetap muncul di sini.
     if (['Admin', 'Verifikator', 'Approval'].includes(req.user.role)) {
       const { data: reqs } = await supabase.from('submissions')
-        .select('id, nomor_pengajuan, bayar_diminta_at, tanggal_bayar, jumlah_bayar, total_harga')
+        .select('id, nomor_pengajuan, bayar_diminta_at, tanggal_bayar, jumlah_dp, jumlah_bayar, total_harga')
         .not('bayar_diminta_at', 'is', null)
         .eq('status', 'Disetujui')
         .order('bayar_diminta_at', { ascending: true })
         .limit(50);
-      // Buang yang sudah LUNAS (jumlah_bayar >= total_harga); sisakan belum bayar & kurang bayar
+      // Buang yang sudah LUNAS (DP + pelunasan >= total_harga); sisakan belum bayar & kurang bayar
       result.payment_requests = (reqs || [])
-        .filter(s => !s.tanggal_bayar || (Number(s.jumlah_bayar) || 0) < (Number(s.total_harga) || 0))
+        .filter(s => !s.tanggal_bayar || ((Number(s.jumlah_dp) || 0) + (Number(s.jumlah_bayar) || 0)) < (Number(s.total_harga) || 0))
         .slice(0, 20)
         .map(({ id, nomor_pengajuan, bayar_diminta_at }) => ({ id, nomor_pengajuan, bayar_diminta_at }));
     }
