@@ -256,6 +256,7 @@ async function list(req, res) {
     if (error) throw error;
     res.json({ data, total: count, page: Number(page), limit: Number(limit) });
   } catch (err) {
+    console.error('[submissions/list]', err?.message || err);
     res.status(500).json({ error: 'Gagal mengambil data pengajuan' });
   }
 }

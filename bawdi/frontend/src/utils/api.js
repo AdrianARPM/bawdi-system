@@ -200,10 +200,18 @@ export const laporanAPI = {
 export const historyAPI = {
   getVehicleHistory: (kendaraan, limit = 5) =>
     api.get('/history/vehicle', { params: { kendaraan, limit } }),
-  getLastKM: (kendaraan, keyword = '') =>
-    api.get('/history/last-km', { params: { kendaraan, keyword } }),
-  getVehicleItems: (kendaraan) =>
-    api.get('/history/items', { params: { kendaraan } }),
+  getLastKM: (kendaraan, keyword = '', opts = {}) =>
+    api.get('/history/last-km', { params: {
+      kendaraan, keyword,
+      ...(opts.asOf ? { as_of: opts.asOf } : {}),
+      ...(opts.excludeId ? { exclude_id: opts.excludeId } : {}),
+    } }),
+  getVehicleItems: (kendaraan, opts = {}) =>
+    api.get('/history/items', { params: {
+      kendaraan,
+      ...(opts.asOf ? { as_of: opts.asOf } : {}),
+      ...(opts.excludeId ? { exclude_id: opts.excludeId } : {}),
+    } }),
 };
 
 export const analyticsAPI = {

@@ -51,6 +51,23 @@ const itemVendorSah = (it, sub) => (Number(it.vendor_num) || 1) === vendorSah(su
 
 const TRUSTED = ['Terverifikasi', 'Disetujui', 'Selesai'];
 
+// Filter "sadar-tanggal" untuk mode revisi. Mengembalikan fungsi (sub) => boolean:
+//  - tanpa as_of  → selalu true (perilaku normal, tidak terpengaruh sama sekali).
+//  - dengan as_of → true hanya bila tanggal sub <= as_of DAN id ≠ exclude_id,
+//    sehingga riwayat KM pengajuan lama yang direvisi tidak "maju" ke pengajuan
+//    yang dibuat SETELAHNYA untuk kendaraan yang sama.
+function buildAsOf(query) {
+  const asOfMs    = query.as_of ? new Date(query.as_of).getTime() : null;
+  const excludeId = query.exclude_id || null;
+  if (asOfMs == null || Number.isNaN(asOfMs)) return () => true;
+  return (sub) => {
+    if (!sub) return false;
+    if (excludeId && sub.id === excludeId) return false;
+    const t = sub.tanggal ? new Date(sub.tanggal).getTime() : 0;
+    return t <= asOfMs;
+  };
+}
+
 // ── ITEM EFEKTIF per kendaraan ──────────────────────────────────
 // Untuk tiap pengajuan berstatus terpercaya milik kendaraan tsb, kembalikan
 // daftar item yang BENAR-BENAR berlaku: bila ada revisi disetujui → item
@@ -200,12 +217,17 @@ async function getLastKM(req, res) {
     const kwN = normTxt(keyword);
     if (!kwN) return res.json({ data: null, message: 'Keyword terlalu pendek' });
 
+    // Mode revisi: baca riwayat "sadar-tanggal". Hanya pertimbangkan pengajuan
+    // SAMPAI tanggal pengajuan yang direvisi (as_of), dan abaikan pengajuan itu
+    // sendiri (exclude_id). Tanpa param → perilaku normal (riwayat terbaru global).
+    const asOf = buildAsOf(req.query);
+
     const pm  = await platMatch(kendaraan);
     const eff = await effectiveVehicleItems(pm);
 
     // Kandidat ber-KM dari item efektif (revisi-aware) + kas kecil.
     const cands = eff
-      .filter(it => it.km_pengajuan != null && itemVendorSah(it, it.sub))
+      .filter(it => it.km_pengajuan != null && itemVendorSah(it, it.sub) && asOf(it.sub))
       .map(it => ({ km_pengajuan: it.km_pengajuan, penjelasan: it.penjelasan, sub: it.sub }));
     try {
       const { data: kk } = await supabase
@@ -215,7 +237,7 @@ async function getLastKM(req, res) {
         .order('tanggal', { ascending: false })
         .limit(500);
       for (const k of kk || []) {
-        if (pm.has(k.plat)) {
+        if (pm.has(k.plat) && asOf({ tanggal: k.tanggal })) {
           cands.push({ km_pengajuan: k.km, penjelasan: k.keterangan, sub: { tanggal: k.tanggal, nomor_pengajuan: 'Kas Kecil' } });
         }
       }
@@ -264,6 +286,7 @@ async function getVehicleItems(req, res) {
     if (!kendaraan?.trim())
       return res.status(400).json({ error: 'Parameter kendaraan wajib diisi' });
 
+    const asOf = buildAsOf(req.query);   // sadar-tanggal saat mode revisi (opsional)
     const pm  = await platMatch(kendaraan);
     const eff = await effectiveVehicleItems(pm);
 
@@ -271,6 +294,7 @@ async function getVehicleItems(req, res) {
     for (const it of eff) {
       if (!it.penjelasan) continue;
       if (!itemVendorSah(it, it.sub)) continue;   // v28: abaikan item vendor pembanding
+      if (!asOf(it.sub)) continue;                // revisi: abaikan pengajuan setelah as_of
       const key = normTxt(it.penjelasan);
       if (!key) continue;
       const prev = byPenj.get(key);
@@ -298,6 +322,7 @@ async function getVehicleItems(req, res) {
         .limit(500);
       for (const k of kk || []) {
         if (!pm.has(k.plat)) continue;
+        if (!asOf({ tanggal: k.tanggal })) continue;   // revisi: hormati as_of
         const key = normTxt(k.keterangan);
         if (!key) continue;
         const prev = byPenj.get(key);

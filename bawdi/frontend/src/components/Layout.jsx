@@ -1,9 +1,10 @@
 // src/components/Layout.jsx  — v8 (Dark Mode Tahap 1: toggle Terang/Gelap/Sistem + dark variants in web)
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useState } from 'react';
 import { LayoutDashboard, FileText, Plus, Users, LogOut, Menu, Truck, Archive, BarChart3, Activity, Building2, Store, Tags, Package, CalendarDays, Calculator, Sun, Moon, Monitor, GitBranch } from 'lucide-react';
 import useAuthStore from '../context/authStore';
 import NotificationBell from './NotificationBell';
+import ErrorBoundary from './ErrorBoundary';
 import { getThemePref, setThemePref } from '../utils/theme';
 
 const ROLE_COLOR = { Operasional:'bg-amber-400', Verifikator:'bg-blue-500', Approval:'bg-emerald-500', Admin:'bg-violet-500', Pengawas:'bg-slate-500' };
@@ -53,6 +54,7 @@ function NavItem({ to, icon: Icon, label, onClick, badge }) {
 export default function Layout() {
   const { user, logout } = useAuthStore();
   const navigate         = useNavigate();
+  const location         = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const doLogout = () => { logout(); navigate('/login'); };
@@ -170,7 +172,9 @@ export default function Layout() {
             </div>
           </div>
         </header>
-        <main className="flex-1 overflow-y-auto p-4 md:p-6"><Outlet/></main>
+        <main className="flex-1 overflow-y-auto p-4 md:p-6">
+          <ErrorBoundary resetKey={location.pathname}><Outlet/></ErrorBoundary>
+        </main>
       </div>
     </div>
   );

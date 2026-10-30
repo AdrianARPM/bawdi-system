@@ -656,12 +656,17 @@ export default function NewFormPage() {
     setTemplates(getTemplates());
   };
 
+  // Konteks "riwayat sadar-tanggal" — hanya diisi saat MODE REVISI, agar baseline
+  // KM mengacu pada tanggal pengajuan yang direvisi (bukan pengajuan yang lebih baru).
+  // Null untuk pengajuan baru → tidak mengirim param → pembacaan riwayat normal.
+  const revCtxRef = useRef(null);
+
   // v17: muat daftar item untuk autocomplete tiap kali kendaraan berubah
   useEffect(() => {
     const plat = form.kendaraan?.trim();
     if (form.is_umum || !plat) { setItemSuggestions([]); return; }
     let aktif = true;
-    historyAPI.getVehicleItems(plat)
+    historyAPI.getVehicleItems(plat, revCtxRef.current || {})
       .then(res => { if (aktif) setItemSuggestions(res.data?.data || []); })
       .catch(() => { if (aktif) setItemSuggestions([]); });
     return () => { aktif = false; };
@@ -675,7 +680,7 @@ export default function NewFormPage() {
     }
     setItemKMCache(c => ({ ...c, [itemId]: { ...c[itemId], loading: true } }));
     try {
-      const { data: res } = await historyAPI.getLastKM(plat.trim(), keyword);
+      const { data: res } = await historyAPI.getLastKM(plat.trim(), keyword, revCtxRef.current || {});
       if (res?.data) {
         setItemKMCache(c => ({
           ...c,
@@ -872,6 +877,10 @@ export default function NewFormPage() {
         ]);
         if (!alive) return;
         const sub  = subRes.data.data;
+        // Baseline riwayat KM = sampai tanggal pengajuan yang direvisi, abaikan
+        // pengajuan ini sendiri. Harus di-set SEBELUM setForm/fetchItemKM memicu
+        // pembacaan riwayat, agar efek kendaraan & fetchItemKM memakainya.
+        revCtxRef.current = { asOf: sub.tanggal, excludeId: revSubId };
         const snap = (revRes.data.data || []).find(r => String(r.id) === String(snapshotId));
         if (!snap) { toast.error('Revisi tidak ditemukan'); navigate(`/submissions/${revSubId}`); return; }
         setRevNumber(snap.revision_number);
