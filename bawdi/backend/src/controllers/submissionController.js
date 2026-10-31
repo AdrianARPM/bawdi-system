@@ -130,12 +130,12 @@ async function stats(req, res) {
         : alertQuery.eq('pemohon_id', req.user.id);
     const { data: alerts } = await alertQuery;
     result.alerts = alerts || [];
-    // Card Request Pembayaran (Admin/Verifikator/Approval): request yang belum dilunasi
+    // Card Request Pembayaran (Admin/Verifikator/Approval): request pembayaran langsung.
     // v33: mencakup request AWAL (belum dibayar) DAN request KEKURANGAN (sudah dibayar tapi
-    // total dibayar < total_harga akibat revisi harga naik). Filter lunas dilakukan di JS
+    // jumlah_bayar < total_harga akibat revisi harga naik). Filter dilakukan di JS
     // karena Supabase tak bisa membandingkan dua kolom langsung di query.
-    // v36: total dibayar = jumlah_dp + jumlah_bayar (additif). Dulu hanya jumlah_bayar,
-    // sehingga pengajuan ber-DP yang sudah lunas (DP + pelunasan) tetap muncul di sini.
+    // v36: begitu DP tercatat (jumlah_dp > 0), pengajuan KELUAR dari sini dan beralih ke
+    // kartu Request Pelunasan — supaya tidak muncul ganda di dua kartu sekaligus.
     if (['Admin', 'Verifikator', 'Approval'].includes(req.user.role)) {
       const { data: reqs } = await supabase.from('submissions')
         .select('id, nomor_pengajuan, bayar_diminta_at, tanggal_bayar, jumlah_dp, jumlah_bayar, total_harga')
@@ -143,9 +143,14 @@ async function stats(req, res) {
         .eq('status', 'Disetujui')
         .order('bayar_diminta_at', { ascending: true })
         .limit(50);
-      // Buang yang sudah LUNAS (DP + pelunasan >= total_harga); sisakan belum bayar & kurang bayar
       result.payment_requests = (reqs || [])
-        .filter(s => !s.tanggal_bayar || ((Number(s.jumlah_dp) || 0) + (Number(s.jumlah_bayar) || 0)) < (Number(s.total_harga) || 0))
+        .filter(s => {
+          const dp    = Number(s.jumlah_dp)    || 0;
+          const bayar = Number(s.jumlah_bayar) || 0;
+          const total = Number(s.total_harga)  || 0;
+          if (dp > 0) return false;                 // sudah masuk alur DP → ditangani kartu Request Pelunasan
+          return !s.tanggal_bayar || bayar < total; // belum dibayar, atau kurang bayar (kekurangan v33)
+        })
         .slice(0, 20)
         .map(({ id, nomor_pengajuan, bayar_diminta_at }) => ({ id, nomor_pengajuan, bayar_diminta_at }));
     }
