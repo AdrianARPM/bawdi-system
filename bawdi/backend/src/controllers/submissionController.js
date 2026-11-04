@@ -20,6 +20,17 @@ const DANA_SOSIAL = 'Beban Dana Sosial';
 const isHRGA = (user) => user?.jabatan === 'HRGA';
 const bolehHRGA = (user, jenis) => isHRGA(user) && jenis === DANA_SOSIAL;
 
+// Tanggal "mulai menunggu" pada TAHAP AKTIF saat ini (bukan selalu sejak dibuat):
+// - Disetujui  → sejak disetujui (approval_at), supaya yang baru di-approve tak langsung dicap telat
+// - hasil revisi (status balik ke antrean) → sejak revisi dikirim balik (revisi_selesai_at)
+// - selain itu → sejak dibuat (tanggal)
+// Mencegah pengajuan lama yang direvisi terbaca "66 hari" padahal baru masuk antrean lagi.
+const waitingSince = (s) => {
+  if (s.status === 'Disetujui' && s.approval_at) return s.approval_at;
+  if (s.revisi_selesai_at && new Date(s.revisi_selesai_at) > new Date(s.tanggal)) return s.revisi_selesai_at;
+  return s.tanggal;
+};
+
 // ── Helper notif ───────────────────────────────────────────────────
 async function notifyRole(role, submissionId, type, message) {
   const { data: users } = await supabase
@@ -119,17 +130,30 @@ async function stats(req, res) {
       belum_dibayar:       data.filter(s => s.status === 'Disetujui' && !(Number(s.jumlah_bayar) > 0)).length,
       sudah_dibayar_belum_nota: data.filter(s => s.status === 'Disetujui' && Number(s.jumlah_bayar) > 0 && !(s.nota_url && s.nota_url.trim())).length,
     };
-    const twoDaysAgo = new Date(Date.now() - 2 * 86400000).toISOString();
+    // Prefilter kasar: tanggal dibuat > 3 hari (ambang modal "> 3 Hari"). Aman karena
+    // waiting_since selalu >= tanggal, jadi item yang dibuat < 3 hari pasti belum telat.
+    const threeDaysAgo = new Date(Date.now() - 3 * 86400000).toISOString();
     let alertQuery = supabase.from('submissions')
-      .select('id, nomor_pengajuan, tanggal, status')
+      .select('id, nomor_pengajuan, tanggal, status, approval_at, revisi_selesai_at')
       .in('status', ['Menunggu Verifikasi', 'Terverifikasi'])
-      .lt('tanggal', twoDaysAgo);
+      .lt('tanggal', threeDaysAgo);
     if (req.user.role === 'Operasional' && !isKepalaOp(req.user))
       alertQuery = isHRGA(req.user)
         ? alertQuery.or(`pemohon_id.eq.${req.user.id},jenis_pembelian.eq."${DANA_SOSIAL}"`)
         : alertQuery.eq('pemohon_id', req.user.id);
     const { data: alerts } = await alertQuery;
-    result.alerts = alerts || [];
+    // Umur dihitung sejak TAHAP AKTIF (revisi mereset jam), lalu saring yang benar2 >= 3 hari.
+    result.alerts = (alerts || [])
+      .map(a => {
+        const since = waitingSince(a);
+        return {
+          id: a.id, nomor_pengajuan: a.nomor_pengajuan,
+          tanggal: a.tanggal, waiting_since: since,
+          days: Math.floor((Date.now() - new Date(since).getTime()) / 86400000),
+        };
+      })
+      .filter(a => a.days >= 3)
+      .sort((x, y) => y.days - x.days);
     // Card Request Pembayaran (Admin/Verifikator/Approval): request pembayaran langsung.
     // v33: mencakup request AWAL (belum dibayar) DAN request KEKURANGAN (sudah dibayar tapi
     // jumlah_bayar < total_harga akibat revisi harga naik). Filter dilakukan di JS
@@ -711,7 +735,7 @@ async function overdueForAction(req, res) {
       .from('submissions')
       .select(`
         id, nomor_pengajuan, type, status, tanggal, kendaraan,
-        total_harga, jumlah_bayar, jumlah_dp, nota_url, approval_at,
+        total_harga, jumlah_bayar, jumlah_dp, nota_url, approval_at, revisi_selesai_at,
         pemohon:users!submissions_pemohon_id_fkey(name)
       `)
       .in('status', statuses)
@@ -729,9 +753,9 @@ async function overdueForAction(req, res) {
       .filter(s => !(s.status === 'Disetujui' && Number(s.jumlah_bayar) > 0 && !s.nota_url))
       .map(s => {
         const paid = Number(s.jumlah_bayar) > 0;
-        // Umur dihitung dari tahapnya: pengajuan Disetujui dihitung sejak disetujui,
-        // bukan sejak dibuat — supaya yang baru di-approve tidak langsung dicap telat
-        const baseDate = s.status === 'Disetujui' && s.approval_at ? s.approval_at : s.tanggal;
+        // Umur dihitung dari TAHAP AKTIF: Disetujui sejak approval_at, hasil revisi sejak
+        // revisi_selesai_at, selain itu sejak dibuat — lihat helper waitingSince().
+        const baseDate = waitingSince(s);
         return {
           ...s,
           days: Math.floor((Date.now() - new Date(baseDate).getTime()) / 86400000),

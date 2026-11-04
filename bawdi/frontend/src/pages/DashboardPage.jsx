@@ -151,7 +151,7 @@ if (loading) return <Spinner size={32} />;
               {stats.alerts.map(a => (
                 <button key={a.id} onClick={() => navigate(`/submissions/${a.id}`)}
                   className="block text-xs font-semibold text-orange-600 dark:text-orange-400 underline mb-1 text-left">
-                  {a.nomor_pengajuan} — sudah {daysSince(a.tanggal)} hari
+                  {a.nomor_pengajuan} — sudah {daysSince(a.waiting_since || a.tanggal)} hari
                 </button>
               ))}
             </div>

@@ -1188,7 +1188,7 @@ useEffect(() => {
   if (loading) return <Spinner size={32}/>;
   if (!sub)    return <div className="text-center py-20 text-slate-400 dark:text-slate-500">Pengajuan tidak ditemukan</div>;
 
-  const isAlert      = ['Menunggu Verifikasi', 'Terverifikasi', 'Perlu Revisi'].includes(sub.status) && daysSince(sub.tanggal) > 2;
+  const isAlert      = ['Menunggu Verifikasi', 'Terverifikasi', 'Perlu Revisi'].includes(sub.status) && daysSince(staleAnchor(sub)) > 2;
   const notaAlert    = sub.status === 'Disetujui' && !sub.nota_url && daysSince(sub.approval_at) >= 1;
   const photos       = sub.photos || [];
   const items1       = (sub.items || []).filter(i => i.vendor_num !== 2);
@@ -1480,7 +1480,7 @@ useEffect(() => {
             {sub.jumlah_dp > 0 && sub.status !== 'Selesai' && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300">DP</span>}
             {isAlert && (
               <span className="text-[10px] font-bold text-orange-500 bg-orange-50 dark:bg-orange-500/10 px-2 py-0.5 rounded-full">
-                ⚠ {daysSince(sub.tanggal)}h
+                ⚠ {daysSince(staleAnchor(sub))}h
               </span>
             )}
             {revisions.length > 0 && (
