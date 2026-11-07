@@ -148,7 +148,8 @@ export default function SubmissionsPage() {
           // Tunda aktif → keluar dari daftar mendesak (alert oranye dibungkam)
           const isDitunda = !!s.ditunda_sampai && s.ditunda_sampai >= new Date().toISOString().slice(0, 10);
           const isAlert = ['Menunggu Verifikasi','Terverifikasi'].includes(s.status) && daysSince(staleAnchor(s)) > 3 && !isDitunda;
-          const notaAlert = s.status === 'Disetujui' && !s.nota_url && daysSince(s.approval_at) >= 1;
+          // Nota dihitung sejak tanggal_bayar (bukan approval_at yang bisa ter-reset revisi); belum dibayar → diam
+          const notaAlert = s.status === 'Disetujui' && !!s.tanggal_bayar && !s.nota_url && daysSince(s.tanggal_bayar) >= 1;
           return (
             <Link key={s.id} to={`/submissions/${s.id}`}
               className={`block bg-white dark:bg-slate-900 rounded-2xl p-4 border shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5 ${
@@ -174,7 +175,7 @@ export default function SubmissionsPage() {
                     <p className="text-xs font-semibold text-orange-500 mt-1.5">⚠ {daysSince(staleAnchor(s))} hari tidak ada tanggapan</p>
                   )}
                   {notaAlert && (
-                    <p className="text-xs font-semibold text-red-500 mt-1.5">⚠ Nota belum diunggah ({daysSince(s.approval_at)} hari)</p>
+                    <p className="text-xs font-semibold text-red-500 mt-1.5">⚠ Nota belum diunggah ({daysSince(s.tanggal_bayar)} hari)</p>
                   )}
                 </div>
                 <div className="text-right flex-shrink-0">

@@ -260,7 +260,7 @@ async function list(req, res) {
         id, nomor_pengajuan, type, status, tanggal, kendaraan, vendor, vendor2,
         vendor_pilihan, jenis_pembelian, total_harga, batas_akhir_pembayaran, revisi_count,
         revisi_diminta_at, revisi_selesai_at,
-        nota_url, approval_at, ditunda_sampai,
+        nota_url, approval_at, tanggal_bayar, ditunda_sampai,
         pemohon:users!submissions_pemohon_id_fkey(name, cabang),
         verifikator:users!submissions_verifikator_id_fkey(name),
         approver:users!submissions_approver_id_fkey(name)
