@@ -1189,7 +1189,9 @@ useEffect(() => {
   if (!sub)    return <div className="text-center py-20 text-slate-400 dark:text-slate-500">Pengajuan tidak ditemukan</div>;
 
   const isAlert      = ['Menunggu Verifikasi', 'Terverifikasi', 'Perlu Revisi'].includes(sub.status) && daysSince(staleAnchor(sub)) > 2;
-  const notaAlert    = sub.status === 'Disetujui' && !sub.nota_url && daysSince(sub.approval_at) >= 1;
+  // Nota wajib diunggah SETELAH dibayar, jadi hitung sejak tanggal_bayar (bukan approval_at,
+  // yang bisa ter-reset oleh revisi). Belum dibayar → belum ada kewajiban nota, badge diam.
+  const notaAlert    = sub.status === 'Disetujui' && !!sub.tanggal_bayar && !sub.nota_url && daysSince(sub.tanggal_bayar) >= 1;
   const photos       = sub.photos || [];
   const items1       = (sub.items || []).filter(i => i.vendor_num !== 2);
   const items2       = (sub.items || []).filter(i => i.vendor_num === 2);
@@ -1475,7 +1477,7 @@ useEffect(() => {
             <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">{sub.type}</span>
             {sub.is_umum && <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-violet-100 dark:bg-violet-500/10 text-violet-600 dark:text-violet-400">UMUM</span>}
             <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${statusCls}`}>{sub.status}</span>
-            {notaAlert && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-500/10 text-red-600 dark:text-red-400">⚠ Nota belum diunggah ({daysSince(sub.approval_at)}h)</span>}
+            {notaAlert && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-500/10 text-red-600 dark:text-red-400">⚠ Nota belum diunggah ({daysSince(sub.tanggal_bayar)}h)</span>}
             {sub.revisi_count > 0 && <RevisiBadge count={sub.revisi_count} />}
             {sub.jumlah_dp > 0 && sub.status !== 'Selesai' && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300">DP</span>}
             {isAlert && (
